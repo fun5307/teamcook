@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "lastVerified": "2026-11-16",
+  "providers": {
+    "openai": {
+      "name": "OpenAI",
+      "productName": "ChatGPT",
+      "plans": [
+        { "id": "none", "label": "안 써요", "paid": false },
+        { "id": "free", "label": "Free (무료)", "paid": false, "price": "$0" },
+        { "id": "go", "label": "Go", "paid": true, "price": "$8/월" },
+        { "id": "plus", "label": "Plus", "paid": true, "price": "$20/월" },
+        { "id": "pro", "label": "Pro", "paid": true, "price": "$100/월부터" }
+      ],
+      "apiNote": "OpenAI API 키가 있으면 플랜과 상관없이 Codex CLI를 쓸 수 있어요. 쓴 만큼 요금이 나가요.",
+      "sourceUrl": "https://learn.chatgpt.com/docs/pricing",
+      "lastVerified": "2026-11-16"
+    },
+    "anthropic": {
+      "name": "Anthropic",
+      "productName": "Claude",
+      "plans": [
+        { "id": "none", "label": "안 써요", "paid": false },
+        { "id": "free", "label": "Free (무료)", "paid": false },
+        { "id": "pro", "label": "Pro", "paid": true },
+        { "id": "max", "label": "Max", "paid": true },
+        { "id": "ultra", "label": "Ultra", "paid": true }
+      ],
+      "apiNote": "Claude 콘솔(API) 계정이 있으면 구독 없이 Claude Code를 쓸 수 있어요. 쓴 만큼 요금이 나가요.",
+      "sourceUrl": "https://code.claude.com/docs/en/setup",
+      "lastVerified": "2026-11-16"
+    },
+    "google": {
+      "name": "Google",
+      "productName": "Gemini",
+      "plans": [
+        { "id": "none", "label": "안 써요", "paid": false },
+        { "id": "free", "label": "무료", "paid": false },
+        { "id": "paid", "label": "유료 (Google AI Pro·Ultra)", "paid": true }
+      ],
+      "apiNote": "Gemini API 키(Google AI Studio)는 무료 한도가 있다고 알려져 있어요. (공식 문서 미확인)",
+      "sourceUrl": "https://www.tembo.io/blog/gemini-cli-pricing",
+      "lastVerified": "2026-11-16"
+    },
+    "xai": {
+      "name": "xAI",
+      "productName": "Grok",
+      "plans": [
+        { "id": "none", "label": "안 써요", "paid": false },
+        { "id": "free", "label": "무료", "paid": false },
+        { "id": "supergrok", "label": "SuperGrok / X Premium+", "paid": true }
+      ],
+      "apiNote": "xAI API 키로도 Grok Build를 쓸 수 있다고 알려져 있어요. (공식 문서 미확인)",
+      "sourceUrl": "https://amplifying.ai/coding-agents/grok-build",
+      "lastVerified": "2026-11-16"
+    }
+  },
+  "engines": {
+    "codex-cli": {
+      "name": "Codex",
+      "provider": "openai",
+      "status": "ready",
+      "configFormat": ".codex/agents/*.toml",
+      "access": [
+        {
+          "path": 1,
+          "plans": ["plus", "pro"],
+          "label": "ChatGPT Plus·Pro 로그인",
+          "badge": "ChatGPT Plus 필요",
+          "notes": []
+        },
+        {
+          "path": 2,
+          "apiKey": true,
+          "label": "OpenAI API 키 (종량제)",
+          "notes": ["쓴 만큼 요금이 나가요."]
+        },
+        {
+          "path": 3,
+          "plans": ["free", "go"],
+          "label": "ChatGPT 데스크톱 앱의 Codex (Free·Go 한도)",
+          "badge": "ChatGPT 무료",
+          "free": true,
+          "notes": [
+            "Free·Go 플랜은 터미널(CLI)이 아니라 ChatGPT 데스크톱 앱에서만 Codex를 쓸 수 있어요.",
+            "한도가 작고, 계정에 따라 아직 열리지 않았을 수 있어요 (순차 제공 중)."
+          ]
+        }
+      ],
+      "lockReason": "Codex를 쓰려면 ChatGPT 계정(무료도 가능)이나 OpenAI API 키가 필요해요",
+      "confidence": "official",
+      "sourceUrl": "https://learn.chatgpt.com/docs/pricing",
+      "lastVerified": "2026-11-16"
+    },
+    "claude-code": {
+      "name": "Claude Code",
+      "provider": "anthropic",
+      "status": "ready",
+      "configFormat": ".claude/agents/*.md",
+      "access": [
+        {
+          "path": 1,
+          "plans": ["pro", "max", "ultra"],
+          "label": "Claude Pro·Max·Ultra 로그인",
+          "badge": "Claude Pro 필요",
+          "notes": []
+        },
+        {
+          "path": 2,
+          "apiKey": true,
+          "label": "Claude 콘솔 API 키 (종량제)",
+          "notes": ["쓴 만큼 요금이 나가요."]
+        }
+      ],
+      "lockReason": "Claude Code는 Pro 이상에서만 쓸 수 있어요 (Free 플랜 불가)",
+      "confidence": "official",
+      "sourceUrl": "https://code.claude.com/docs/en/setup",
+      "lastVerified": "2026-11-16"
+    },
+    "antigravity-cli": {
+      "name": "Antigravity CLI",
+      "provider": "google",
+      "status": "preparing",
+      "access": [
+        {
+          "path": 1,
+          "plans": ["paid"],
+          "label": "Google AI Pro·Ultra 로그인",
+          "badge": "Google AI Pro 필요",
+          "notes": []
+        },
+        {
+          "path": 3,
+          "plans": ["free"],
+          "label": "Antigravity 무료 개인 플랜",
+          "badge": "Google 무료",
+          "free": true,
+          "notes": ["무료 한도는 작고 예고 없이 바뀔 수 있어요. (공식 문서 미확인)"]
+        }
+      ],
+      "lockReason": "Antigravity CLI를 쓰려면 Google 계정이 필요해요",
+      "confidence": "third-party",
+      "sourceUrl": "https://www.tembo.io/blog/gemini-cli-pricing",
+      "lastVerified": "2026-11-16"
+    },
+    "grok-build": {
+      "name": "Grok Build",
+      "provider": "xai",
+      "status": "preparing",
+      "access": [
+        {
+          "path": 1,
+          "plans": ["supergrok"],
+          "label": "SuperGrok·X Premium+ 로그인",
+          "badge": "SuperGrok 필요",
+          "notes": []
+        },
+        {
+          "path": 2,
+          "apiKey": true,
+          "label": "xAI API 키 (종량제)",
+          "notes": ["쓴 만큼 요금이 나가요."]
+        }
+      ],
+      "lockReason": "Grok Build는 SuperGrok 또는 X Premium+에서만 쓸 수 있어요 (무료 불가)",
+      "confidence": "third-party",
+      "sourceUrl": "https://amplifying.ai/coding-agents/grok-build",
+      "lastVerified": "2026-11-16"
+    },
+    "api": {
+      "name": "API 직접 호출",
+      "provider": null,
+      "status": "builtin",
+      "access": [],
+      "lockReason": "API 키가 하나도 없어요",
+      "confidence": "official",
+      "sourceUrl": "",
+      "lastVerified": "2026-11-16"
+    },
+    "manual": {
+      "name": "수동 (복사·붙여넣기)",
+      "provider": null,
+      "status": "builtin",
+      "access": [],
+      "lockReason": "",
+      "confidence": "official",
+      "sourceUrl": "",
+      "lastVerified": "2026-11-16"
+    }
+  }
+}
