@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Node / Vite
+node_modules/
+dist/
+*.local
+.vercel
+.DS_Store
+
+# TypeScript 빌드 캐시
+*.tsbuildinfo
+
+# 원본 TOML 폴더 (사본은 samples/codex/ 에 있음)
+기존_toml_파일들/
