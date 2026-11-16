@@ -60,7 +60,7 @@
 | 갤러리 검색 | 제목·설명·카드 이름 검색 | `src/pages/GalleryPage.tsx`의 `matchesQuery` | 브라우저 자동 실행 |
 | 포크(고쳐서 다시 쓰기) | 기본·공유 레시피 '내 레시피로 가져오기', 편집기 '복제' | `cloneRecipe` | 브라우저 자동 실행 |
 | 교차 모델 연결 도우미 | **Codex의 MCP 서버는 제거됐다**(공식 문서). 대신 Claude Code용 파일이 `codex exec`로 Codex에게 일을 넘기는 '다리' 내보내기 옵션(실험적) | `src/lib/bridge.ts`, 편집기의 스위치 | 파일 내용 테스트만. **실제로 Claude Code가 codex exec를 부르는 것은 실행해 보지 못함** |
-| 레시피 설치 명령 | 설치 도구 파일 하나를 받아 `node teamcook.mjs add "<공유 링크>"`로 실행. 이미 있는 파일은 건너뛰고, `.codex/config.toml`은 절대 덮어쓰지 않음. 받는 명령은 `src/data/site.ts`의 `CLI_DOWNLOAD_COMMAND` | `src/cli/`, 빌드 결과 `cli/teamcook.mjs`(저장소에 포함), `npm run build:cli` | 테스트 6개 + GitHub에서 실제로 내려받아 설치 확인 (Windows, Git Bash) |
+| 레시피 설치 명령 | 설치 도구 파일 하나를 받아 `node teamcook.mjs add "<공유 링크>"`로 실행. 이미 있는 파일은 건너뛰고, `.codex/config.toml`은 절대 덮어쓰지 않음. 받는 명령은 `src/data/site.ts`의 `CLI_DOWNLOAD_COMMAND` | `src/cli/`, 빌드 결과 `cli/teamcook.mjs`(저장소에 포함), `npm run build:cli` | 테스트 6개 + GitHub에서 실제로 내려받아 설치 확인 (Windows의 Git Bash와 PowerShell) |
 | 커뮤니티 제안 (서버 없는 임시 방법) | 공유 패널의 '커뮤니티 갤러리에 제안하기' → GitHub 이슈 작성 화면이 레시피 링크와 함께 열림 | `src/data/site.ts` | 링크 생성만 확인 |
 
 ### 하지 못한 것과 이유
@@ -158,7 +158,7 @@
 
 ## 내일 할 일 순서
 
-1. 배포된 사이트에서 전체 흐름을 한 번 직접 눌러 본다. 새로 붙은 기능 중 실제 도구로 확인하지 못한 것(Antigravity·Grok 파일 인식, 'Codex 자동 호출' 다리, PowerShell·macOS에서의 설치 명령)을 사용자와 함께 확인한다.
+1. 배포된 사이트에서 전체 흐름을 한 번 직접 눌러 본다. 새로 붙은 기능 중 실제 도구로 확인하지 못한 것(Antigravity·Grok 파일 인식, 'Codex 자동 호출' 다리, macOS·Linux에서의 설치 명령)을 사용자와 함께 확인한다.
 2. 흐름 캔버스 다듬기: 캔버스 안에서 화살표 라벨 바로 고치기, 상자를 눌러 그 카드 편집 열기.
 3. 디자인 다듬기, 코드 분할로 빌드 경고 없애기(jszip·yaml·smol-toml을 내보내기·불러오기 때만 불러오기).
 4. 레시피 허브 서버 저장(사용자가 데이터베이스 계정을 준비한 뒤), 협업 리플레이(세션 기록 형식 조사부터, 사용자 허락 필요), 도구 추천(서버 쪽 API 키 필요).
