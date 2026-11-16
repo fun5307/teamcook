@@ -1,7 +1,8 @@
-// 첫 화면: 레시피 갤러리 + '내 플랜으로 되는 레시피만 보기' 필터.
+// 첫 화면: "무엇을 하려고 하나요?"로 상황을 먼저 고르고, 그 상황의 레시피를 본다.
+// 검색과 조건(내 플랜, 조리법)은 접어 두고, 쓰면 상황 묶음 대신 결과 목록이 나온다.
 
 import { useRef, useState } from 'react';
-import { FilePlus2, FolderOpen, Search, Settings2 } from 'lucide-react';
+import { ArrowLeft, FilePlus2, FolderOpen, Search, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { Notice } from '@/components/common';
 import { FitLabel, STYLE_COLORS, engineName } from '@/components/RouteInfo';
 import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
+import { SHELVES } from '@/data/moreRecipes';
 import { builtinRecipes } from '@/data/recipes';
 import { newId } from '@/lib/id';
 import { importFile } from '@/lib/importFiles';
@@ -178,6 +180,8 @@ export function GalleryPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [styleFilter, setStyleFilter] = useState<Collaboration | 'all'>('all');
   const [query, setQuery] = useState('');
+  const [shelfId, setShelfId] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
   const [messages, setMessages] = useState<{ tone: 'success' | 'error'; text: string }[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -187,10 +191,20 @@ export function GalleryPage() {
     const fit = fitsMyPlans(recipe, plans, providerData);
     return filter === 'fits' ? fit !== 'no' : fit === 'full';
   };
-  const visibleBuiltin = builtinRecipes.filter(matches);
-  const visibleMine = myRecipes.filter(matches);
-  const hiddenCount =
-    builtinRecipes.length + myRecipes.length - visibleBuiltin.length - visibleMine.length;
+  // 검색어나 조건을 쓰는 중이면 상황 묶음 대신 결과 목록을 보여 준다
+  const searching = query.trim() !== '' || filter !== 'all' || styleFilter !== 'all';
+  const found = searching ? [...myRecipes, ...builtinRecipes].filter(matches) : [];
+  const isMine = (recipe: Recipe) => myRecipes.includes(recipe);
+  const hrefOf = (recipe: Recipe) =>
+    isMine(recipe) ? `#/edit/${encodeURIComponent(recipe.id)}` : `#/recipe/${encodeURIComponent(recipe.id)}`;
+  const byId = new Map(builtinRecipes.map((recipe) => [recipe.id, recipe]));
+  const shelfRecipes = (ids: string[]) => ids.map((id) => byId.get(id)).filter((item): item is Recipe => !!item);
+  const openShelf = SHELVES.find((shelf) => shelf.id === shelfId) ?? null;
+  const clearSearch = () => {
+    setQuery('');
+    setFilter('all');
+    setStyleFilter('all');
+  };
 
   const onCreate = () => {
     const recipe = blankRecipe();
@@ -230,10 +244,12 @@ export function GalleryPage() {
     }
   };
 
+  const grid = 'grid gap-5 sm:grid-cols-2 lg:grid-cols-3';
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-14">
       <section
-        className="flex flex-col gap-5 pt-6 pb-2 sm:pt-10"
+        className="flex flex-col gap-5 pt-6 sm:pt-10"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
@@ -244,10 +260,10 @@ export function GalleryPage() {
           AI 팀을 레시피로 요리하세요
         </h1>
         <p className="max-w-2xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
-          역할을 나눈 AI 팀을 레시피 한 장으로 짜고 링크 하나로 나눕니다. 내 요금제로 쓸 수 있는 실행 경로를 알려
-          주고, Codex와 Claude Code 설정 파일로 내보내 줍니다.
+          역할을 나눈 AI 팀을 레시피 한 장으로 짜고 링크 하나로 나눕니다. 아래에서 하려는 일을 고르면, 바로 쓸 수
+          있는 팀 {builtinRecipes.length}가지 중에서 맞는 것을 보여 드려요.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Button size="lg" onClick={onCreate}>
             <FilePlus2 aria-hidden />새 레시피 만들기
           </Button>
@@ -264,9 +280,12 @@ export function GalleryPage() {
             onChange={(event) => void onFiles(event.target.files)}
           />
         </div>
-        <p className="max-w-2xl text-xs text-muted-foreground">
-          불러올 수 있는 파일: Codex 에이전트(.toml), Claude 서브에이전트(.md), 레시피(recipe.json). 여기에 파일을
-          끌어다 놓아도 돼요. 파일은 내 브라우저 안에서만 읽고, 어디로도 전송하지 않아요.
+        <p className="text-xs text-muted-foreground">
+          내 AI 현황: <span className="font-medium text-foreground">{plansSummary(plans)}</span>
+          {!plansConfirmed ? ' (아직 알려 주지 않아 무료 계정으로 가정했어요)' : ''}{' '}
+          <a className="underline underline-offset-2 hover:text-primary" href="#/plans">
+            바꾸기
+          </a>
         </p>
       </section>
 
@@ -280,129 +299,186 @@ export function GalleryPage() {
         </div>
       ) : null}
 
-      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm">
-            <span className="text-muted-foreground">내 AI 현황: </span>
-            <strong className="font-medium">{plansSummary(plans)}</strong>
-          </p>
-          <Button variant="outline" size="sm" asChild>
-            <a href="#/plans">
-              <Settings2 aria-hidden />내 AI 현황 바꾸기
-            </a>
-          </Button>
-        </div>
-        {!plansConfirmed ? (
-          <Notice tone="info">
-            아직 내 AI 현황을 알려 주지 않아서, 지금은 <strong>ChatGPT·Claude 무료 계정</strong>이라고 가정하고
-            보여 드려요. 결제 중인 플랜을 알려 주시면 실행 경로가 정확해져요.
-          </Notice>
-        ) : null}
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            className="pl-8"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="레시피 검색 (예: 검토, 조사, Codex)"
-            aria-label="레시피 검색"
-          />
-        </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="레시피 필터">
-          {FILTERS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={filter === item.id}
-              onClick={() => setFilter(item.id)}
-              className={cn(
-                'rounded-full border px-3 py-1 text-sm transition-colors',
-                filter === item.id
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'bg-card hover:bg-muted',
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="조리법 필터">
-          <span className="text-sm text-muted-foreground">조리법</span>
-          {(['all', ...COLLABORATION_IDS] as const).map((id) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={styleFilter === id}
-              title={id === 'all' ? undefined : COLLABORATIONS[id].description}
-              onClick={() => setStyleFilter(id)}
-              className={cn(
-                'rounded-full border px-3 py-1 text-sm transition-colors',
-                styleFilter === id
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'bg-card hover:bg-muted',
-              )}
-            >
-              {id === 'all' ? '모든 조리법' : COLLABORATIONS[id].label}
-            </button>
-          ))}
-        </div>
-        {styleFilter !== 'all' ? (
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{COLLABORATIONS[styleFilter].label}:</span>{' '}
-            {COLLABORATIONS[styleFilter].description}
-          </p>
-        ) : null}
-        {hiddenCount > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            검색어나 필터에 맞지 않는 레시피 {hiddenCount}개를 숨겼어요.
-          </p>
-        ) : null}
-      </section>
-
-      {myRecipes.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-xl font-bold">내 레시피</h2>
-          {visibleMine.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleMine.map((recipe) => (
-                <RecipeTile
-                  key={recipe.id}
-                  recipe={recipe}
-                  plans={plans}
-                  href={`#/edit/${encodeURIComponent(recipe.id)}`}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">이 필터에 맞는 내 레시피가 없어요.</p>
-          )}
+      {myRecipes.length > 0 && !searching ? (
+        <section className="flex flex-col gap-4">
+          <h2 className="text-2xl font-extrabold">내 레시피</h2>
+          <div className={grid}>
+            {myRecipes.map((recipe) => (
+              <RecipeTile key={recipe.id} recipe={recipe} plans={plans} href={hrefOf(recipe)} />
+            ))}
+          </div>
         </section>
       ) : null}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-bold">기본 레시피</h2>
-        {visibleBuiltin.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleBuiltin.map((recipe) => (
-              <RecipeTile
-                key={recipe.id}
-                recipe={recipe}
-                plans={plans}
-                href={`#/recipe/${encodeURIComponent(recipe.id)}`}
+      <section className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <h2 className="text-2xl font-extrabold">무엇을 하려고 하나요?</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
               />
+              <Input
+                className="h-9 w-56 bg-card pl-8"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="이름으로 찾기"
+                aria-label="레시피 검색"
+              />
+            </div>
+            <Button
+              variant={showFilters ? 'secondary' : 'ghost'}
+              size="sm"
+              aria-expanded={showFilters}
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <SlidersHorizontal aria-hidden />
+              조건
+            </Button>
+          </div>
+        </div>
+
+        {showFilters ? (
+          <div className="flex flex-col gap-2 rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="레시피 필터">
+              <span className="w-16 text-sm text-muted-foreground">내 플랜</span>
+              {FILTERS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={filter === item.id}
+                  onClick={() => setFilter(item.id)}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-sm transition-colors',
+                    filter === item.id ? 'border-foreground bg-foreground text-background' : 'bg-card hover:bg-muted',
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="조리법 필터">
+              <span className="w-16 text-sm text-muted-foreground">조리법</span>
+              {(['all', ...COLLABORATION_IDS] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={styleFilter === id}
+                  title={id === 'all' ? undefined : COLLABORATIONS[id].description}
+                  onClick={() => setStyleFilter(id)}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-sm transition-colors',
+                    styleFilter === id ? 'border-foreground bg-foreground text-background' : 'bg-card hover:bg-muted',
+                  )}
+                >
+                  {id === 'all' ? '모든 조리법' : COLLABORATIONS[id].label}
+                </button>
+              ))}
+            </div>
+            {styleFilter !== 'all' ? (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{COLLABORATIONS[styleFilter].label}:</span>{' '}
+                {COLLABORATIONS[styleFilter].description}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!searching ? (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            {SHELVES.map((shelf) => {
+              const selected = shelf.id === shelfId;
+              return (
+                <button
+                  key={shelf.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setShelfId(selected ? null : shelf.id)}
+                  className={cn(
+                    'flex flex-col gap-1 rounded-xl border p-4 text-left transition-colors duration-200 sm:p-5',
+                    selected ? 'border-foreground bg-foreground text-background' : 'bg-card hover:border-input hover:bg-muted',
+                  )}
+                >
+                  <span className="font-heading text-xl font-extrabold sm:text-2xl">{shelf.label}</span>
+                  <span className={cn('text-sm', selected ? 'text-background/75' : 'text-muted-foreground')}>
+                    {shelf.hint}
+                  </span>
+                  <span className={cn('mt-2 text-xs', selected ? 'text-background/75' : 'text-muted-foreground')}>
+                    레시피 {shelf.recipeIds.length}가지
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
+
+      {searching ? (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-2xl font-extrabold">찾은 레시피 {found.length}가지</h2>
+            <Button variant="ghost" size="sm" onClick={clearSearch}>
+              <ArrowLeft aria-hidden />
+              검색과 조건 지우기
+            </Button>
+          </div>
+          {found.length > 0 ? (
+            <div className={grid}>
+              {found.map((recipe) => (
+                <RecipeTile key={recipe.id} recipe={recipe} plans={plans} href={hrefOf(recipe)} />
+              ))}
+            </div>
+          ) : (
+            <Notice tone="info">
+              조건에 맞는 레시피가 없어요. 검색어를 줄이거나 <a className="underline" href="#/plans">내 AI 현황</a>을
+              확인해 보세요.
+            </Notice>
+          )}
+        </section>
+      ) : openShelf ? (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-2xl font-extrabold">
+              {openShelf.label} <span className="text-base font-normal text-muted-foreground">{openShelf.hint}</span>
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => setShelfId(null)}>
+              <ArrowLeft aria-hidden />
+              전체 보기
+            </Button>
+          </div>
+          <div className={grid}>
+            {shelfRecipes(openShelf.recipeIds).map((recipe) => (
+              <RecipeTile key={recipe.id} recipe={recipe} plans={plans} href={hrefOf(recipe)} />
             ))}
           </div>
-        ) : (
-          <Notice tone="info">
-            이 조건에 맞는 기본 레시피가 없어요. <a className="underline" href="#/plans">내 AI 현황</a>을
-            확인하거나 필터를 '전체'로 바꿔 보세요.
-          </Notice>
-        )}
-      </section>
+        </section>
+      ) : (
+        SHELVES.map((shelf) => {
+          const recipes = shelfRecipes(shelf.recipeIds);
+          const more = recipes.length - 3;
+          return (
+            <section key={shelf.id} className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2 border-t pt-6">
+                <h2 className="text-2xl font-extrabold">
+                  {shelf.label} <span className="text-base font-normal text-muted-foreground">{shelf.hint}</span>
+                </h2>
+                {more > 0 ? (
+                  <Button variant="ghost" size="sm" onClick={() => setShelfId(shelf.id)}>
+                    {recipes.length}가지 모두 보기
+                  </Button>
+                ) : null}
+              </div>
+              <div className={grid}>
+                {recipes.slice(0, 3).map((recipe) => (
+                  <RecipeTile key={recipe.id} recipe={recipe} plans={plans} href={hrefOf(recipe)} />
+                ))}
+              </div>
+            </section>
+          );
+        })
+      )}
     </div>
   );
 }

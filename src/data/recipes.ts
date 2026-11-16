@@ -1,8 +1,9 @@
-// 기본 레시피 5종 (PROJECT_BRIEF.md 9장 3종 + BRIEF_collaboration-styles.md 조리법 2종).
+// 기본 레시피 20종: 여기의 5종 + moreRecipes.ts의 15종. 첫 화면의 상황별 묶음은 moreRecipes.ts의 SHELVES.
 // 배지와 실행 경로는 여기 적지 않는다. lib/requiredPlans.ts, lib/resolvePath.ts가 계산한다.
 // 모델 이름은 일부러 비워 둔다(각 도구의 기본 모델을 따름). 모델 이름은 자주 바뀌기 때문이다.
 
 import type { Recipe } from '../types';
+import { moreRecipes } from './moreRecipes';
 
 /** 기본 레시피가 실제로 돌아가는지 마지막으로 확인한 날 */
 const VERIFIED = '2026-11-16';
@@ -360,4 +361,11 @@ const decisionDebate: Recipe = {
 };
 
 /** 순서를 바꾸지 말 것: 테스트가 앞의 3개를 순서대로 꺼내 쓴다. 새 레시피는 뒤에 붙인다. */
-export const builtinRecipes: Recipe[] = [crossReview, planBuildReview, researchTeam, featureTeam, decisionDebate];
+export const builtinRecipes: Recipe[] = [
+  crossReview,
+  planBuildReview,
+  researchTeam,
+  featureTeam,
+  decisionDebate,
+  ...moreRecipes,
+];

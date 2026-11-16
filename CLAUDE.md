@@ -35,7 +35,8 @@ src/
 ├─ data/
 │  ├─ providers.json       # 요금제·무료 범위·엔진 정보 (여기만 고치면 됨, 확인 날짜·출처 필수)
 │  ├─ providers.ts         # providers.json을 타입과 함께 내보냄
-│  ├─ recipes.ts           # 기본 레시피 5종 (순서 바꾸지 말 것, 새 것은 뒤에)
+│  ├─ recipes.ts           # 기본 레시피 20종의 목록 (앞의 5종이 여기 있음. 순서 바꾸지 말 것, 새 것은 뒤에)
+│  ├─ moreRecipes.ts       # 추가 레시피 15종(짧게 적는 make 도우미)과 첫 화면의 상황별 묶음 SHELVES. 레시피를 더하면 SHELVES에도 넣는다
 │  ├─ collaboration.ts     # 조리법(협업 방식: 서브에이전트·에이전트 팀·토론형) 문구, 공식 문서 확인 기록, 에이전트 팀 설정
 │  ├─ cardTemplates.ts     # 카드 추가용 역할별 틀
 │  └─ tips.ts              # 꿀팁과 카드 경고
