@@ -1,6 +1,6 @@
 // RECIPE.md (사람이 읽는 설명서)를 만든다. zip 내보내기에 함께 들어간다.
 
-import type { AgentCard, Permission, ProviderData, Recipe, UserPlans } from '../types';
+import type { AgentCard, EngineId, Permission, ProviderData, Recipe, UserPlans } from '../types';
 import { requiredPlans } from './requiredPlans';
 import { PATH_NAMES, PATH_SYMBOLS, effectiveRoute, resolveRecipe } from './resolvePath';
 
@@ -9,6 +9,23 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   edit: '편집 가능',
   full: '제한 없음 (메인 세션 설정을 따름)',
 };
+
+/**
+ * zip에 넣을 형식들. Codex와 Claude Code는 항상 넣고,
+ * Antigravity·Grok은 그 도구를 쓰는 카드가 있을 때(원래 설정이든, 내 플랜 기준 대안이든)만 넣는다.
+ */
+export function exportEngines(recipe: Recipe, providers: ProviderData, plans?: UserPlans): EngineId[] {
+  const used = new Set<EngineId>(recipe.cards.map((card) => card.preferredEngine));
+  if (plans) {
+    const resolved = resolveRecipe(recipe, plans, providers);
+    for (const card of recipe.cards) used.add(effectiveRoute(resolved.perCard[card.id]).engine);
+  }
+  const engines: EngineId[] = ['codex-cli', 'claude-code'];
+  for (const extra of ['antigravity-cli', 'grok-build'] as const) {
+    if (used.has(extra)) engines.push(extra);
+  }
+  return engines;
+}
 
 /** 표 칸 안에서 깨지지 않게 줄바꿈과 | 를 정리한다. */
 function cell(value: string): string {
@@ -54,6 +71,7 @@ export function buildRecipeMd(recipe: Recipe, providers: ProviderData, plans?: U
   const required = requiredPlans(recipe, providers);
   const byId = new Map(recipe.cards.map((card) => [card.id, card]));
   const hasReadOnly = recipe.cards.some((card) => card.permission === 'read-only');
+  const engines = exportEngines(recipe, providers, plans);
   const out: string[] = [];
 
   out.push(`# ${recipe.title}`, '');
@@ -112,6 +130,12 @@ export function buildRecipeMd(recipe: Recipe, providers: ProviderData, plans?: U
     '   - 점(.)으로 시작하는 폴더는 숨김 폴더라 안 보일 수 있어요. (Windows 탐색기: 보기 → 숨긴 항목 / macOS Finder: Cmd+Shift+.)',
     '   - 이미 `.codex/config.toml`이 있다면 덮어쓰지 말고, 이 파일의 `[agents]` 부분만 옮겨 적으세요.',
     '2. 두 도구 모두에서 팀 전체를 쓸 수 있게, 모든 에이전트를 Codex 형식(`.codex/agents/*.toml`)과 Claude Code 형식(`.claude/agents/*.md`)으로 둘 다 넣어 두었습니다. 쓰지 않는 쪽 폴더는 지워도 됩니다.',
+    ...(engines.includes('antigravity-cli')
+      ? ['3. Antigravity를 쓴다면 `.agents` 폴더도 같은 곳에 복사합니다. (`.agents/agents/*.md`, 실행: `agy`)']
+      : []),
+    ...(engines.includes('grok-build')
+      ? ['3. Grok Build를 쓴다면 `.grok` 폴더도 같은 곳에 복사합니다. (`.grok/agents/*.md`, 실행: `grok`, 에이전트 목록: `/agents`)']
+      : []),
     '',
     '## 실행 방법',
     '',

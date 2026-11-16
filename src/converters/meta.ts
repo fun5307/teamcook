@@ -14,6 +14,8 @@ export interface CardMeta {
   model?: string;
   /** Claude용 도구 목록 (Codex TOML에 실어 둘 때만) */
   tools?: string[];
+  /** 겉모습이 Claude 형식과 같은 파일(Grok Build)을 구분하기 위한 표시 */
+  format?: 'grok';
 }
 
 export class ConvertError extends Error {
@@ -60,6 +62,7 @@ export function readMeta(text: string): CardMeta {
   if (ENGINES.includes(source.engine as EngineId)) meta.engine = source.engine as EngineId;
   if (typeof source.model === 'string') meta.model = source.model;
   if (isStringArray(source.tools)) meta.tools = source.tools;
+  if (source.format === 'grok') meta.format = 'grok';
   return meta;
 }
 

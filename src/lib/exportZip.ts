@@ -9,8 +9,17 @@
 import JSZip from 'jszip';
 import { cardToClaudeMd } from '../converters/claude';
 import { cardToCodexToml, recipeToCodexConfig } from '../converters/codex';
+import { cardToAntigravityMd, cardToGrokMd } from '../converters/markdownAgents';
+import { codexBridgeMd, needsCodexBridge } from './bridge';
 import type { ProviderData, Recipe, UserPlans } from '../types';
-import { buildRecipeMd } from './recipeMd';
+import { buildRecipeMd, exportEngines } from './recipeMd';
+
+export interface ExportOptions {
+  /** 내 플랜. 주면 RECIPE.md에 실행 경로를 적고, 대안 도구의 형식도 함께 넣는다. */
+  plans?: UserPlans;
+  /** Claude Code가 Codex 담당 카드를 `codex exec`로 직접 부르게 한다 (실험적) */
+  codexBridge?: boolean;
+}
 
 /** 파일·폴더 이름으로 쓸 수 없는 글자를 -로 바꾼다. 한글은 그대로 둔다. */
 export function safeName(value: string, fallback: string): string {
@@ -28,8 +37,11 @@ export function safeName(value: string, fallback: string): string {
 export function buildRecipeFiles(
   recipe: Recipe,
   providers: ProviderData,
-  plans?: UserPlans,
+  options: ExportOptions = {},
 ): Record<string, string> {
+  const { plans } = options;
+  const engines = exportEngines(recipe, providers, plans);
+  const bridge = options.codexBridge === true && needsCodexBridge(recipe);
   const root = safeName(recipe.title, 'recipe');
   const files: Record<string, string> = {};
   const used = new Set<string>();
@@ -42,12 +54,33 @@ export function buildRecipeFiles(
     used.add(fileName);
 
     files[`${root}/.codex/agents/${fileName}.toml`] = cardToCodexToml(card);
-    files[`${root}/.claude/agents/${fileName}.md`] = cardToClaudeMd(card);
+    files[`${root}/.claude/agents/${fileName}.md`] =
+      bridge && card.preferredEngine === 'codex-cli' ? codexBridgeMd(card) : cardToClaudeMd(card);
+    if (engines.includes('antigravity-cli')) {
+      files[`${root}/.agents/agents/${fileName}.md`] = cardToAntigravityMd(card);
+    }
+    if (engines.includes('grok-build')) {
+      files[`${root}/.grok/agents/${fileName}.md`] = cardToGrokMd(card);
+    }
   }
 
   files[`${root}/.codex/config.toml`] = recipeToCodexConfig(recipe);
   files[`${root}/recipe.json`] = `${JSON.stringify(recipe, null, 2)}\n`;
   files[`${root}/RECIPE.md`] = buildRecipeMd(recipe, providers, plans);
+  if (bridge) {
+    files[`${root}/RECIPE.md`] += [
+      '## Claude Code에서 Codex 자동 호출 (실험적)',
+      '',
+      '이 zip은 "Codex 자동 호출"을 켜고 내보냈습니다. Codex 담당 에이전트의 Claude Code용 파일(`.claude/agents/`)은',
+      '직접 일하지 않고 `codex exec` 명령으로 Codex에게 일을 넘긴 뒤 결과를 그대로 전달합니다.',
+      '그래서 Claude Code 하나만 열어 두어도 두 회사 모델이 함께 일합니다.',
+      '',
+      '- Codex CLI가 설치·로그인돼 있어야 합니다 (ChatGPT Plus 이상 또는 API 키).',
+      '- 호출할 때마다 Codex 사용량이 듭니다.',
+      '- Claude Code가 `codex` 명령 실행 허락을 물으면 허용해 주세요.',
+      '',
+    ].join('\n');
+  }
   return files;
 }
 
@@ -55,10 +88,10 @@ export function buildRecipeFiles(
 export async function buildRecipeZip(
   recipe: Recipe,
   providers: ProviderData,
-  plans?: UserPlans,
+  options: ExportOptions = {},
 ): Promise<Uint8Array> {
   const zip = new JSZip();
-  for (const [path, content] of Object.entries(buildRecipeFiles(recipe, providers, plans))) {
+  for (const [path, content] of Object.entries(buildRecipeFiles(recipe, providers, options))) {
     zip.file(path, content);
   }
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });

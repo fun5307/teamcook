@@ -61,6 +61,8 @@ function parseExtra(value: unknown): CardExtra | undefined {
   const extra: CardExtra = {};
   if (isObject(value.codex)) extra.codex = value.codex;
   if (isObject(value.claude)) extra.claude = value.claude;
+  if (isObject(value.antigravity)) extra.antigravity = value.antigravity;
+  if (isObject(value.grok)) extra.grok = value.grok;
   return Object.keys(extra).length > 0 ? extra : undefined;
 }
 

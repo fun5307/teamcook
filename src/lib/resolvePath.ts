@@ -123,6 +123,17 @@ function otherEngines(
   return result;
 }
 
+function isOfficial(engineId: EngineId, providers: ProviderData): boolean {
+  return providers.engines[engineId]?.confidence === 'official';
+}
+
+/** 요금제를 공식 문서로 확인하지 못한 도구에 붙이는 안내 */
+function unverifiedNote(engineId: EngineId, providers: ProviderData): string[] {
+  const engine = providers.engines[engineId];
+  if (!engine || engine.status === 'builtin' || engine.confidence === 'official') return [];
+  return [`${engine.name}의 요금제 정보는 공식 문서로 확인하지 못했어요. 실제와 다를 수 있어요.`];
+}
+
 /** 무료 계정만 만들면 쓸 수 있는 엔진이 있으면 안내 문장을 만든다. */
 function signupHints(plans: UserPlans, providers: ProviderData): string[] {
   const hints: string[] = [];
@@ -160,7 +171,7 @@ export function resolvePath(
   const others = otherEngines(card.preferredEngine, plans, providers);
 
   if (own) {
-    const notes = [...own.notes];
+    const notes = [...own.notes, ...unverifiedNote(card.preferredEngine, providers)];
     if (engine.status === 'preparing') {
       notes.push(
         `${engine.name} 설정 파일 내보내기는 준비 중이에요. 지금은 Codex·Claude 형식으로만 내보내져요.`,
@@ -178,7 +189,11 @@ export function resolvePath(
     if (reviewer && engine.provider && writerProviders.includes(engine.provider)) {
       const cross = others
         .filter((candidate) => !writerProviders.includes(candidate.provider))
-        .sort((a, b) => a.rule.path - b.rule.path)[0];
+        .sort(
+          (a, b) =>
+            a.rule.path - b.rule.path ||
+            Number(isOfficial(b.engineId, providers)) - Number(isOfficial(a.engineId, providers)),
+        )[0];
       if (cross) {
         resolution.alternative = {
           engine: cross.engineId,
@@ -218,6 +233,9 @@ export function resolvePath(
     }
     // 2) 사다리에서 더 높은 경로(숫자가 작은 쪽)가 먼저
     if (a.rule.path !== b.rule.path) return a.rule.path - b.rule.path;
+    // 2-1) 요금제를 공식 문서로 확인한 도구가 먼저
+    const official = Number(isOfficial(b.engineId, providers)) - Number(isOfficial(a.engineId, providers));
+    if (official !== 0) return official;
     // 3) 같은 경로라면 무거운 역할은 유료 쪽, 가벼운 역할은 무료 쪽이 먼저
     const freeDiff = Number(a.rule.free === true) - Number(b.rule.free === true);
     return heavy ? freeDiff : -freeDiff;
@@ -245,7 +263,7 @@ export function resolvePath(
         ? `대신 ${name}(${best.rule.label})로 교차 검토할 수 있어요.`
         : `대신 ${name}(${best.rule.label})로 실행할 수 있어요.`,
     };
-    resolution.notes.push(...best.rule.notes);
+    resolution.notes.push(...best.rule.notes, ...unverifiedNote(best.engineId, providers));
   } else {
     resolution.notes.push(
       '지금 플랜으로는 자동 실행 경로가 없어요. 무료 웹 채팅에 직접 복사·붙여넣기 해야 해요.',

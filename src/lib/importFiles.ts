@@ -1,6 +1,11 @@
 // 사용자가 고른 파일(.toml, .md, .json)을 카드나 레시피로 바꾼다.
 
 import { claudeMdToCard } from '../converters/claude';
+import {
+  antigravityMdToCard,
+  detectMarkdownEngine,
+  grokMdToCard,
+} from '../converters/markdownAgents';
 import { codexTomlToCard } from '../converters/codex';
 import type { AgentCard, Recipe } from '../types';
 import { parseRecipe } from './recipeSchema';
@@ -19,7 +24,15 @@ export function importFile(fileName: string, text: string): ImportResult {
       return { kind: 'card', fileName, card: withTags(codexTomlToCard(text)) };
     }
     if (lower.endsWith('.md')) {
-      return { kind: 'card', fileName, card: withTags(claudeMdToCard(text)) };
+      // .md는 Claude·Antigravity·Grok이 함께 쓰는 확장자라, 내용을 보고 형식을 고른다
+      const engine = detectMarkdownEngine(text);
+      const card =
+        engine === 'antigravity-cli'
+          ? antigravityMdToCard(text)
+          : engine === 'grok-build'
+            ? grokMdToCard(text)
+            : claudeMdToCard(text);
+      return { kind: 'card', fileName, card: withTags(card) };
     }
     if (lower.endsWith('.json')) {
       return { kind: 'recipe', fileName, recipe: parseRecipe(JSON.parse(text)) };
@@ -27,7 +40,7 @@ export function importFile(fileName: string, text: string): ImportResult {
     return {
       kind: 'error',
       fileName,
-      message: '지원하지 않는 파일이에요. Codex(.toml), Claude(.md), 레시피(recipe.json)만 불러올 수 있어요.',
+      message: '지원하지 않는 파일이에요. Codex(.toml), Claude·Antigravity·Grok(.md), 레시피(recipe.json)만 불러올 수 있어요.',
     };
   } catch (error) {
     const message =

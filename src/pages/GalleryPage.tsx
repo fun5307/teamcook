@@ -1,9 +1,10 @@
 // 첫 화면: 레시피 갤러리 + '내 플랜으로 되는 레시피만 보기' 필터.
 
 import { useRef, useState } from 'react';
-import { FilePlus2, FolderOpen, Settings2 } from 'lucide-react';
+import { FilePlus2, FolderOpen, Search, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/common';
 import { FitLabel, PlanBadges, engineName } from '@/components/RouteInfo';
 import { providerData } from '@/data/providers';
@@ -22,6 +23,22 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'fits', label: '내 플랜으로 되는 것만' },
   { id: 'full', label: '바꾸지 않고 그대로 되는 것만' },
 ];
+
+/** 제목·설명·쓰임새·카드 이름에 검색어가 들어 있는지 (띄어 쓴 단어는 모두 들어 있어야 함) */
+export function matchesQuery(recipe: Recipe, query: string): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const haystack = [
+    recipe.title,
+    recipe.summary,
+    recipe.useCase,
+    recipe.author ?? '',
+    ...recipe.cards.flatMap((card) => [card.name, card.displayName, card.role]),
+  ]
+    .join(' ')
+    .toLowerCase();
+  return words.every((word) => haystack.includes(word));
+}
 
 export function blankRecipe(cards: AgentCard[] = [], title = '새 레시피'): Recipe {
   return {
@@ -93,10 +110,12 @@ export function GalleryPage() {
   const saveRecipe = useStore((state) => state.saveRecipe);
 
   const [filter, setFilter] = useState<Filter>('all');
+  const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<{ tone: 'success' | 'error'; text: string }[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const matches = (recipe: Recipe) => {
+    if (!matchesQuery(recipe, query)) return false;
     if (filter === 'all') return true;
     const fit = fitsMyPlans(recipe, plans, providerData);
     return filter === 'fits' ? fit !== 'no' : fit === 'full';
@@ -214,6 +233,20 @@ export function GalleryPage() {
             보여 드려요. 결제 중인 플랜을 알려 주시면 실행 경로가 정확해져요.
           </Notice>
         ) : null}
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            className="pl-8"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="레시피 검색 (예: 검토, 조사, Codex)"
+            aria-label="레시피 검색"
+          />
+        </div>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="레시피 필터">
           {FILTERS.map((item) => (
             <button
@@ -234,7 +267,7 @@ export function GalleryPage() {
         </div>
         {hiddenCount > 0 ? (
           <p className="text-xs text-muted-foreground">
-            내 플랜에 맞지 않는 레시피 {hiddenCount}개를 숨겼어요.
+            검색어나 필터에 맞지 않는 레시피 {hiddenCount}개를 숨겼어요.
           </p>
         ) : null}
       </section>
@@ -274,7 +307,7 @@ export function GalleryPage() {
           </div>
         ) : (
           <Notice tone="info">
-            이 필터에 맞는 기본 레시피가 없어요. <a className="underline" href="#/plans">내 AI 현황</a>을
+            이 조건에 맞는 기본 레시피가 없어요. <a className="underline" href="#/plans">내 AI 현황</a>을
             확인하거나 필터를 '전체'로 바꿔 보세요.
           </Notice>
         )}

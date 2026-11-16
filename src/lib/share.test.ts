@@ -170,7 +170,7 @@ describe('zip 내보내기', () => {
 
   it('RECIPE.md에 필요한 플랜, 실행 방법(터미널·T3 Code·1Code), 내 플랜 경로가 들어간다', () => {
     const plans = { openai: 'free', anthropic: 'free', google: 'none', xai: 'none', apiKeys: {} } as const;
-    const files = buildRecipeFiles(crossReview, providerData, plans);
+    const files = buildRecipeFiles(crossReview, providerData, { plans });
     const md = files[`${safeName(crossReview.title, 'recipe')}/RECIPE.md`];
     expect(md).toContain('# Claude 작성 + Codex 교차 검토');
     expect(md).toContain('Claude Pro 필요 · ChatGPT 무료');

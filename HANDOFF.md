@@ -7,9 +7,10 @@
 
 - **서비스 이름: teamcook** (확정). 슬로건: "AI 팀을 레시피로 요리하세요". 옛 가칭 agent-recipes.
 - **0~5단계 완료.** '시간 남으면' 항목(흐름 캔버스, 꿀팁, 파일 끌어다 놓기)도 완료.
+- **6·7단계 중 계정·API 키 없이 가능한 것 완료** (사용자 요청으로 당일 진행). 아래 '6·7단계 현황' 참고.
 - 저장소: https://github.com/fun5307/teamcook (`main`에 push하면 Vercel이 자동으로 다시 배포)
-- 배포 링크: (사용자가 Vercel에 배포 완료. 주소를 여기에 적을 것)
-- 확인된 것: `npm test` 98개 통과, 타입 검사·빌드 통과, 브라우저 자동 실행으로 전체 흐름 콘솔 오류 0건. **사용자가 'Claude 작성 + Codex 교차 검토' zip을 내보내 실제 Claude Code·Codex에서 에이전트 인식을 확인함.**
+- 배포 링크: https://teamcook-eta.vercel.app/
+- 확인된 것: `npm test` 127개 통과, 타입 검사·빌드 통과, 브라우저 자동 실행으로 전체 흐름 콘솔 오류 0건. **사용자가 'Claude 작성 + Codex 교차 검토' zip을 내보내 실제 Claude Code·Codex에서 에이전트 인식을 확인함.**
 
 ## 단계별 DoD 체크 현황
 
@@ -41,12 +42,39 @@
 - [x] '어디서 돌리나요?' 페이지 (`src/pages/HowToRunPage.tsx`)
 - [x] GitHub 저장소 만들고 올리기 (fun5307/teamcook)
 - [x] Vercel 배포 (사용자가 완료)
-- [ ] 배포된 주소에서 갤러리 → 편집 → 공유 링크 → 가져오기 → zip 내보내기를 한 번 직접 눌러 보기
+- [ ] 배포된 주소(https://teamcook-eta.vercel.app/)에서 갤러리 → 편집 → 공유 링크 → 가져오기 → zip 내보내기를 한 번 직접 눌러 보기
 
 ### 시간 남으면 하는 것
 - [x] 꿀팁: 편집기 아래에 팁 7개 + 카드별 경고(검토자가 편집 권한이면 경고 등) — `src/data/tips.ts`
 - [x] 흐름 캔버스 (React Flow): `src/components/FlowCanvas.tsx`. 카드 = 상자, 넘겨주기 = 화살표, 상자에 경로 배지. 편집기에서는 상자 오른쪽 점에서 끌어 잇기, 화살표를 눌러 지우기. 자동 배치는 `src/lib/flowLayout.ts`(위치는 저장하지 않음). 화살표 라벨은 캔버스 아래 줄에서 고친다.
 - [x] 파일 끌어다 놓기: 갤러리 맨 위 상자와 편집기의 '에이전트 카드' 영역에 파일을 놓으면 불러온다. (끌어다 놓기는 자동 실행으로 확인하지 못함. 파일 선택 버튼은 사용자의 실제 TOML 4개로 확인함.)
+
+## 6·7단계 현황 (2026-11-16)
+
+### 한 것
+| 항목 | 내용 | 코드 | 확인 수준 |
+| --- | --- | --- | --- |
+| Gemini(Antigravity CLI) 어댑터 | `.agents/agents/<name>.md` 내보내기·불러오기. 읽기 전용은 문서에 나온 도구 이름(`view_file`, `grep_search`)만 사용 | `src/converters/markdownAgents.ts` | 형식은 공식 문서 예시로 테스트. **실제 Antigravity에서 실행해 보지 못함** |
+| Grok Build 어댑터 | `.grok/agents/<name>.md` 내보내기·불러오기. 도구 이름 목록을 확인하지 못해 `tools`를 만들어 쓰지 않고, 읽기 전용은 지시문 끝 문장으로 표현 | 같은 파일 | 위치·형식·예시(name, description, tools)만 공식 문서로 확인. **실제 Grok Build에서 실행해 보지 못함** |
+| 구독 최적화 고도화 | 내 플랜 조합에 맞게 카드의 도구를 다시 배치하는 제안 + '이대로 다시 배치' 버튼 | `src/lib/optimize.ts`, 편집기 화면 | 테스트 7개 + 브라우저 자동 실행 |
+| 갤러리 검색 | 제목·설명·카드 이름 검색 | `src/pages/GalleryPage.tsx`의 `matchesQuery` | 브라우저 자동 실행 |
+| 포크(고쳐서 다시 쓰기) | 기본·공유 레시피 '내 레시피로 가져오기', 편집기 '복제' | `cloneRecipe` | 브라우저 자동 실행 |
+| 교차 모델 연결 도우미 | **Codex의 MCP 서버는 제거됐다**(공식 문서). 대신 Claude Code용 파일이 `codex exec`로 Codex에게 일을 넘기는 '다리' 내보내기 옵션(실험적) | `src/lib/bridge.ts`, 편집기의 스위치 | 파일 내용 테스트만. **실제로 Claude Code가 codex exec를 부르는 것은 실행해 보지 못함** |
+| 레시피 설치 명령 | `npx github:fun5307/teamcook add "<공유 링크>"` — 이미 있는 파일은 건너뛰고, `.codex/config.toml`은 절대 덮어쓰지 않음 | `src/cli/`, 빌드 결과 `cli/teamcook.mjs`(저장소에 포함), `npm run build:cli` | 테스트 6개 + 로컬에서 `node cli/teamcook.mjs`로 설치 확인 |
+| 커뮤니티 제안 (서버 없는 임시 방법) | 공유 패널의 '커뮤니티 갤러리에 제안하기' → GitHub 이슈 작성 화면이 레시피 링크와 함께 열림 | `src/data/site.ts` | 링크 생성만 확인 |
+
+### 하지 못한 것과 이유
+- **레시피 허브 서버 저장, '가져다 쓴 횟수':** 데이터베이스가 필요하고, 만들려면 사용자 계정으로 가입·연결해야 한다(예: Vercel 저장소, Supabase). 계정이 준비되면 다음 모델이 이어서 한다. 그때까지는 위의 GitHub 이슈 제안 + `src/data/recipes.ts`에 직접 추가하는 방식으로 운영한다.
+- **한국어 커뮤니티에 첫 레시피 공개:** 사용자가 직접 할 일.
+- **협업 리플레이:** Codex·Claude Code의 세션 기록 파일 형식을 먼저 조사해야 한다. 기록 파일에는 사용자의 대화 내용이 들어 있어 허락 없이 열어 보지 않았다.
+- **도구·기법 추천 (LLM API):** 서버 쪽 API 키가 필요하다(브라우저에 키를 넣으면 안 됨).
+- **설치 명령의 npm 등록:** 지금은 GitHub에서 바로 받는 방식(`npx github:…`)이다. `npx teamcook add …`로 줄이려면 사용자가 npm에 등록해야 한다(이름 `teamcook`이 비어 있는지도 확인 필요).
+
+### 6·7단계에서 내린 결정
+- `providers.json`의 Antigravity·Grok은 `status: "ready"`(내보내기 지원)로 바꿨다. 요금제 정보는 여전히 `confidence: "third-party"`라서, 이 도구가 쓰일 때는 "요금제 정보는 공식 문서로 확인하지 못했어요" 안내가 붙고, 대안을 고를 때 공식 확인 도구(Codex·Claude Code)보다 뒤로 밀린다.
+- zip에는 Codex·Claude 형식을 항상 넣고, Antigravity·Grok 형식은 그 도구를 쓰는 카드가 있을 때(원래 설정이든 내 플랜의 대안이든)만 넣는다. (`exportEngines`)
+- `.md` 파일은 세 도구가 같은 확장자를 쓴다. 불러올 때 `detectMarkdownEngine`이 머리말을 보고 고른다(Antigravity는 고유 항목·도구 이름, Grok은 우리가 넣은 주석의 `format: "grok"`).
+- 형식 전용 필드는 `extra.antigravity`, `extra.grok`에 보관한다.
 
 ## 사용자가 할 일 (1~3번은 2026-11-16에 완료. 기록으로 남겨 둠)
 
@@ -58,8 +86,8 @@
    5. 안 되면 오류 메시지를 다음 모델에게 그대로 전달
 2. **GitHub에 올리기** — 아래 '배포 절차' 참고
 3. **Vercel 배포** — 아래 '배포 절차' 참고
-4. **공개 전에 확인:** `MCP-strategy.md`(이름이 적혀 있음)와 `samples/codex/`(직접 쓴 프롬프트 4개)를 공개 저장소에 올려도 되는지. 싫으면 비공개 저장소로 만들거나 두 항목을 지우고 커밋한다. (`samples/codex`를 지우면 `src/converters/codex.test.ts`의 샘플 테스트가 "샘플이 1개 이상 있다"에서 실패하니, 다른 예시 TOML을 하나 넣어 둘 것.)
-5. 루트에 남아 있는 `pyproject.toml`, `.python-version`, `src/claude_mcp/`, `.venv/`는 이 프로젝트와 무관한 파이썬 초기 파일로 보인다. 일부러 커밋하지 않았다. 필요 없으면 지워도 된다.
+4. (완료) 공개 저장소에 `MCP-strategy.md`와 `samples/codex/`를 두어도 된다고 사용자가 확인함.
+5. (완료) 무관한 파이썬 초기 파일(`pyproject.toml`, `.python-version`, `src/claude_mcp/`, `.venv/`)은 사용자 허락을 받아 지웠다.
 
 ### 배포 절차 (처음 하는 사람용)
 
@@ -130,10 +158,10 @@
 
 ## 내일 할 일 순서
 
-1. 배포된 주소를 이 문서에 적고, 배포된 사이트에서 전체 흐름을 한 번 직접 눌러 본다. 공개 저장소에 `MCP-strategy.md`·`samples/codex/`를 둬도 되는지도 정한다.
+1. 배포된 사이트에서 전체 흐름을 한 번 직접 눌러 본다. 새로 붙은 기능 중 실제 도구로 확인하지 못한 것(Antigravity·Grok 파일 인식, 'Codex 자동 호출' 다리, `npx github:fun5307/teamcook add`)을 사용자와 함께 확인한다.
 2. 흐름 캔버스 다듬기: 캔버스 안에서 화살표 라벨 바로 고치기, 상자를 눌러 그 카드 편집 열기.
 3. 디자인 다듬기, 코드 분할로 빌드 경고 없애기(jszip·yaml·smol-toml을 내보내기·불러오기 때만 불러오기).
-4. 그다음은 `PROJECT_BRIEF.md` 6단계(레시피 허브: 서버 저장, 검색, 포크 / Gemini·Grok 어댑터 / 구독 최적화 고도화).
+4. 레시피 허브 서버 저장(사용자가 데이터베이스 계정을 준비한 뒤), 협업 리플레이(세션 기록 형식 조사부터, 사용자 허락 필요), 도구 추천(서버 쪽 API 키 필요).
 5. `providers.json`은 주기적으로 공식 문서와 대조해 `lastVerified`를 갱신한다.
 
 ## 다음 모델에게 주는 주의점

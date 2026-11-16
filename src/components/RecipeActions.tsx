@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/common';
 import { providerData } from '@/data/providers';
+import { installCommand, suggestRecipeUrl } from '@/data/site';
 import { copyText, downloadBytes } from '@/lib/download';
 import { buildRecipeZip, zipFileName } from '@/lib/exportZip';
 import { newId } from '@/lib/id';
@@ -51,6 +52,24 @@ export function ShareButton({ recipe }: { recipe: Recipe }) {
             링크 길이 {link.length.toLocaleString()}자 · 레시피 내용이 링크 안에 그대로 들어 있어요 (서버에
             저장되지 않아요).
           </p>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-medium">터미널에서 프로젝트에 바로 설치 (Node.js 필요)</p>
+            <Input
+              readOnly
+              className="font-mono text-xs"
+              value={installCommand(link.url)}
+              onFocus={(event) => event.target.select()}
+              aria-label="설치 명령"
+            />
+          </div>
+          <a
+            className="text-xs text-primary underline-offset-2 hover:underline"
+            href={suggestRecipeUrl(recipe.title, recipe.summary, link.url)}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            이 레시피를 커뮤니티 갤러리에 제안하기 (GitHub 이슈로 열려요)
+          </a>
           {link.tooLong ? (
             <Notice tone="warn">
               링크가 {SHARE_WARN_LENGTH.toLocaleString()}자를 넘어요. 일부 메신저에서 잘릴 수 있으니 지시문을
@@ -69,12 +88,21 @@ export function ShareButton({ recipe }: { recipe: Recipe }) {
 }
 
 /** 'zip으로 내보내기' 버튼 */
-export function ExportZipButton({ recipe, plans }: { recipe: Recipe; plans: UserPlans }) {
+export function ExportZipButton({
+  recipe,
+  plans,
+  codexBridge = false,
+}: {
+  recipe: Recipe;
+  plans: UserPlans;
+  /** Claude Code가 Codex 담당 카드를 codex exec로 부르게 내보낼지 (실험적) */
+  codexBridge?: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const onExport = async () => {
     setBusy(true);
     try {
-      const bytes = await buildRecipeZip(recipe, providerData, plans);
+      const bytes = await buildRecipeZip(recipe, providerData, { plans, codexBridge });
       downloadBytes(bytes, zipFileName(recipe), 'application/zip');
     } finally {
       setBusy(false);

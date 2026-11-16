@@ -2,20 +2,23 @@
 // 고치는 즉시 스토어(→ localStorage)에 저장된다.
 
 import { useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, ChevronUp, FolderOpen, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, Copy, FolderOpen, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Field, NativeSelect, Notice, PageHeader } from '@/components/common';
 import { FlowSection } from '@/components/FlowSection';
-import { ExportZipButton, ShareButton } from '@/components/RecipeActions';
+import { ExportZipButton, ShareButton, cloneRecipe } from '@/components/RecipeActions';
 import { roleLabel } from '@/components/RecipeOverview';
 import { CardRoute, LockBadge, PathBadge, PlanBadges, RecipeRunSummary, engineName } from '@/components/RouteInfo';
 import { CARD_TEMPLATES, cardFromTemplate } from '@/data/cardTemplates';
 import { providerData } from '@/data/providers';
 import { TIPS, cardWarnings, recipeWarnings } from '@/data/tips';
+import { needsCodexBridge } from '@/lib/bridge';
 import { newId } from '@/lib/id';
+import { applyOptimization, optimizeRecipe } from '@/lib/optimize';
 import { importFile } from '@/lib/importFiles';
 import { PERMISSION_LABELS } from '@/lib/recipeMd';
 import { requiredPlans } from '@/lib/requiredPlans';
@@ -33,6 +36,7 @@ const SELECTABLE_ENGINES = (Object.keys(providerData.engines) as EngineId[]).fil
 const MODEL_HINTS: Partial<Record<EngineId, string>> = {
   'codex-cli': '예: gpt-6.1-sol, gpt-6-luna',
   'claude-code': '예: sonnet, opus, haiku',
+  'antigravity-cli': '예: inherit, flash, pro',
 };
 
 function CardEditor({
@@ -340,6 +344,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
   const removeRecipe = useStore((state) => state.removeRecipe);
 
   const [openCard, setOpenCard] = useState<string | null>(null);
+  const [codexBridge, setCodexBridge] = useState(false);
   const [messages, setMessages] = useState<{ tone: 'success' | 'error'; text: string }[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -427,7 +432,18 @@ export function RecipeEditorPage({ id }: { id: string }) {
     }
   };
 
+  const onDuplicate = () => {
+    const copy = cloneRecipe(recipe, `${recipe.title} (사본)`);
+    saveRecipe(copy);
+    navigate(`/edit/${copy.id}`);
+  };
+
   const resolved = resolveRecipe(recipe, plans, providerData);
+  const optimized = optimizeRecipe(recipe, plans, providerData);
+  const cardName = (cardId: string) => {
+    const card = recipe.cards.find((item) => item.id === cardId);
+    return card ? card.displayName || card.name : '';
+  };
   const required = requiredPlans(recipe, providerData);
 
   return (
@@ -438,7 +454,11 @@ export function RecipeEditorPage({ id }: { id: string }) {
         actions={
           <>
             <ShareButton recipe={recipe} />
-            <ExportZipButton recipe={recipe} plans={plans} />
+            <ExportZipButton recipe={recipe} plans={plans} codexBridge={codexBridge} />
+            <Button variant="ghost" onClick={onDuplicate}>
+              <Copy aria-hidden />
+              복제
+            </Button>
             <Button variant="ghost" onClick={onDelete}>
               <Trash2 aria-hidden />
               삭제
@@ -528,6 +548,44 @@ export function RecipeEditorPage({ id }: { id: string }) {
           ) : null}
         </div>
         <RecipeRunSummary resolution={resolved} />
+        {optimized.changes.length > 0 ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Sparkles className="size-4 text-sky-700" aria-hidden />
+              구독 최적화 제안 — {optimized.summary}
+            </p>
+            <ul className="flex flex-col gap-1 text-sm">
+              {optimized.changes.map((change) => (
+                <li key={change.cardId}>
+                  <strong className="font-medium">{cardName(change.cardId)}</strong>: {engineName(change.from)} →{' '}
+                  {engineName(change.to)} <span className="text-muted-foreground">· {change.reason}</span>
+                </li>
+              ))}
+            </ul>
+            <div>
+              <Button size="sm" onClick={() => saveRecipe(applyOptimization(recipe, optimized))}>
+                이대로 다시 배치
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        {needsCodexBridge(recipe) ? (
+          <label className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
+            <Switch
+              checked={codexBridge}
+              onCheckedChange={setCodexBridge}
+              aria-label="Claude Code에서 Codex 자동 호출"
+            />
+            <span>
+              <span className="font-medium">내보낼 때 'Claude Code에서 Codex 자동 호출' 넣기 (실험적)</span>
+              <span className="block text-xs text-muted-foreground">
+                켜면 Codex 담당 카드의 Claude Code용 파일이, 직접 일하는 대신 <code>codex exec</code> 명령으로
+                Codex에게 일을 넘깁니다. Claude Code 하나만 열어 두어도 두 회사 모델이 함께 일해요. Codex CLI가
+                설치·로그인돼 있어야 하고, 부를 때마다 Codex 사용량이 듭니다.
+              </span>
+            </span>
+          </label>
+        ) : null}
         {recipeWarnings(recipe).map((warning) => (
           <Notice key={warning.message} tone="warn">
             {warning.message}

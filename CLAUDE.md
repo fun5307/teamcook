@@ -38,7 +38,7 @@ src/
 │  ├─ recipes.ts           # 기본 레시피 3종
 │  ├─ cardTemplates.ts     # 카드 추가용 역할별 틀
 │  └─ tips.ts              # 꿀팁과 카드 경고
-├─ converters/             # 형식 변환은 전부 여기에만 (codex.ts, claude.ts)
+├─ converters/             # 형식 변환은 전부 여기에만 (codex.ts, claude.ts, markdownAgents.ts = Antigravity·Grok)
 ├─ lib/
 │  ├─ resolvePath.ts       # 실행 경로 해석기 (①~④, 🔒, 대안)
 │  ├─ requiredPlans.ts     # '필요한 플랜' 배지, fitsMyPlans
@@ -46,7 +46,10 @@ src/
 │  ├─ recipeSchema.ts      # 바깥 데이터를 안전한 Recipe로 다듬기 (버전 변환도 여기)
 │  ├─ router.ts            # hash 기반 화면 전환
 │  ├─ recipeMd.ts          # RECIPE.md 생성
-│  └─ exportZip.ts         # zip 내보내기
+│  ├─ exportZip.ts         # zip 내보내기
+│  ├─ optimize.ts          # 구독 최적화 제안
+│  └─ bridge.ts            # Claude Code → Codex 연결(codex exec)
+├─ cli/                    # 설치 명령 (teamcook add <링크>). 빌드 결과는 루트의 cli/teamcook.mjs
 ├─ store/                  # zustand + localStorage
 ├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등)
 │  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
@@ -74,10 +77,11 @@ npm run dev        # 개발 서버 (http://localhost:5173)
 npm test           # 단위 테스트 (Vitest)
 npm run typecheck  # 타입 검사
 npm run build      # 배포용 빌드 (dist/)
+npm run build:cli  # 설치 명령 묶음 (cli/teamcook.mjs). src/cli나 변환기를 고치면 다시 빌드해서 함께 커밋
 ```
 
 > Windows 주의: `npm test`는 `scripts/vitest.mjs`를 거쳐 실행한다. 드라이브 문자가 소문자(`c:\...`)인 터미널에서 Vitest 5가 실패하는 문제를 피하기 위해서다. `npx vitest`를 직접 실행하지 말 것.
 
 ## 현재 단계
 
-(2026-11-16 기준) 0~5단계 완료: 실제 CLI 인식 확인, GitHub(fun5307/teamcook), Vercel 배포까지 끝남. 다음은 `HANDOFF.md`의 '내일 할 일 순서'.
+(2026-11-16 기준) 0~5단계 완료(배포: https://teamcook-eta.vercel.app/, 저장소: fun5307/teamcook). 6·7단계 중 계정·API 키 없이 가능한 것(Antigravity·Grok 어댑터, 구독 최적화, 검색, Codex 연결 다리, 설치 명령)도 완료. 남은 것과 이유는 `HANDOFF.md`의 '6·7단계 현황'.

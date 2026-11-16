@@ -155,7 +155,54 @@ claude`}</Code>
         </div>
       </Step>
 
-      <Step number={5} title="두 회사 모델을 섞은 팀은 이렇게">
+      <Step number={5} title="Antigravity · Grok Build에서 실행">
+        <p>
+          카드의 '돌릴 도구'를 Antigravity CLI나 Grok Build로 고르면, zip에 그 도구의 형식도 함께 들어갑니다. 같은
+          방식으로 프로젝트 폴더 맨 위에 복사하세요.
+        </p>
+        <Code>{`내-프로젝트/
+├─ .agents/agents/reviewer.md   ← Antigravity용 (실행: agy)
+└─ .grok/agents/reviewer.md     ← Grok Build용 (실행: grok, 목록: /agents)`}</Code>
+        <ul className="list-disc pl-5 text-muted-foreground">
+          <li>
+            Antigravity의 읽기 전용 카드는 읽기 도구(<code>view_file</code>, <code>grep_search</code>)만 쓰도록
+            내보냅니다.
+          </li>
+          <li>
+            Grok Build는 도구 이름 목록을 공식 문서에서 다 확인하지 못해서, 읽기 전용을 지시문의 "수정하지 마라"
+            문장으로 표현합니다.
+          </li>
+        </ul>
+        <Notice tone="warn">
+          두 도구는 설정 파일 형식만 공식 문서로 확인했고, 실제로 실행해 보지는 못했어요. 요금제 정보도 공식 문서가
+          아닌 자료 기준입니다.
+        </Notice>
+        <div className="flex flex-wrap gap-3">
+          <Source href="https://antigravity.google/docs/subagents">Antigravity 서브에이전트 공식 문서</Source>
+          <Source href="https://docs.x.ai/build/features/subagents">Grok Build 서브에이전트 공식 문서</Source>
+        </div>
+      </Step>
+
+      <Step number={6} title="터미널 명령 한 줄로 설치하기">
+        <p>
+          zip을 풀어 복사하는 대신, 공유 링크를 그대로 써서 프로젝트 폴더에 설치할 수도 있어요. 레시피 화면의{' '}
+          <strong>링크 복사</strong>를 누르면 아래 같은 명령이 함께 나옵니다.
+        </p>
+        <Code>{`cd 내-프로젝트
+npx github:fun5307/teamcook add "https://teamcook-eta.vercel.app/#r=…"`}</Code>
+        <ul className="list-disc pl-5 text-muted-foreground">
+          <li>이미 있는 파일은 건드리지 않아요. 덮어쓰려면 끝에 <code>--force</code>를 붙입니다.</li>
+          <li>
+            <code>.codex/config.toml</code>은 <code>--force</code>여도 덮어쓰지 않습니다.
+          </li>
+          <li>
+            설명서와 원본은 <code>.teamcook/</code> 폴더에 들어갑니다. 미리 보기만 하려면 <code>--dry-run</code>.
+          </li>
+          <li>링크에 <code>#</code>이 들어 있으니 꼭 따옴표로 감싸세요.</li>
+        </ul>
+      </Step>
+
+      <Step number={7} title="두 회사 모델을 섞은 팀은 이렇게">
         <p>
           'Claude 작성 + Codex 교차 검토'처럼 도구가 섞인 팀은, <strong>같은 프로젝트 폴더에서 두 도구를 번갈아</strong>{' '}
           쓰면 됩니다.
@@ -165,6 +212,13 @@ claude`}</Code>
           <li>같은 폴더에서 Codex를 열어 "reviewer 에이전트로 방금 변경을 검토해 줘"라고 합니다.</li>
           <li>검토 결과를 Claude Code에 붙여 넣고 "사실인지 확인한 뒤 맞는 것만 반영해 줘"라고 합니다.</li>
         </ol>
+        <p>
+          번갈아 쓰기가 번거롭다면, 편집 화면에서{' '}
+          <strong>'Claude Code에서 Codex 자동 호출' (실험적)</strong>을 켜고 내보내 보세요. Codex 담당 에이전트의
+          Claude Code용 파일이 <code>codex exec</code> 명령으로 Codex에게 일을 넘기게 되어, Claude Code 하나만 열어
+          두어도 됩니다. (예전에 쓰던 "Codex를 MCP 서버로 연결"하는 방법은 Codex에서 그 기능이 없어져서 쓸 수
+          없어요.)
+        </p>
         <p className="text-muted-foreground">
           내보낸 zip에는 모든 에이전트가 두 형식으로 다 들어 있어서, 한쪽 도구만 있어도 팀 전체를 그 도구 하나로
           돌릴 수 있어요.

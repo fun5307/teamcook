@@ -183,13 +183,20 @@ describe('경로 사다리의 세부 규칙', () => {
     expect(result.alternative?.reason).toContain('교차 검토');
   });
 
-  it('준비 중인 엔진은 대안으로 추천하지 않고, 쓸 때는 안내를 붙인다', () => {
+  it('요금제를 공식 문서로 확인하지 못한 도구는 쓸 수 있되, 안내를 붙이고 뒤로 미룬다', () => {
     const grokOnly = plans({ xai: 'supergrok' });
-    expect(resolvePath(claudeWriter, grokOnly, providerData).alternative).toBeUndefined();
+    const fallback = resolvePath(claudeWriter, grokOnly, providerData);
+    expect(fallback.alternative).toMatchObject({ engine: 'grok-build', path: 1, kind: 'fallback' });
+    expect(fallback.notes.join(' ')).toContain('공식 문서로 확인하지 못했어요');
+
     const grokCard = card({ preferredEngine: 'grok-build' });
     const result = resolvePath(grokCard, grokOnly, providerData);
     expect(result).toMatchObject({ locked: false, path: 1 });
-    expect(result.notes.join(' ')).toContain('준비 중');
+    expect(result.notes.join(' ')).toContain('공식 문서로 확인하지 못했어요');
+
+    // 같은 경로라면 공식 확인된 도구(Codex)가 Grok보다 먼저
+    const both = plans({ openai: 'plus', xai: 'supergrok' });
+    expect(resolvePath(claudeWriter, both, providerData).alternative?.engine).toBe('codex-cli');
   });
 
   it('수동을 고른 카드는 잠기지 않은 ④', () => {

@@ -38,6 +38,10 @@ export interface CardExtra {
   codex?: Record<string, unknown>;
   /** Claude 머리말에만 있는 필드 (예: permissionMode, maxTurns) */
   claude?: Record<string, unknown>;
+  /** Antigravity 머리말에만 있는 필드 (예: commandExecutionPolicy) */
+  antigravity?: Record<string, unknown>;
+  /** Grok Build 머리말에만 있는 필드 */
+  grok?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -161,10 +165,12 @@ export interface EngineInfo {
   status: 'ready' | 'preparing' | 'builtin';
   /** 설정 파일 위치. 예: '.codex/agents/*.toml' */
   configFormat?: string;
+  /** 설정 파일 형식을 확인한 공식 문서 */
+  configSourceUrl?: string;
   access: AccessRule[];
   /** 막혔을 때 보여 줄 이유. 예: 'Claude Code는 Pro 이상에서만 쓸 수 있어요' */
   lockReason: string;
-  /** official: 공식 문서로 확인 / third-party: 제3자 자료만 확인 */
+  /** 요금제 정보의 출처. official: 공식 문서로 확인 / third-party: 제3자 자료만 확인 */
   confidence: 'official' | 'third-party';
   sourceUrl: string;
   lastVerified: string;
