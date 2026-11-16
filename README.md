@@ -23,8 +23,11 @@ GPT(Codex)·Claude 에이전트로 이뤄진 **AI 팀 레시피**를 설계하�
 
 ```bash
 cd 내-프로젝트
-npx github:fun5307/teamcook add "<공유 링크>"
+node -e "fetch('https://raw.githubusercontent.com/fun5307/teamcook/main/cli/teamcook.mjs').then(r=>r.text()).then(t=>require('fs').writeFileSync('teamcook.mjs',t))"
+node teamcook.mjs add "<공유 링크>"
 ```
+
+첫 줄은 설치 도구 파일 하나를 내려받고, 둘째 줄이 레시피를 설치합니다 (Node.js 20 이상).
 
 이미 있는 파일은 건드리지 않습니다(`--force`로 덮어쓰기, `--dry-run`으로 미리 보기).
 

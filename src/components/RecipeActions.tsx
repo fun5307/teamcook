@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Check, Download, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Notice } from '@/components/common';
 import { providerData } from '@/data/providers';
 import { installCommand, suggestRecipeUrl } from '@/data/site';
@@ -53,9 +54,12 @@ export function ShareButton({ recipe }: { recipe: Recipe }) {
             저장되지 않아요).
           </p>
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-medium">터미널에서 프로젝트에 바로 설치 (Node.js 필요)</p>
-            <Input
+            <p className="text-xs font-medium">
+              터미널에서 프로젝트에 바로 설치 (Node.js 필요, 프로젝트 폴더에서 두 줄을 차례로 실행)
+            </p>
+            <Textarea
               readOnly
+              rows={3}
               className="font-mono text-xs"
               value={installCommand(link.url)}
               onFocus={(event) => event.target.select()}

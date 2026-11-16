@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Notice, PageHeader } from '@/components/common';
 import { providerData } from '@/data/providers';
+import { CLI_DOWNLOAD_COMMAND } from '@/data/site';
 
 function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
   return (
@@ -189,7 +190,13 @@ claude`}</Code>
           <strong>링크 복사</strong>를 누르면 아래 같은 명령이 함께 나옵니다.
         </p>
         <Code>{`cd 내-프로젝트
-npx github:fun5307/teamcook add "https://teamcook-eta.vercel.app/#r=…"`}</Code>
+${CLI_DOWNLOAD_COMMAND}
+node teamcook.mjs add "https://teamcook-eta.vercel.app/#r=…"`}</Code>
+        <p className="text-muted-foreground">
+          첫 줄은 설치 도구 파일(<code>teamcook.mjs</code>) 하나를 내려받고, 둘째 줄이 레시피를 설치합니다. Node.js만
+          있으면 Windows·macOS·Linux에서 같은 명령으로 됩니다. 설치가 끝나면 <code>teamcook.mjs</code>는 지워도
+          돼요.
+        </p>
         <ul className="list-disc pl-5 text-muted-foreground">
           <li>이미 있는 파일은 건드리지 않아요. 덮어쓰려면 끝에 <code>--force</code>를 붙입니다.</li>
           <li>

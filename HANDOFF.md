@@ -60,7 +60,7 @@
 | 갤러리 검색 | 제목·설명·카드 이름 검색 | `src/pages/GalleryPage.tsx`의 `matchesQuery` | 브라우저 자동 실행 |
 | 포크(고쳐서 다시 쓰기) | 기본·공유 레시피 '내 레시피로 가져오기', 편집기 '복제' | `cloneRecipe` | 브라우저 자동 실행 |
 | 교차 모델 연결 도우미 | **Codex의 MCP 서버는 제거됐다**(공식 문서). 대신 Claude Code용 파일이 `codex exec`로 Codex에게 일을 넘기는 '다리' 내보내기 옵션(실험적) | `src/lib/bridge.ts`, 편집기의 스위치 | 파일 내용 테스트만. **실제로 Claude Code가 codex exec를 부르는 것은 실행해 보지 못함** |
-| 레시피 설치 명령 | `npx github:fun5307/teamcook add "<공유 링크>"` — 이미 있는 파일은 건너뛰고, `.codex/config.toml`은 절대 덮어쓰지 않음 | `src/cli/`, 빌드 결과 `cli/teamcook.mjs`(저장소에 포함), `npm run build:cli` | 테스트 6개 + 로컬에서 `node cli/teamcook.mjs`로 설치 확인 |
+| 레시피 설치 명령 | 설치 도구 파일 하나를 받아 `node teamcook.mjs add "<공유 링크>"`로 실행. 이미 있는 파일은 건너뛰고, `.codex/config.toml`은 절대 덮어쓰지 않음. 받는 명령은 `src/data/site.ts`의 `CLI_DOWNLOAD_COMMAND` | `src/cli/`, 빌드 결과 `cli/teamcook.mjs`(저장소에 포함), `npm run build:cli` | 테스트 6개 + GitHub에서 실제로 내려받아 설치 확인 (Windows, Git Bash) |
 | 커뮤니티 제안 (서버 없는 임시 방법) | 공유 패널의 '커뮤니티 갤러리에 제안하기' → GitHub 이슈 작성 화면이 레시피 링크와 함께 열림 | `src/data/site.ts` | 링크 생성만 확인 |
 
 ### 하지 못한 것과 이유
@@ -68,7 +68,7 @@
 - **한국어 커뮤니티에 첫 레시피 공개:** 사용자가 직접 할 일.
 - **협업 리플레이:** Codex·Claude Code의 세션 기록 파일 형식을 먼저 조사해야 한다. 기록 파일에는 사용자의 대화 내용이 들어 있어 허락 없이 열어 보지 않았다.
 - **도구·기법 추천 (LLM API):** 서버 쪽 API 키가 필요하다(브라우저에 키를 넣으면 안 됨).
-- **설치 명령의 npm 등록:** 지금은 GitHub에서 바로 받는 방식(`npx github:…`)이다. `npx teamcook add …`로 줄이려면 사용자가 npm에 등록해야 한다(이름 `teamcook`이 비어 있는지도 확인 필요).
+- **설치 명령의 npm 등록:** `npx github:fun5307/teamcook`은 **npm 12에서 기본으로 막혀 있어 실패한다**(오류 `EALLOWGIT`, 직접 확인함). 그래서 파일 하나를 받아 `node`로 실행하는 두 줄 방식으로 안내한다. `npx teamcook add …` 한 줄로 줄이려면 사용자가 npm에 등록해야 한다(이름 `teamcook`이 비어 있는지도 확인 필요). `package.json`의 `bin`은 이미 설정돼 있고 `"private": true`만 풀면 된다.
 
 ### 6·7단계에서 내린 결정
 - `providers.json`의 Antigravity·Grok은 `status: "ready"`(내보내기 지원)로 바꿨다. 요금제 정보는 여전히 `confidence: "third-party"`라서, 이 도구가 쓰일 때는 "요금제 정보는 공식 문서로 확인하지 못했어요" 안내가 붙고, 대안을 고를 때 공식 확인 도구(Codex·Claude Code)보다 뒤로 밀린다.
@@ -158,7 +158,7 @@
 
 ## 내일 할 일 순서
 
-1. 배포된 사이트에서 전체 흐름을 한 번 직접 눌러 본다. 새로 붙은 기능 중 실제 도구로 확인하지 못한 것(Antigravity·Grok 파일 인식, 'Codex 자동 호출' 다리, `npx github:fun5307/teamcook add`)을 사용자와 함께 확인한다.
+1. 배포된 사이트에서 전체 흐름을 한 번 직접 눌러 본다. 새로 붙은 기능 중 실제 도구로 확인하지 못한 것(Antigravity·Grok 파일 인식, 'Codex 자동 호출' 다리, PowerShell·macOS에서의 설치 명령)을 사용자와 함께 확인한다.
 2. 흐름 캔버스 다듬기: 캔버스 안에서 화살표 라벨 바로 고치기, 상자를 눌러 그 카드 편집 열기.
 3. 디자인 다듬기, 코드 분할로 빌드 경고 없애기(jszip·yaml·smol-toml을 내보내기·불러오기 때만 불러오기).
 4. 레시피 허브 서버 저장(사용자가 데이터베이스 계정을 준비한 뒤), 협업 리플레이(세션 기록 형식 조사부터, 사용자 허락 필요), 도구 추천(서버 쪽 API 키 필요).

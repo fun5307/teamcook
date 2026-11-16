@@ -1,5 +1,5 @@
 // teamcook 명령줄 도구: 공유 링크의 레시피를 지금 폴더(프로젝트)에 설치한다.
-//   teamcook add "<공유 링크>" [--dir <폴더>] [--force] [--codex-bridge] [--dry-run]
+//   node teamcook.mjs add "<공유 링크>" [--dir <폴더>] [--force] [--codex-bridge] [--dry-run]
 // 에이전트를 실행하지는 않는다. 설정 파일만 쓴다.
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { planInstall } from './install';
 const HELP = `teamcook — AI 팀을 레시피로 요리하세요
 
 사용법:
-  teamcook add "<공유 링크>" [옵션]
+  node teamcook.mjs add "<공유 링크>" [옵션]
 
 옵션:
   --dir <폴더>      설치할 프로젝트 폴더 (기본: 지금 폴더)
@@ -46,7 +46,7 @@ function main(argv: string[]): number {
     else if (!link) link = arg;
   }
   if (!link) {
-    console.error('공유 링크를 넣어 주세요. 예: teamcook add "https://…/#r=…"');
+    console.error('공유 링크를 넣어 주세요. 예: node teamcook.mjs add "https://…/#r=…"');
     return 1;
   }
 

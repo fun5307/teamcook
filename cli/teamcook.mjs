@@ -17277,7 +17277,7 @@ function planInstall(link, options = {}) {
 var HELP = `teamcook — AI 팀을 레시피로 요리하세요
 
 사용법:
-  teamcook add "<공유 링크>" [옵션]
+  node teamcook.mjs add "<공유 링크>" [옵션]
 
 옵션:
   --dir <폴더>      설치할 프로젝트 폴더 (기본: 지금 폴더)
@@ -17312,7 +17312,7 @@ function main(argv) {
 		else if (!link) link = arg;
 	}
 	if (!link) {
-		console.error("공유 링크를 넣어 주세요. 예: teamcook add \"https://…/#r=…\"");
+		console.error("공유 링크를 넣어 주세요. 예: node teamcook.mjs add \"https://…/#r=…\"");
 		return 1;
 	}
 	const plan = planInstall(link, { codexBridge });

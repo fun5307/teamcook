@@ -49,7 +49,7 @@ src/
 │  ├─ exportZip.ts         # zip 내보내기
 │  ├─ optimize.ts          # 구독 최적화 제안
 │  └─ bridge.ts            # Claude Code → Codex 연결(codex exec)
-├─ cli/                    # 설치 명령 (teamcook add <링크>). 빌드 결과는 루트의 cli/teamcook.mjs
+├─ cli/                    # 설치 명령 (node teamcook.mjs add <링크>). 빌드 결과는 루트의 cli/teamcook.mjs — 사용자가 이 파일을 GitHub에서 직접 받아 쓰므로 반드시 다시 빌드해 커밋
 ├─ store/                  # zustand + localStorage
 ├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등)
 │  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
