@@ -231,27 +231,38 @@ fitsMyPlans(recipe: Recipe, plans: UserPlans, providers: ProviderData): 'full' |
 
 | 제공사 | 엔진 | 무료로 되는 것 | 유료로 열리는 것 | 설정 파일 형식 | 비고 |
 | --- | --- | --- | --- | --- | --- |
-| OpenAI | Codex CLI | ChatGPT Free 계정으로 Codex 제한적 사용 (한도 작음, 한시적 제공이라는 보도 있음) | Go / Plus / Pro로 한도 증가 | `.codex/agents/*.toml` + `.codex/config.toml`의 `[agents]` | API 키 종량제도 가능 |
-| Anthropic | Claude Code | 없음 (Free 플랜은 Claude Code 불가) | Pro 이상 | `.claude/agents/*.md` (YAML 머리말) | 콘솔 신규 계정에 약 5달러 API 크레딧 |
+| OpenAI | Codex | **Free·Go는 ChatGPT 데스크톱 앱의 Codex만** (GPT-6 Luna, 순차 제공 중, 한도 작음). **터미널(CLI)은 불가** | **Plus·Pro부터 CLI·IDE·웹** | `.codex/agents/*.toml` + `.codex/config.toml`의 `[agents]` | API 키 종량제는 플랜과 무관하게 CLI 가능 |
+| Anthropic | Claude Code | 없음 (Free 플랜은 Claude Code 불가) | Pro·Max·**Ultra**, 또는 콘솔(API) 계정 | `.claude/agents/*.md` (YAML 머리말) | 콘솔 무료 크레딧은 공식 문서에서 확인 못 함 |
 | Google | Antigravity CLI / Gemini API | Gemini API 무료 티어 (Google AI Studio). 개인 무료 로그인 Gemini CLI는 2026-06-18 종료, Antigravity CLI로 이전(무료 한도 작음) | 유료 플랜·API 결제 | **조사 필요** (MVP에서는 '준비 중') | |
 | xAI | Grok Build | 무료 grok.com으로는 Grok Build 불가 | SuperGrok, X Premium+ | **조사 필요** (MVP에서는 '준비 중') | 신규 API 계정에 25달러 크레딧 |
 
-참고 URL:
-- Codex 서브에이전트: https://developers.openai.com/codex/subagents
-- Codex 고급 설정: https://developers.openai.com/codex/config-advanced
+> ✅ **2026-11-16 공식 문서 재확인 완료.** OpenAI·Anthropic 행은 공식 문서 기준으로 고쳤다(굵은 글씨가 바뀐 부분). Google·xAI 행은 제3자 자료만 확인했으므로 `providers.json`에 `confidence: "third-party"`로 표시했다.
+
+참고 URL (Codex 문서는 learn.chatgpt.com으로 옮겨졌다. 주소 끝에 `.md`를 붙이면 원문을 받을 수 있다):
+- Codex 서브에이전트: https://learn.chatgpt.com/docs/agent-configuration/subagents (옛 주소 https://developers.openai.com/codex/subagents 에서 자동 이동)
+- Codex 설정 참조: https://learn.chatgpt.com/docs/config-file/config-reference
+- Codex 요금제: https://learn.chatgpt.com/docs/pricing
 - Claude Code 서브에이전트: https://code.claude.com/docs/en/sub-agents
+- Claude Code 설치·필요 플랜: https://code.claude.com/docs/en/setup
 
 ---
 
 ## 5. 설정 파일 형식 (변환기 명세)
 
 > ⚠️ 아래 키 이름은 조사 시점 기준이다. **1단계에서 변환기를 짜기 전에 공식 문서를 열어 필드 이름과 필수 여부를 다시 확인**하고, 다르면 이 문서를 고친 뒤 진행한다.
+>
+> ✅ **2026-11-16 재확인 결과 (처음 조사와 달라진 점)**
+> 1. **Codex는 에이전트 파일로 샌드박스를 바꿀 수 없다.** `sandbox_mode`, `approval_policy`, `model_provider`, `mcp_servers`는 에이전트 파일에 써도 부모 세션 설정을 덮어쓰지 못한다. 공식 문서: "Custom agent instructions can ask an agent to avoid edits, but they don't create a separate read-only sandbox." → 읽기 전용 카드는 **지시문 끝에 '수정하지 마라' 문장**을 붙여 내보내고, 실제 강제는 `codex --sandbox read-only`로 하도록 `RECIPE.md`에서 안내한다.
+> 2. **`[agents]`의 키 이름이 바뀌었다.** 동시 실행 수는 `max_concurrent_threads_per_session`(옛 `max_threads`는 별칭으로만 남음). `max_depth`는 공식 설정표에 없어서 내보내지 않는다(불러올 때는 읽는다).
+> 3. Codex 에이전트 파일의 선택 필드: `model`, `model_reasoning_effort`, `model_reasoning_summary`, `model_verbosity`, `features.*`, `skills.*`. 이름 규칙은 문서에 없고, 공식 예시는 밑줄(`pr_explorer`)을 쓴다.
+> 4. Claude Code의 `name`은 `:`을 쓸 수 없고 `-`로 시작할 수 없다(밑줄은 허용). `tools`는 쉼표 글자 또는 YAML 목록. 서브에이전트의 `permissionMode`로 권한을 **늘릴 수는 없다**(부모가 우선).
+> 5. 그래서 카드 권한의 뜻을 이렇게 정했다: `read-only` = 읽기만, `edit` = 편집 가능, `full` = **제한 없음(부모 세션 설정을 따름)**. 에이전트 파일은 권한을 줄이거나 부탁할 수만 있다.
 
 ### 5.1 Codex 커스텀 에이전트 (`.codex/agents/<name>.toml`)
 - 위치: 프로젝트용 `.codex/agents/`, 개인용 `~/.codex/agents/`
 - 파일 하나 = 에이전트 하나
 - 필수 필드(조사 기준): `name`, `description`, `developer_instructions`
-- 에이전트별로 샌드박스를 읽기 전용으로 덮어쓸 수 있음 → `permission: 'read-only'`와 대응 (정확한 키 이름은 공식 문서로 확인)
+- ~~에이전트별로 샌드박스를 읽기 전용으로 덮어쓸 수 있음~~ → **불가** (위 재확인 결과 1번). `permission: 'read-only'`는 지시문 끝 문장으로 표현한다.
 
 ```toml
 name = "reviewer"
@@ -264,8 +275,7 @@ developer_instructions = """
 프로젝트 설정 `.codex/config.toml`:
 ```toml
 [agents]
-max_threads = 3
-max_depth = 1
+max_concurrent_threads_per_session = 3
 ```
 
 ### 5.2 Claude Code 서브에이전트 (`.claude/agents/<name>.md`)
@@ -291,7 +301,10 @@ tools: Read, Grep, Glob
 | `role` | `description` | `description` |
 | `instructions` | `developer_instructions` | 본문 |
 | `model` | `model` (선택) | `model` (선택) |
-| `permission: 'read-only'` | 샌드박스 읽기 전용 | `tools`를 읽기 도구만으로 제한 |
+| `permission: 'read-only'` | 지시문 끝에 '수정하지 마라' 문장 (샌드박스는 파일로 못 바꿈) | `tools`를 읽기 도구만으로 제한 (`Read, Grep, Glob`) |
+| `permission: 'edit'` | 표시만 (주석) | `tools: Read, Grep, Glob, Edit, Write, Bash` |
+| `permission: 'full'` | 아무것도 쓰지 않음 | `tools` 생략 (모든 도구를 물려받음) |
+| `displayName`, `tags` 등 형식에 없는 카드 정보 | 맨 위 주석 `# agent-recipes: {...}` | 머리말 안 주석 `# agent-recipes: {...}` |
 
 변환기는 **내보내기와 불러오기 둘 다** 만든다. 형식에 없는 필드는 버리지 말고 `extra`에 보관했다가 다시 내보낼 때 살린다(왕복 손실 방지).
 

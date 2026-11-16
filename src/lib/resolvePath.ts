@@ -320,7 +320,7 @@ function summarize(total: number, counts: Record<PathLevel, number>, fallbackCou
     4: '수동(복사·붙여넣기)으로만',
   };
   const used = ([1, 2, 3, 4] as PathLevel[]).filter((path) => counts[path] > 0);
-  const tail = fallbackCount > 0 ? ` (${fallbackCount}개는 대안 엔진으로 바꿔서)` : '';
+  const tail = fallbackCount > 0 ? ` (${fallbackCount}개는 대안 도구로 바꿔서)` : '';
   if (used.length === 1) {
     const only = used[0];
     const verb = only === 4 ? '할 수 있어요' : '실행돼요';

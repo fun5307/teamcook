@@ -123,6 +123,9 @@
     }
   body {
     @apply bg-background text-foreground;
+    /* 한글이 단어 중간에서 끊기지 않게 한다 */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
     }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;

@@ -54,7 +54,7 @@ describe('사용자 유형 1: 전부 무료', () => {
     const result = resolveRecipe(crossReview, ALL_FREE, providerData);
     expect(result.counts).toEqual({ 1: 0, 2: 0, 3: 2, 4: 0 });
     expect(result.fallbackCount).toBe(1);
-    expect(result.summary).toBe('2개 모두 무료 한도로 실행돼요 (1개는 대안 엔진으로 바꿔서)');
+    expect(result.summary).toBe('2개 모두 무료 한도로 실행돼요 (1개는 대안 도구로 바꿔서)');
     // 작성자도 검토자도 결국 Codex → 교차 검토가 안 된다
     expect(result.crossReview).toBe('same-provider');
   });
@@ -77,7 +77,7 @@ describe('사용자 유형 2: ChatGPT Plus만', () => {
 
   it('레시피 전체가 구독으로 실행된다', () => {
     const result = resolveRecipe(crossReview, PLUS_ONLY, providerData);
-    expect(result.summary).toBe('2개 모두 구독으로 실행돼요 (1개는 대안 엔진으로 바꿔서)');
+    expect(result.summary).toBe('2개 모두 구독으로 실행돼요 (1개는 대안 도구로 바꿔서)');
   });
 });
 

@@ -34,12 +34,15 @@ src/
 │  ├─ providers.json       # 요금제·무료 범위·엔진 정보 (여기만 고치면 됨, 확인 날짜·출처 필수)
 │  ├─ providers.ts         # providers.json을 타입과 함께 내보냄
 │  ├─ recipes.ts           # 기본 레시피 3종
-│  └─ tips.ts              # 꿀팁
+│  ├─ cardTemplates.ts     # 카드 추가용 역할별 틀
+│  └─ tips.ts              # 꿀팁과 카드 경고
 ├─ converters/             # 형식 변환은 전부 여기에만 (codex.ts, claude.ts)
 ├─ lib/
 │  ├─ resolvePath.ts       # 실행 경로 해석기 (①~④, 🔒, 대안)
 │  ├─ requiredPlans.ts     # '필요한 플랜' 배지, fitsMyPlans
 │  ├─ share.ts             # 공유 링크 (#r=...)
+│  ├─ recipeSchema.ts      # 바깥 데이터를 안전한 Recipe로 다듬기 (버전 변환도 여기)
+│  ├─ router.ts            # hash 기반 화면 전환
 │  ├─ recipeMd.ts          # RECIPE.md 생성
 │  └─ exportZip.ts         # zip 내보내기
 ├─ store/                  # zustand + localStorage
@@ -74,4 +77,4 @@ npm run build      # 배포용 빌드 (dist/)
 
 ## 현재 단계
 
-`HANDOFF.md`의 '현재 상태'를 본다.
+(2026-11-16 기준) 0~4단계와 5단계의 실행 안내 페이지까지 완료. 남은 것: 실제 CLI에서 에이전트 인식 확인, GitHub 올리기, Vercel 배포(모두 사용자 계정 필요), 그리고 흐름 캔버스. 자세한 내용은 `HANDOFF.md`.
