@@ -3,6 +3,7 @@
 // (React가 자동으로 글자를 안전하게 처리하므로 dangerouslySetInnerHTML만 쓰지 않으면 된다).
 
 import { ArrowRight } from 'lucide-react';
+import { FlowSection } from '@/components/FlowSection';
 import { CardRoute, PlanBadges, RecipeRunSummary, engineName } from '@/components/RouteInfo';
 import { providerData } from '@/data/providers';
 import { PERMISSION_LABELS, starterPrompt } from '@/lib/recipeMd';
@@ -100,6 +101,7 @@ export function RecipeOverview({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
+        <FlowSection recipe={recipe} resolution={resolved} />
         <FlowList recipe={recipe} />
       </section>
 

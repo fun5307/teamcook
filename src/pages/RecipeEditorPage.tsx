@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field, NativeSelect, Notice, PageHeader } from '@/components/common';
+import { FlowSection } from '@/components/FlowSection';
 import { ExportZipButton, ShareButton } from '@/components/RecipeActions';
-import { FlowList, roleLabel } from '@/components/RecipeOverview';
+import { roleLabel } from '@/components/RecipeOverview';
 import { CardRoute, LockBadge, PathBadge, PlanBadges, RecipeRunSummary, engineName } from '@/components/RouteInfo';
 import { CARD_TEMPLATES, cardFromTemplate } from '@/data/cardTemplates';
 import { providerData } from '@/data/providers';
@@ -590,12 +591,17 @@ export function RecipeEditorPage({ id }: { id: string }) {
           흐름은 설정 파일에는 담기지 않아요. 대신 RECIPE.md의 '첫 프롬프트 예시'로 만들어져서, 실행할 때 AI에게
           순서를 알려 줍니다.
         </p>
+        <FlowSection
+          recipe={recipe}
+          resolution={resolved}
+          onConnect={(from, to) =>
+            update({ handoffs: [...recipe.handoffs, { id: newId('handoff'), from, to }] })
+          }
+          onRemove={(handoffId) =>
+            update({ handoffs: recipe.handoffs.filter((handoff) => handoff.id !== handoffId) })
+          }
+        />
         <HandoffEditor recipe={recipe} onChange={(handoffs) => update({ handoffs })} />
-        {recipe.handoffs.length > 0 ? (
-          <div className="rounded-xl bg-muted/40 p-3">
-            <FlowList recipe={recipe} />
-          </div>
-        ) : null}
       </section>
 
       <section className="flex flex-col gap-2">
