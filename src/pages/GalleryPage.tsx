@@ -5,7 +5,7 @@ import { FilePlus2, FolderOpen, Search, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FactTable, Notice } from '@/components/common';
+import { Notice } from '@/components/common';
 import { FitLabel, STYLE_COLORS, engineName } from '@/components/RouteInfo';
 import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
@@ -72,48 +72,98 @@ export function plansSummary(plans: UserPlans): string {
   return parts.length > 0 ? parts.join(' · ') : '쓰는 AI가 없어요';
 }
 
+/** 카드에 보여 줄 '만드는 순서' 줄 수 */
+const MAX_STEPS = 3;
+
+/** 레시피 카드 한 장: 제목 → 재료(필요한 플랜) → 만드는 순서 */
 function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans; href: string }) {
   const required = requiredPlans(recipe, providerData);
   const fit = fitsMyPlans(recipe, plans, providerData);
   const style = collaborationOf(recipe);
+  const info = COLLABORATIONS[style];
   const engines: EngineId[] = [];
   for (const card of recipe.cards) {
     const engine = style === 'agent-team' ? 'claude-code' : card.preferredEngine;
     if (!engines.includes(engine)) engines.push(engine);
   }
   const where = style === 'debate' ? '프롬프트만' : engines.map(engineName).join(' + ') || '카드 없음';
-  const info = COLLABORATIONS[style];
-  const names = recipe.cards.map((card) => card.displayName || card.name).join(', ');
-  const count = style === 'debate' ? `${recipe.cards.length}개` : `${recipe.cards.length}명`;
+  const servings = style === 'debate' ? `${recipe.cards.length}역할` : `${recipe.cards.length}인분`;
+
+  // 만드는 순서: 넘겨주기 흐름이 있으면 그것을, 없으면 요리사 이름을 차례로 보여 준다
+  const byId = new Map(recipe.cards.map((card) => [card.id, card]));
+  const steps: { key: string; text: string; note?: string }[] = [];
+  for (const handoff of recipe.handoffs) {
+    const from = byId.get(handoff.from);
+    const to = byId.get(handoff.to);
+    if (!from || !to) continue;
+    steps.push({ key: handoff.id, text: `${from.displayName || from.name} → ${to.displayName || to.name}`, note: handoff.label });
+  }
+  if (steps.length === 0) {
+    for (const card of recipe.cards) steps.push({ key: card.id, text: card.displayName || card.name });
+  }
+  const moreSteps = steps.length - MAX_STEPS;
+
   return (
     <a
       href={href}
-      className="group flex flex-col border-2 bg-card transition-[box-shadow] duration-150 hover:shadow-[4px_4px_0_0_var(--foreground)] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="recipe-card group flex flex-col gap-4 rounded-xl border bg-card p-5 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
     >
-      <div
-        className="flex items-center justify-between gap-2 px-3.5 py-1 text-sm font-bold text-white"
-        style={{ background: STYLE_COLORS[style] }}
-      >
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
+        <span aria-hidden className="size-2 rounded-full" style={{ background: STYLE_COLORS[style] }} />
         <span>{info.label}</span>
-        {info.experimental ? <span>실험 기능</span> : null}
+        {recipe.cards.length > 0 ? <span>{servings}</span> : null}
+        {info.experimental ? <span className="text-primary">실험 기능</span> : null}
+      </p>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-[1.4rem] leading-snug font-extrabold text-balance transition-colors duration-200 group-hover:text-primary">
+          {recipe.title}
+        </h3>
+        <p className="line-clamp-3 text-sm text-pretty text-muted-foreground">
+          {recipe.summary || '설명이 아직 없어요.'}
+        </p>
       </div>
-      <div className="flex flex-1 flex-col gap-3 p-3.5">
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-xl leading-snug font-bold text-balance group-hover:underline">{recipe.title}</h3>
-          <p className="line-clamp-3 text-sm text-pretty">{recipe.summary || '설명이 아직 없어요.'}</p>
+
+      <div>
+        <h4 className="mb-1 text-xs font-bold text-primary">재료</h4>
+        {required.details.length > 0 ? (
+          <ul className="text-sm">
+            {required.details.map((badge) => (
+              <li key={badge.engine} className="flex justify-between gap-3 border-b border-dashed py-1.5">
+                <span>{badge.text}</span>
+                <span className="shrink-0 text-muted-foreground">
+                  {badge.engine === 'manual' ? '프롬프트만' : engineName(badge.engine)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">카드를 추가하면 계산돼요.</p>
+        )}
+      </div>
+
+      {steps.length > 0 ? (
+        <div>
+          <h4 className="mb-1 text-xs font-bold text-primary">만드는 순서</h4>
+          <ol className="text-sm">
+            {steps.slice(0, MAX_STEPS).map((step, index) => (
+              <li key={step.key} className="grid grid-cols-[1.5rem_1fr] items-baseline py-0.5">
+                <span className="font-heading text-lg leading-tight font-extrabold text-primary tabular-nums">
+                  {index + 1}
+                </span>
+                <span>
+                  {step.text}
+                  {step.note ? <span className="text-muted-foreground"> · {step.note}</span> : null}
+                </span>
+              </li>
+            ))}
+          </ol>
+          {moreSteps > 0 ? <p className="mt-0.5 pl-6 text-xs text-muted-foreground">외 {moreSteps}단계</p> : null}
         </div>
-        <div className="mt-auto">
-          <h4 className="label-rule-sm text-sm font-bold">레시피 정보</h4>
-          <FactTable
-            rows={[
-              [style === 'debate' ? '역할' : '팀원', recipe.cards.length > 0 ? `${count} (${names})` : '카드 없음'],
-              ['필요한 플랜', required.badges.join(', ') || '카드를 추가하면 계산돼요'],
-              ['돌리는 곳', where],
-              ...(recipe.lastVerified ? ([['확인한 날', recipe.lastVerified]] as [string, string][]) : []),
-            ]}
-          />
-        </div>
+      ) : null}
+
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3">
         <FitLabel fit={fit} />
+        <span className="text-xs text-muted-foreground">{where}</span>
       </div>
     </a>
   );
@@ -183,54 +233,41 @@ export function GalleryPage() {
   return (
     <div className="flex flex-col gap-8">
       <section
-        className="grid border-[3px] bg-card md:grid-cols-[1.2fr_1fr]"
+        className="flex flex-col gap-5 pt-6 pb-2 sm:pt-10"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
           void onFiles(event.dataTransfer.files);
         }}
       >
-        <div className="flex flex-col gap-4 p-6 sm:p-9">
-          <h1 className="text-4xl leading-[1.1] font-bold tracking-[-0.045em] sm:text-6xl sm:leading-[1.1]">
-            AI 팀을 레시피로 요리하세요
-          </h1>
-          <p className="max-w-xl text-base">
-            역할을 나눈 AI 팀을 레시피 한 장으로 짜고 링크 하나로 나눕니다. 내 요금제로 쓸 수 있는 실행 경로를
-            알려 주고, Codex와 Claude Code 설정 파일로 내보내 줍니다.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="lg" onClick={onCreate}>
-              <FilePlus2 aria-hidden />새 레시피 만들기
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => fileInput.current?.click()}>
-              <FolderOpen aria-hidden />
-              파일에서 불러오기
-            </Button>
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              accept=".toml,.md,.json"
-              className="hidden"
-              onChange={(event) => void onFiles(event.target.files)}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            불러올 수 있는 파일: Codex 에이전트(.toml), Claude 서브에이전트(.md), 레시피(recipe.json). 이 상자에
-            파일을 끌어다 놓아도 돼요. 파일은 내 브라우저 안에서만 읽고, 어디로도 전송하지 않아요.
-          </p>
-        </div>
-        <div className="border-t-[3px] p-6 md:border-t-0 md:border-l-[3px]">
-          <h2 className="label-rule text-xl font-bold">내용물</h2>
-          <FactTable
-            rows={[
-              ['역할 카드', '작성자, 검토자, 조사원 등으로 팀을 짭니다'],
-              ['실행 경로', '내 요금제로 쓸 수 있는 길을 알려 줍니다'],
-              ['내보내기', 'Codex, Claude Code 설정 파일 (터미널, T3 Code, 1Code에서 그대로)'],
-              ['공유', '가입 없이 링크 하나'],
-            ]}
+        <h1 className="max-w-3xl text-4xl leading-[1.2] font-extrabold text-balance sm:text-[3.4rem] sm:leading-[1.18]">
+          AI 팀을 레시피로 요리하세요
+        </h1>
+        <p className="max-w-2xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
+          역할을 나눈 AI 팀을 레시피 한 장으로 짜고 링크 하나로 나눕니다. 내 요금제로 쓸 수 있는 실행 경로를 알려
+          주고, Codex와 Claude Code 설정 파일로 내보내 줍니다.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button size="lg" onClick={onCreate}>
+            <FilePlus2 aria-hidden />새 레시피 만들기
+          </Button>
+          <Button size="lg" variant="outline" onClick={() => fileInput.current?.click()}>
+            <FolderOpen aria-hidden />
+            파일에서 불러오기
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            accept=".toml,.md,.json"
+            className="hidden"
+            onChange={(event) => void onFiles(event.target.files)}
           />
         </div>
+        <p className="max-w-2xl text-xs text-muted-foreground">
+          불러올 수 있는 파일: Codex 에이전트(.toml), Claude 서브에이전트(.md), 레시피(recipe.json). 여기에 파일을
+          끌어다 놓아도 돼요. 파일은 내 브라우저 안에서만 읽고, 어디로도 전송하지 않아요.
+        </p>
       </section>
 
       {messages.length > 0 ? (
@@ -243,7 +280,7 @@ export function GalleryPage() {
         </div>
       ) : null}
 
-      <section className="flex flex-col gap-3 border-2 bg-card p-4">
+      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm">
             <span className="text-muted-foreground">내 AI 현황: </span>
@@ -285,7 +322,7 @@ export function GalleryPage() {
               className={cn(
                 'rounded-full border px-3 py-1 text-sm transition-colors',
                 filter === item.id
-                  ? 'border-primary bg-primary text-primary-foreground'
+                  ? 'border-foreground bg-foreground text-background'
                   : 'bg-card hover:bg-muted',
               )}
             >
@@ -305,7 +342,7 @@ export function GalleryPage() {
               className={cn(
                 'rounded-full border px-3 py-1 text-sm transition-colors',
                 styleFilter === id
-                  ? 'border-primary bg-primary text-primary-foreground'
+                  ? 'border-foreground bg-foreground text-background'
                   : 'bg-card hover:bg-muted',
               )}
             >
@@ -328,7 +365,7 @@ export function GalleryPage() {
 
       {myRecipes.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className="label-rule text-xl font-bold">내 레시피</h2>
+          <h2 className="text-xl font-bold">내 레시피</h2>
           {visibleMine.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visibleMine.map((recipe) => (
@@ -347,7 +384,7 @@ export function GalleryPage() {
       ) : null}
 
       <section className="flex flex-col gap-3">
-        <h2 className="label-rule text-xl font-bold">기본 레시피</h2>
+        <h2 className="text-xl font-bold">기본 레시피</h2>
         {visibleBuiltin.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visibleBuiltin.map((recipe) => (

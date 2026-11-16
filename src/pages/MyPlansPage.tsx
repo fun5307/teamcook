@@ -46,7 +46,7 @@ export function MyPlansPage() {
           return (
             <section key={id} className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
               <div className="flex items-baseline justify-between gap-2">
-                <h2 className="label-rule text-lg font-bold">
+                <h2 className="text-lg font-bold">
                   {provider.productName}{' '}
                   <span className="text-sm font-normal text-muted-foreground">({provider.name})</span>
                 </h2>
@@ -73,7 +73,7 @@ export function MyPlansPage() {
                       className={cn(
                         'rounded-full border px-3 py-1.5 text-sm transition-colors',
                         selected
-                          ? 'border-primary bg-primary text-primary-foreground'
+                          ? 'border-foreground bg-foreground text-background'
                           : 'bg-card hover:bg-muted',
                       )}
                     >
@@ -132,7 +132,7 @@ export function MyPlansPage() {
         })}
       </div>
 
-      <section className="flex flex-col gap-2 border-2 bg-card p-5 text-sm">
+      <section className="flex flex-col gap-2 rounded-xl border bg-card p-5 text-sm">
         <h2 className="text-base font-semibold">실행 경로 사다리란?</h2>
         <p className="text-muted-foreground">
           카드마다 아래 순서로, 위에서부터 내가 쓸 수 있는 경로를 찾아요.

@@ -1,5 +1,6 @@
 // 앱 틀: 위쪽 메뉴 + 화면 전환.
 
+import { CircleHelp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { providerData } from '@/data/providers';
 import { type Route, useRoute } from '@/lib/router';
@@ -12,7 +13,6 @@ import { BuiltinRecipePage, SharedRecipePage } from '@/pages/RecipePreviewPage';
 const NAV: { href: string; label: string; pages: Route['page'][] }[] = [
   { href: '#/', label: '레시피', pages: ['gallery', 'preview', 'edit', 'shared'] },
   { href: '#/plans', label: '내 AI 현황', pages: ['plans'] },
-  { href: '#/how', label: '어디서 돌리나요?', pages: ['how'] },
 ];
 
 function Page({ route }: { route: Route }) {
@@ -37,12 +37,12 @@ export default function App() {
   const route = useRoute();
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="sticky top-0 z-20 border-b-[3px] bg-card">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
-          <a href="#/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <span aria-hidden className="inline-block size-4 bg-foreground" /> teamcook
+      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-8 gap-y-2 px-4 py-3.5">
+          <a href="#/" className="font-heading text-2xl font-extrabold tracking-tight">
+            teamcook
           </a>
-          <nav className="flex flex-wrap gap-1" aria-label="주 메뉴">
+          <nav className="flex flex-wrap items-center gap-x-7 gap-y-1" aria-label="주 메뉴">
             {NAV.map((item) => {
               const active = item.pages.includes(route.page);
               return (
@@ -51,14 +51,26 @@ export default function App() {
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'px-2.5 py-1 text-sm font-medium',
-                    active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                    'nav-link text-[15px] transition-colors duration-200',
+                    active ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {item.label}
                 </a>
               );
             })}
+            <a
+              href="#/how"
+              aria-current={route.page === 'how' ? 'page' : undefined}
+              title="내보낸 파일을 어디서, 어떻게 돌리는지 알려 드려요"
+              className={cn(
+                'inline-flex items-center gap-1 text-xs transition-colors duration-200 hover:text-primary',
+                route.page === 'how' ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <CircleHelp className="size-3.5" aria-hidden />
+              도움말
+            </a>
           </nav>
         </div>
       </header>

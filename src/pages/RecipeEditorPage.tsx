@@ -518,7 +518,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
         }
       />
 
-      <section className="flex flex-col gap-4 border-2 bg-card p-5">
+      <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
         <Field label="레시피 제목" htmlFor="recipe-title">
           <Input
             id="recipe-title"
@@ -583,7 +583,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
                 <label
                   key={id}
                   className={cn(
-                    'flex cursor-pointer flex-col gap-1 border bg-card p-3 text-sm transition-colors',
+                    'flex cursor-pointer flex-col gap-1 rounded-lg border bg-card p-3 text-sm transition-colors',
                     selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'hover:bg-muted/50',
                   )}
                 >
@@ -597,7 +597,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
                     />
                     {info.label}
                     {info.experimental ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-xs font-normal text-violet-800">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-xs font-normal text-primary">
                         <FlaskConical className="size-3" aria-hidden />
                         실험 기능
                       </span>
@@ -724,7 +724,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
         }}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="label-rule text-xl font-bold">에이전트 카드</h2>
+          <h2 className="text-xl font-bold">에이전트 카드</h2>
           <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
             <FolderOpen aria-hidden />
             .toml · .md 파일 불러오기
@@ -756,7 +756,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
             onMove={(direction) => moveCard(index, direction)}
           />
         ))}
-        <div className="flex flex-col gap-2 border-2 border-dashed bg-card p-4">
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed bg-card p-4">
           <p className="text-sm font-medium">카드 추가 — 어떤 역할인가요?</p>
           <div className="flex flex-wrap gap-2">
             {CARD_TEMPLATES.map((template) => (
@@ -770,7 +770,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="label-rule text-xl font-bold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
+        <h2 className="text-xl font-bold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
         <p className="text-sm text-muted-foreground">
           {style === 'debate'
             ? '토론형에서는 흐름이 발언 순서가 돼요. 아래 토론 프롬프트에 바로 반영됩니다.'
@@ -791,16 +791,16 @@ export function RecipeEditorPage({ id }: { id: string }) {
 
       {recipe.cards.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className="label-rule text-xl font-bold">이렇게 시작해요</h2>
+          <h2 className="text-xl font-bold">이렇게 시작해요</h2>
           <RunPromptBox recipe={recipe} />
         </section>
       ) : null}
 
       <section className="flex flex-col gap-2">
-        <h2 className="label-rule text-xl font-bold">꿀팁</h2>
+        <h2 className="text-xl font-bold">꿀팁</h2>
         <ul className="grid gap-2 sm:grid-cols-2">
           {TIPS.map((tip) => (
-            <li key={tip.id} className="border bg-card p-3 text-sm">
+            <li key={tip.id} className="rounded-xl border bg-card p-3 text-sm">
               <p className="font-medium">{tip.title}</p>
               <p className="mt-1 text-muted-foreground">{tip.body}</p>
             </li>

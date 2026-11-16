@@ -120,7 +120,7 @@ export function RecipeOverview({
       <RecipeRunSummary resolution={resolved} lead={runLead} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="label-rule text-lg font-bold">팀 구성</h2>
+        <h2 className="text-lg font-bold">팀 구성</h2>
         {recipe.cards.map((card) => (
           <article key={card.id} className="flex flex-col gap-2 rounded-xl border bg-card p-4">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -148,13 +148,13 @@ export function RecipeOverview({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="label-rule text-lg font-bold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
+        <h2 className="text-lg font-bold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
         <FlowSection recipe={recipe} resolution={resolved} />
         <FlowList recipe={recipe} />
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="label-rule text-lg font-bold">이렇게 시작해요</h2>
+        <h2 className="text-lg font-bold">이렇게 시작해요</h2>
         {recipe.howToRun ? <p className="text-sm leading-relaxed">{recipe.howToRun}</p> : null}
         <RunPromptBox recipe={recipe} />
       </section>

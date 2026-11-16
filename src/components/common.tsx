@@ -19,20 +19,6 @@ export function NativeSelect({ className, ...props }: ComponentProps<'select'>) 
   );
 }
 
-/** 식품 라벨의 표처럼 줄로 나눈 "이름 | 값" 목록. 굵은 줄이 있는 제목(label-rule) 바로 아래에 둔다. */
-export function FactTable({ rows, className }: { rows: [string, ReactNode][]; className?: string }) {
-  return (
-    <dl className={cn('border-b-4 text-sm', className)}>
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex gap-3 border-t py-1.5 first:border-t-0">
-          <dt className="w-24 shrink-0 font-bold">{label}</dt>
-          <dd className="min-w-0 flex-1 text-pretty">{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 /** 이름표 + 입력칸 + 도움말 한 묶음 */
 export function Field({
   label,

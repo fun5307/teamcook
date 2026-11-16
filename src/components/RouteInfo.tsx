@@ -38,24 +38,24 @@ export function PathBadge({ path, short = false }: { path: PathLevel; short?: bo
   );
 }
 
-/** 조리법을 구분하는 띠 색 (index.css의 --style-* 값) */
+/** 조리법을 구분하는 점 색 (index.css의 --style-* 값) */
 export const STYLE_COLORS: Record<Collaboration, string> = {
   subagents: 'var(--style-subagents)',
   'agent-team': 'var(--style-agent-team)',
   debate: 'var(--style-debate)',
 };
 
-/** 조리법(협업 방식) 이름표: 라벨의 색 띠와 같은 색 */
+/** 조리법(협업 방식) 이름표: 작은 색 점 + 글자 */
 export function StyleChip({ recipe }: { recipe: Pick<Recipe, 'collaboration'> }) {
   const info = COLLABORATIONS[collaborationOf(recipe)];
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold whitespace-nowrap text-white"
-      style={{ background: STYLE_COLORS[info.id] }}
+      className="inline-flex items-center gap-1.5 text-xs font-medium whitespace-nowrap text-muted-foreground"
       title={info.description}
     >
+      <span aria-hidden className="size-2 rounded-full" style={{ background: STYLE_COLORS[info.id] }} />
       {info.chip}
-      {info.experimental ? <span className="font-medium">실험 기능</span> : null}
+      {info.experimental ? <span className="text-primary">실험 기능</span> : null}
     </span>
   );
 }
@@ -156,7 +156,7 @@ export function RecipeRunSummary({
 }) {
   const { styleLock } = resolution;
   return (
-    <div className="flex flex-col gap-1 border-2 bg-card px-4 py-3">
+    <div className="flex flex-col gap-1 rounded-xl border bg-card px-4 py-3">
       <p className="text-sm">
         <span className="text-muted-foreground">{lead} → </span>
         <strong className="font-semibold">{resolution.summary}</strong>
