@@ -3,6 +3,8 @@
 //   ├─ .codex/agents/*.toml
 //   ├─ .codex/config.toml
 //   ├─ .claude/agents/*.md
+//   ├─ .claude/settings.json   (에이전트 팀 조리법일 때만: 에이전트 팀 켜기. 이때는 .codex가 없다)
+//   ├─ debate-prompt.txt       (토론형 조리법일 때만. 이때는 .codex·.claude가 없다)
 //   ├─ recipe.json   (다시 불러오기용 원본)
 //   └─ RECIPE.md     (사람용 설명서)
 
@@ -10,9 +12,10 @@ import JSZip from 'jszip';
 import { cardToClaudeMd } from '../converters/claude';
 import { cardToCodexToml, recipeToCodexConfig } from '../converters/codex';
 import { cardToAntigravityMd, cardToGrokMd } from '../converters/markdownAgents';
+import { AGENT_TEAMS_SETTINGS_JSON, collaborationOf } from '../data/collaboration';
 import { codexBridgeMd, needsCodexBridge } from './bridge';
 import type { ProviderData, Recipe, UserPlans } from '../types';
-import { buildRecipeMd, exportEngines } from './recipeMd';
+import { buildRecipeMd, debatePrompt, exportEngines } from './recipeMd';
 
 export interface ExportOptions {
   /** 내 플랜. 주면 RECIPE.md에 실행 경로를 적고, 대안 도구의 형식도 함께 넣는다. */
@@ -41,7 +44,9 @@ export function buildRecipeFiles(
 ): Record<string, string> {
   const { plans } = options;
   const engines = exportEngines(recipe, providers, plans);
-  const bridge = options.codexBridge === true && needsCodexBridge(recipe);
+  const style = collaborationOf(recipe);
+  // 'Codex 자동 호출'은 서브에이전트 조리법에서만 뜻이 있다
+  const bridge = style === 'subagents' && options.codexBridge === true && needsCodexBridge(recipe);
   const root = safeName(recipe.title, 'recipe');
   const files: Record<string, string> = {};
   const used = new Set<string>();
@@ -53,6 +58,15 @@ export function buildRecipeFiles(
     for (let n = 2; used.has(fileName); n += 1) fileName = `${base}-${n}`;
     used.add(fileName);
 
+    // 조리법에 따라 넣는 형식이 다르다: 토론형은 설정 파일 없음, 에이전트 팀은 Claude Code 전용
+    if (style === 'debate') continue;
+    if (style === 'agent-team') {
+      // 팀원은 모두 Claude Code에서 돌므로, 다른 도구용 모델 이름은 쓰지 않는다
+      const { model, ...rest } = card;
+      const member = card.preferredEngine === 'claude-code' && model ? { ...rest, model } : rest;
+      files[`${root}/.claude/agents/${fileName}.md`] = cardToClaudeMd({ ...member, preferredEngine: 'claude-code' });
+      continue;
+    }
     files[`${root}/.codex/agents/${fileName}.toml`] = cardToCodexToml(card);
     files[`${root}/.claude/agents/${fileName}.md`] =
       bridge && card.preferredEngine === 'codex-cli' ? codexBridgeMd(card) : cardToClaudeMd(card);
@@ -64,7 +78,10 @@ export function buildRecipeFiles(
     }
   }
 
-  files[`${root}/.codex/config.toml`] = recipeToCodexConfig(recipe);
+  if (style === 'subagents') files[`${root}/.codex/config.toml`] = recipeToCodexConfig(recipe);
+  // 에이전트 팀 켜기 (프로젝트 폴더용 설정만. 사용자의 ~/.claude는 건드리지 않는다)
+  if (style === 'agent-team') files[`${root}/.claude/settings.json`] = AGENT_TEAMS_SETTINGS_JSON;
+  if (style === 'debate') files[`${root}/debate-prompt.txt`] = `${debatePrompt(recipe)}\n`;
   files[`${root}/recipe.json`] = `${JSON.stringify(recipe, null, 2)}\n`;
   files[`${root}/RECIPE.md`] = buildRecipeMd(recipe, providers, plans);
   if (bridge) {

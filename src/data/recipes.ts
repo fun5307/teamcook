@@ -1,8 +1,11 @@
-// 기본 레시피 3종 (PROJECT_BRIEF.md 9장).
+// 기본 레시피 5종 (PROJECT_BRIEF.md 9장 3종 + BRIEF_collaboration-styles.md 조리법 2종).
 // 배지와 실행 경로는 여기 적지 않는다. lib/requiredPlans.ts, lib/resolvePath.ts가 계산한다.
 // 모델 이름은 일부러 비워 둔다(각 도구의 기본 모델을 따름). 모델 이름은 자주 바뀌기 때문이다.
 
 import type { Recipe } from '../types';
+
+/** 기본 레시피가 실제로 돌아가는지 마지막으로 확인한 날 */
+const VERIFIED = '2026-11-16';
 
 const crossReview: Recipe = {
   schemaVersion: 1,
@@ -12,6 +15,7 @@ const crossReview: Recipe = {
     'Claude Code가 기능을 구현하고, 다른 회사 모델인 Codex가 읽기 전용으로 검토합니다. 같은 모델이 자기 결과를 검토할 때 놓치는 문제를 잡아냅니다.',
   useCase: '기능 구현 후 검토',
   author: 'teamcook',
+  lastVerified: VERIFIED,
   cards: [
     {
       id: 'cr-writer',
@@ -66,6 +70,7 @@ const planBuildReview: Recipe = {
     'Codex 하나로 돌리는 3인 팀입니다. 기획자가 계획을 세우고, 구현 담당이 만들고, 검토자가 읽기 전용으로 확인합니다. ChatGPT 계정만 있으면 됩니다.',
   useCase: '작은 기능을 계획부터 검토까지',
   author: 'teamcook',
+  lastVerified: VERIFIED,
   cards: [
     {
       id: 'pbr-planner',
@@ -136,6 +141,7 @@ const researchTeam: Recipe = {
     '조사원 둘이 서로 다른 관점(사실·근거 / 반대 근거·위험)으로 동시에 조사하고, 정리원이 하나의 보고서로 묶습니다. 한쪽 시각에 치우친 조사를 막아 줍니다.',
   useCase: '자료 조사와 의사결정 준비',
   author: 'teamcook',
+  lastVerified: VERIFIED,
   cards: [
     {
       id: 'rt-facts',
@@ -200,4 +206,158 @@ const researchTeam: Recipe = {
     'Claude Code에서 이렇게 시작합니다: "fact_researcher와 risk_researcher를 동시에 돌려서 (주제)를 조사하고, 두 결과를 synthesizer에게 넘겨 보고서로 정리해 줘."',
 };
 
-export const builtinRecipes: Recipe[] = [crossReview, planBuildReview, researchTeam];
+// 조리법: 에이전트 팀 (Claude Code 전용, 실험 기능). 리더는 처음 연 Claude Code 대화창이라 카드로 두지 않는다.
+const featureTeam: Recipe = {
+  schemaVersion: 1,
+  id: 'builtin-feature-team',
+  title: '기능 구현 팀 (리더 + 구현 2 + 검토 1)',
+  summary:
+    'Claude Code 에이전트 팀으로 돌리는 구현 팀입니다. 처음 연 대화창이 리더가 되어 일을 나누고, 구현 담당 두 명이 서로 겹치지 않는 부분을 맡고, 검토자가 읽기 전용으로 확인합니다. 팀원끼리 직접 대화하며 맞춰 갑니다.',
+  useCase: '화면과 서버처럼 나눌 수 있는 기능 구현',
+  author: 'teamcook',
+  lastVerified: VERIFIED,
+  collaboration: 'agent-team',
+  cards: [
+    {
+      id: 'ft-impl-a',
+      name: 'implementer_a',
+      displayName: '구현 담당 A',
+      role: '기능의 한쪽(예: 화면)을 맡아 구현할 때 사용. 리더가 정해 준 파일만 수정한다.',
+      instructions: [
+        '너는 구현 팀의 팀원 A다. 리더가 맡긴 부분만 구현한다.',
+        '',
+        '- 시작하기 전에 내가 고칠 파일 목록을 리더와 팀원 B에게 알린다. 같은 파일을 둘이 동시에 고치지 않는다.',
+        '- 다른 팀원이 맡은 부분과 맞물리는 곳(함수 이름, 데이터 모양)은 직접 물어보고 맞춘다.',
+        '- 바꾼 뒤 테스트나 빌드로 확인하고, 결과를 그대로 보고한다.',
+        '- 일이 끝나면 할 일 목록에서 내 일을 "완료"로 바꾼다.',
+        '- 검토 결과를 받으면 사실인지 확인한 뒤 맞는 지적만 반영한다.',
+      ].join('\n'),
+      preferredEngine: 'claude-code',
+      permission: 'edit',
+      tags: ['implementer'],
+    },
+    {
+      id: 'ft-impl-b',
+      name: 'implementer_b',
+      displayName: '구현 담당 B',
+      role: '기능의 다른 한쪽(예: 서버·데이터)을 맡아 구현할 때 사용. 리더가 정해 준 파일만 수정한다.',
+      instructions: [
+        '너는 구현 팀의 팀원 B다. 리더가 맡긴 부분만 구현한다.',
+        '',
+        '- 시작하기 전에 내가 고칠 파일 목록을 리더와 팀원 A에게 알린다. 같은 파일을 둘이 동시에 고치지 않는다.',
+        '- 다른 팀원이 맡은 부분과 맞물리는 곳(함수 이름, 데이터 모양)은 직접 물어보고 맞춘다.',
+        '- 바꾼 뒤 테스트나 빌드로 확인하고, 결과를 그대로 보고한다.',
+        '- 일이 끝나면 할 일 목록에서 내 일을 "완료"로 바꾼다.',
+        '- 검토 결과를 받으면 사실인지 확인한 뒤 맞는 지적만 반영한다.',
+      ].join('\n'),
+      preferredEngine: 'claude-code',
+      permission: 'edit',
+      tags: ['implementer'],
+    },
+    {
+      id: 'ft-reviewer',
+      name: 'team_reviewer',
+      displayName: '검토자',
+      role: '구현 담당 두 명의 변경을 읽기 전용으로 검토할 때 사용. 파일은 수정하지 않는다.',
+      instructions: [
+        '너는 구현 팀의 검토자다. 파일을 수정하지 않는다.',
+        '',
+        '- 두 구현 담당의 변경이 서로 맞물리는 곳부터 본다 (이름, 데이터 모양, 빠진 연결).',
+        '- 우선순위: 잘못된 동작 > 보안 문제 > 기존 기능이 깨지는 것 > 빠진 테스트. 취향 문제는 적지 않는다.',
+        '- 문제마다 파일 경로와 줄 번호, 왜 문제인지를 적어 해당 구현 담당에게 직접 알린다.',
+        '- 확신이 없으면 "추정"이라고 표시한다. 문제가 없으면 없다고 분명히 말한다.',
+      ].join('\n'),
+      preferredEngine: 'claude-code',
+      permission: 'read-only',
+      tags: ['reviewer'],
+    },
+  ],
+  handoffs: [
+    { id: 'ft-h1', from: 'ft-impl-a', to: 'ft-reviewer', label: '변경 내용' },
+    { id: 'ft-h2', from: 'ft-impl-b', to: 'ft-reviewer', label: '변경 내용' },
+  ],
+  settings: { maxThreads: 3, maxDepth: 1 },
+  howToRun:
+    '리더는 처음 연 Claude Code 대화창입니다. 첫 프롬프트의 "할 일"에 만들 기능과, A·B가 각각 맡을 부분을 적어 주세요. 팀원 수만큼 사용량이 늘어나니 작은 기능으로 먼저 시험해 보세요.',
+};
+
+// 조리법: 토론형 (설정 파일 없이 프롬프트 하나. 무료 웹 채팅에서도 된다)
+const decisionDebate: Recipe = {
+  schemaVersion: 1,
+  id: 'builtin-decision-debate',
+  title: '결정 토론 (사회자·조사·검증·반대자)',
+  summary:
+    '무엇을 고를지 망설여질 때 쓰는 토론입니다. AI 하나가 네 역할을 번갈아 맡아 근거를 모으고, 따져 보고, 일부러 반대한 뒤 결론을 냅니다. 설치할 것 없이 프롬프트만 붙여 넣으면 됩니다.',
+  useCase: '기술 선택, 우선순위, 할지 말지 결정',
+  author: 'teamcook',
+  lastVerified: VERIFIED,
+  collaboration: 'debate',
+  cards: [
+    {
+      id: 'dd-moderator',
+      name: 'moderator',
+      displayName: '사회자',
+      role: '주제와 판단 기준을 정하고, 마지막에 결론을 정리한다.',
+      instructions: [
+        '어느 편도 들지 않는다.',
+        '처음에 "무엇을 결정하는지"와 판단 기준 3가지를 정한다.',
+        '토론이 주제에서 벗어나면 되돌린다.',
+      ].join('\n'),
+      preferredEngine: 'manual',
+      permission: 'read-only',
+      tags: ['planner'],
+    },
+    {
+      id: 'dd-researcher',
+      name: 'researcher',
+      displayName: '조사',
+      role: '선택지마다 사실과 근거를 모은다.',
+      instructions: [
+        '선택지마다 장점·비용·전제 조건을 정리한다.',
+        '아는 사실과 추측을 구분한다. 모르는 것은 "확인 필요"라고 쓴다.',
+      ].join('\n'),
+      preferredEngine: 'manual',
+      permission: 'read-only',
+      tags: ['researcher'],
+    },
+    {
+      id: 'dd-verifier',
+      name: 'verifier',
+      displayName: '검증',
+      role: '조사가 내놓은 근거가 맞는지 따져 본다.',
+      instructions: [
+        '근거마다 "확실함 / 그럴듯함 / 근거 부족"으로 등급을 매긴다.',
+        '숫자나 출처가 빠진 주장은 그대로 넘기지 않는다.',
+      ].join('\n'),
+      preferredEngine: 'manual',
+      permission: 'read-only',
+      tags: ['reviewer'],
+    },
+    {
+      id: 'dd-opponent',
+      name: 'opponent',
+      displayName: '반대자',
+      role: '지금 가장 유력한 선택지에 일부러 반대한다.',
+      instructions: [
+        '"이 선택이 실패한다면 이유는 무엇일까?"에서 출발한다.',
+        '가장 큰 위험 2가지와, 그 위험을 줄이는 방법을 함께 말한다.',
+        '반대를 위한 반대는 하지 않는다. 반론이 약하면 약하다고 인정한다.',
+      ].join('\n'),
+      preferredEngine: 'manual',
+      permission: 'read-only',
+      tags: ['reviewer'],
+    },
+  ],
+  handoffs: [
+    { id: 'dd-h1', from: 'dd-moderator', to: 'dd-researcher', label: '주제와 판단 기준' },
+    { id: 'dd-h2', from: 'dd-researcher', to: 'dd-verifier', label: '근거' },
+    { id: 'dd-h3', from: 'dd-verifier', to: 'dd-opponent', label: '검증된 근거' },
+    { id: 'dd-h4', from: 'dd-opponent', to: 'dd-moderator', label: '반론' },
+  ],
+  settings: { maxThreads: 1, maxDepth: 1 },
+  howToRun:
+    '프롬프트의 "주제:" 줄에 선택지를 함께 적으면 좋아요. 예: "새 프로젝트의 상태 관리를 zustand로 할지 Redux로 할지". 중요한 결정이면 다른 AI에도 같은 프롬프트를 넣어 결론을 비교해 보세요.',
+};
+
+/** 순서를 바꾸지 말 것: 테스트가 앞의 3개를 순서대로 꺼내 쓴다. 새 레시피는 뒤에 붙인다. */
+export const builtinRecipes: Recipe[] = [crossReview, planBuildReview, researchTeam, featureTeam, decisionDebate];

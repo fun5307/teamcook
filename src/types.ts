@@ -78,6 +78,14 @@ export interface Handoff {
   label?: string;
 }
 
+/**
+ * 조리법 = 팀이 함께 일하는 방식.
+ * - subagents: 메인 AI가 서브에이전트에게 일을 맡기고 결과를 돌려받는다 (기본값)
+ * - agent-team: Claude Code 에이전트 팀. 팀원끼리 직접 대화하고 할 일 목록을 함께 쓴다 (실험 기능, Claude Code 전용)
+ * - debate: 토론형. 설정 파일 없이 프롬프트 하나로 여러 역할이 토론한다 (어느 AI에서나)
+ */
+export type Collaboration = 'subagents' | 'agent-team' | 'debate';
+
 /** 공유 링크 형식 버전. 구조를 바꾸면 올리고, 옛 버전을 읽는 코드는 남긴다. */
 export const RECIPE_SCHEMA_VERSION = 1 as const;
 
@@ -92,6 +100,10 @@ export interface Recipe {
   useCase: string;
   /** 선택: 닉네임 */
   author?: string;
+  /** 조리법(협업 방식). 없으면 'subagents'로 본다. 선택 필드라 schemaVersion은 1 그대로다. */
+  collaboration?: Collaboration;
+  /** 이 레시피가 실제로 돌아가는 것을 마지막으로 확인한 날 (YYYY-MM-DD) */
+  lastVerified?: string;
   cards: AgentCard[];
   handoffs: Handoff[];
   settings: {

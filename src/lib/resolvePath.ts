@@ -3,9 +3,11 @@
 //   ① 구독 로그인  ② API 키(종량제)  ③ 무료·제한 경로  ④ 수동(복사·붙여넣기, 마지막 대안)
 // 요금제 사실은 전부 providers.json에서 읽는다. 여기에는 판단 규칙만 둔다.
 
+import { COLLABORATIONS, collaborationOf } from '../data/collaboration';
 import type {
   AccessRule,
   AgentCard,
+  Collaboration,
   EngineId,
   PathLevel,
   ProviderData,
@@ -56,6 +58,15 @@ export interface RecipeResolution {
   fallbackCount: number;
   /** ok: 작성자와 검토자가 다른 제공사 / same-provider: 같은 제공사 / n/a: 해당 없음 */
   crossReview: 'ok' | 'same-provider' | 'n/a';
+  /** 조리법 때문에 생기는 안내 (예: 실험 기능 경고) */
+  styleNotes: string[];
+  /** 조리법 자체를 내 플랜으로 쓸 수 없을 때 (예: 에이전트 팀인데 Claude Code가 없음) */
+  styleLock?: {
+    reason: string;
+    /** 예: "조리법을 '서브에이전트'로 바꾸면 …" */
+    suggestion: string;
+    switchTo: Collaboration;
+  };
 }
 
 export const PATH_NAMES: Record<PathLevel, string> = {
@@ -277,12 +288,99 @@ function providerOf(engineId: EngineId, providers: ProviderData): ProviderId | n
   return providers.engines[engineId]?.provider ?? null;
 }
 
-/** 레시피 전체의 실행 경로를 정하고 한 줄 요약을 만든다. */
+function countPaths(recipe: Recipe, perCard: Record<string, PathResolution>) {
+  const counts: Record<PathLevel, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let fallbackCount = 0;
+  for (const card of recipe.cards) {
+    const resolution = perCard[card.id];
+    counts[effectiveRoute(resolution).path] += 1;
+    if (resolution.locked && resolution.alternative) fallbackCount += 1;
+  }
+  return { counts, fallbackCount };
+}
+
+/**
+ * 에이전트 팀 조리법: 팀원은 전부 Claude Code 안에서 돈다 (카드에 적힌 도구와 상관없이).
+ * Claude Code를 못 쓰면 🔒이고, 대안은 "서브에이전트 조리법으로 바꿔 쓰기"다.
+ */
+function resolveAgentTeam(recipe: Recipe, plans: UserPlans, providers: ProviderData): RecipeResolution {
+  const info = COLLABORATIONS['agent-team'];
+  const claude = providers.engines['claude-code'];
+  const perCard: Record<string, PathResolution> = {};
+  for (const card of recipe.cards) {
+    const resolution = resolvePath({ ...card, preferredEngine: 'claude-code' }, plans, providers);
+    if (resolution.locked) {
+      resolution.lockReason = `에이전트 팀은 Claude Code에서만 돌아가요. ${claude.lockReason}`;
+      if (resolution.alternative) {
+        const alt = resolution.alternative;
+        resolution.alternative = {
+          ...alt,
+          reason: `조리법을 '서브에이전트'로 바꾸면 ${providers.engines[alt.engine].name}(${alt.label})로 실행할 수 있어요.`,
+        };
+      }
+    } else {
+      // 팀원은 모두 같은 도구라 '다른 도구로 바꾸기' 제안은 맞지 않는다
+      delete resolution.alternative;
+    }
+    perCard[card.id] = resolution;
+  }
+  const { counts, fallbackCount } = countPaths(recipe, perCard);
+  const locked = bestAccess('claude-code', plans, providers) === null;
+  const base = summarize(recipe.cards.length, counts, fallbackCount);
+  const result: RecipeResolution = {
+    perCard,
+    summary: locked && recipe.cards.length > 0 ? `에이전트 팀은 Claude Code가 있어야 해요. 서브에이전트 조리법으로 바꾸면 ${base}` : base,
+    counts,
+    fallbackCount,
+    crossReview: 'n/a',
+    styleNotes: info.notes,
+  };
+  if (locked) {
+    result.styleLock = {
+      reason: `에이전트 팀은 Claude Code에서만 돌아가요. ${claude.lockReason}`,
+      suggestion: "조리법을 '서브에이전트'로 바꾸면 같은 역할 카드를 내 플랜으로 쓸 수 있는 다른 도구에서 돌릴 수 있어요.",
+      switchTo: 'subagents',
+    };
+  }
+  return result;
+}
+
+/** 토론형 조리법: 설정 파일 없이 프롬프트 하나를 붙여 넣는다. 플랜과 상관없이 누구나 쓸 수 있다. */
+function resolveDebate(recipe: Recipe): RecipeResolution {
+  const perCard: Record<string, PathResolution> = {};
+  for (const card of recipe.cards) {
+    perCard[card.id] = {
+      path: 4,
+      engine: 'manual',
+      label: '토론 프롬프트 안의 한 역할 (AI 하나가 번갈아 맡아요)',
+      locked: false,
+      notes: [],
+    };
+  }
+  const { counts, fallbackCount } = countPaths(recipe, perCard);
+  return {
+    perCard,
+    summary:
+      recipe.cards.length === 0
+        ? '아직 카드가 없어요.'
+        : '프롬프트 하나만 붙여 넣으면 돼요. 무료 웹 채팅을 포함해 어느 AI에서나 됩니다.',
+    counts,
+    fallbackCount,
+    crossReview: 'n/a',
+    styleNotes: COLLABORATIONS.debate.notes,
+  };
+}
+
+/** 레시피 전체의 실행 경로를 정하고 한 줄 요약을 만든다. 조리법(협업 방식)도 반영한다. */
 export function resolveRecipe(
   recipe: Recipe,
   plans: UserPlans,
   providers: ProviderData,
 ): RecipeResolution {
+  const style = collaborationOf(recipe);
+  if (style === 'agent-team') return resolveAgentTeam(recipe, plans, providers);
+  if (style === 'debate') return resolveDebate(recipe);
+
   const perCard: Record<string, PathResolution> = {};
 
   // 1차: 작성자 등 검토자가 아닌 카드부터 정한다
@@ -312,13 +410,7 @@ export function resolveRecipe(
     crossReview = allDifferent ? 'ok' : 'same-provider';
   }
 
-  const counts: Record<PathLevel, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  let fallbackCount = 0;
-  for (const card of recipe.cards) {
-    const resolution = perCard[card.id];
-    counts[effectiveRoute(resolution).path] += 1;
-    if (resolution.locked && resolution.alternative) fallbackCount += 1;
-  }
+  const { counts, fallbackCount } = countPaths(recipe, perCard);
 
   return {
     perCard,
@@ -326,6 +418,7 @@ export function resolveRecipe(
     counts,
     fallbackCount,
     crossReview,
+    styleNotes: [],
   };
 }
 

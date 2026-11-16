@@ -256,9 +256,10 @@ describe('fitsMyPlans (갤러리 필터)', () => {
     expect(fitsMyPlans(planBuildReview, claudeOnly, providerData)).toBe('with-alternatives');
   });
 
-  it('아무 계정도 없으면 모두 불가', () => {
+  it('아무 계정도 없으면 토론형(프롬프트만 쓰는 조리법)을 빼고 모두 불가', () => {
     for (const recipe of builtinRecipes) {
-      expect(fitsMyPlans(recipe, plans(), providerData)).toBe('no');
+      const expected = recipe.collaboration === 'debate' ? 'full' : 'no';
+      expect(fitsMyPlans(recipe, plans(), providerData)).toBe(expected);
     }
   });
 });

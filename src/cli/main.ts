@@ -59,6 +59,7 @@ function main(argv: string[]): number {
   console.log(`레시피: ${plan.recipe.title} (에이전트 ${plan.recipe.cards.length}개)`);
   console.log(`설치 위치: ${dir}\n`);
   let skipped = 0;
+  const hints: string[] = [];
   for (const file of plan.files) {
     const target = path.join(dir, file.path);
     // 안전장치: 설치 폴더 밖으로 나가는 경로는 쓰지 않는다
@@ -66,6 +67,7 @@ function main(argv: string[]): number {
     const exists = existsSync(target);
     if (exists && (file.neverOverwrite || !force)) {
       skipped += 1;
+      if (file.mergeHint) hints.push(file.mergeHint);
       console.log(`  건너뜀 (이미 있음)  ${file.path}`);
       continue;
     }
@@ -78,9 +80,9 @@ function main(argv: string[]): number {
 
   if (skipped > 0) {
     console.log('\n이미 있는 파일은 건드리지 않았어요. 덮어쓰려면 --force를 붙이세요.');
-    console.log('(.codex/config.toml은 --force여도 덮어쓰지 않아요. [agents] 부분만 직접 옮겨 적으세요.)');
+    for (const hint of hints) console.log(`- ${hint}`);
   }
-  console.log('\n다음 단계: 이 폴더에서 codex 또는 claude를 실행하세요. 실행 방법은 .teamcook/ 안의 RECIPE.md에 있어요.');
+  console.log('\n다음 단계: 실행 방법과 첫 프롬프트는 .teamcook/ 안의 RECIPE.md에 있어요.');
   return 0;
 }
 

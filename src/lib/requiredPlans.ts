@@ -1,6 +1,7 @@
 // '필요한 플랜' 배지.
 // 레시피를 그대로(각 카드의 preferredEngine대로) 돌리는 데 필요한 최소 플랜 조합을 계산한다.
 
+import { COLLABORATIONS, collaborationOf } from '../data/collaboration';
 import type { EngineId, ProviderData, Recipe, UserPlans } from '../types';
 import { effectiveRoute, resolveRecipe } from './resolvePath';
 
@@ -23,9 +24,28 @@ export interface RequiredPlans {
 }
 
 export function requiredPlans(recipe: Recipe, providers: ProviderData): RequiredPlans {
+  const style = collaborationOf(recipe);
+  if (recipe.cards.length === 0) return { badges: [], allFree: true, details: [] };
+
+  // 토론형: 프롬프트만 붙여 넣으면 되므로 어느 AI든, 무료로도 된다
+  if (style === 'debate') {
+    const badge: PlanBadge = {
+      engine: 'manual',
+      text: '어느 AI든 무료로 가능',
+      free: true,
+      notes: COLLABORATIONS.debate.notes,
+    };
+    return { badges: [badge.text], allFree: true, details: [badge] };
+  }
+
   const engines: EngineId[] = [];
-  for (const card of recipe.cards) {
-    if (!engines.includes(card.preferredEngine)) engines.push(card.preferredEngine);
+  if (style === 'agent-team') {
+    // 에이전트 팀: 카드에 적힌 도구와 상관없이 전부 Claude Code에서 돈다
+    engines.push('claude-code');
+  } else {
+    for (const card of recipe.cards) {
+      if (!engines.includes(card.preferredEngine)) engines.push(card.preferredEngine);
+    }
   }
 
   const details: PlanBadge[] = [];
@@ -45,7 +65,7 @@ export function requiredPlans(recipe: Recipe, providers: ProviderData): Required
       engine: engineId,
       text: cheapest.badge,
       free: cheapest.free === true,
-      notes: cheapest.notes,
+      notes: style === 'agent-team' ? [...cheapest.notes, COLLABORATIONS['agent-team'].notes[0]] : cheapest.notes,
     });
   }
 
@@ -70,10 +90,12 @@ export function fitsMyPlans(
   plans: UserPlans,
   providers: ProviderData,
 ): 'full' | 'with-alternatives' | 'no' {
+  const style = collaborationOf(recipe);
+  if (style === 'debate') return 'full';
   const { perCard } = resolveRecipe(recipe, plans, providers);
   let needsAlternative = false;
   for (const card of recipe.cards) {
-    if (card.preferredEngine === 'manual') continue;
+    if (style === 'subagents' && card.preferredEngine === 'manual') continue;
     const resolution = perCard[card.id];
     if (effectiveRoute(resolution).path === 4) return 'no';
     if (resolution.locked) needsAlternative = true;

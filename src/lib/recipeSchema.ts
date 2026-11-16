@@ -5,6 +5,7 @@ import {
   RECIPE_SCHEMA_VERSION,
   type AgentCard,
   type CardExtra,
+  type Collaboration,
   type EngineId,
   type Handoff,
   type Permission,
@@ -28,6 +29,8 @@ const ENGINES: EngineId[] = [
   'manual',
 ];
 const PERMISSIONS: Permission[] = ['read-only', 'edit', 'full'];
+const COLLABORATIONS: Collaboration[] = ['subagents', 'agent-team', 'debate'];
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const MAX_CARDS = 30;
 const MAX_HANDOFFS = 100;
@@ -158,6 +161,15 @@ export function parseRecipe(raw: unknown): Recipe {
       maxDepth: wholeNumber(settings.maxDepth, 1, 1, 5),
     },
   };
+  // 조리법: 없으면(옛 링크) 그대로 비워 두고, 모르는 값이면 'subagents'로 바꾼다
+  if (raw.collaboration !== undefined) {
+    recipe.collaboration = COLLABORATIONS.includes(raw.collaboration as Collaboration)
+      ? (raw.collaboration as Collaboration)
+      : 'subagents';
+  }
+  if (typeof raw.lastVerified === 'string' && DATE_PATTERN.test(raw.lastVerified)) {
+    recipe.lastVerified = raw.lastVerified;
+  }
   const author = text(raw.author, MAX_SHORT);
   if (author) recipe.author = author;
   const howToRun = text(raw.howToRun, MAX_LONG);
