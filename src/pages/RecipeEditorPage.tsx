@@ -2,7 +2,17 @@
 // 고치는 즉시 스토어(→ localStorage)에 저장된다.
 
 import { useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, ChevronUp, Copy, FolderOpen, Plus, Sparkles, Trash2 } from 'lucide-react';
+import {
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  FlaskConical,
+  FolderOpen,
+  Plus,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +21,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field, NativeSelect, Notice, PageHeader } from '@/components/common';
 import { FlowSection } from '@/components/FlowSection';
 import { ExportZipButton, ShareButton, cloneRecipe } from '@/components/RecipeActions';
-import { roleLabel } from '@/components/RecipeOverview';
-import { CardRoute, LockBadge, PathBadge, PlanBadges, RecipeRunSummary, engineName } from '@/components/RouteInfo';
+import { RunPromptBox, roleLabel } from '@/components/RecipeOverview';
+import {
+  CardRoute,
+  LockBadge,
+  PathBadge,
+  PlanBadges,
+  RecipeRunSummary,
+  VerifiedBadge,
+  engineName,
+} from '@/components/RouteInfo';
+import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf, today } from '@/data/collaboration';
 import { CARD_TEMPLATES, cardFromTemplate } from '@/data/cardTemplates';
 import { providerData } from '@/data/providers';
 import { TIPS, cardWarnings, recipeWarnings } from '@/data/tips';
@@ -26,7 +45,7 @@ import { type PathResolution, bestAccess, effectiveRoute, resolveRecipe } from '
 import { ROLE_LABELS, ROLE_TAGS } from '@/lib/roles';
 import { navigate } from '@/lib/router';
 import { useStore } from '@/store/useStore';
-import type { AgentCard, EngineId, Handoff, Permission, Recipe, RoleTag } from '@/types';
+import type { AgentCard, Collaboration, EngineId, Handoff, Permission, Recipe, RoleTag } from '@/types';
 
 /** 카드에서 고를 수 있는 엔진 (api·manual 같은 내부용은 뺀다) */
 const SELECTABLE_ENGINES = (Object.keys(providerData.engines) as EngineId[]).filter(
@@ -50,7 +69,10 @@ function CardEditor({
 }) {
   const key = card.id;
   const warnings = cardWarnings(card, recipe);
-  const showTools = card.preferredEngine === 'claude-code' || (card.tools?.length ?? 0) > 0;
+  const style = collaborationOf(recipe);
+  const showTools =
+    style !== 'debate' &&
+    (style === 'agent-team' || card.preferredEngine === 'claude-code' || (card.tools?.length ?? 0) > 0);
 
   return (
     <div className="flex flex-col gap-4 border-t pt-4">
@@ -97,7 +119,19 @@ function CardEditor({
         />
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {style === 'agent-team' ? (
+        <p className="text-xs text-muted-foreground">
+          에이전트 팀에서는 모든 팀원이 Claude Code에서 돌아요. 아래 '돌릴 도구'는 조리법을 서브에이전트로 바꿨을
+          때만 쓰입니다.
+        </p>
+      ) : null}
+      {style === 'debate' ? (
+        <p className="text-xs text-muted-foreground">
+          토론형에서는 카드가 프롬프트 안의 한 역할이 돼요. 역할 설명과 지시문만 프롬프트에 들어가고, 도구·권한·모델은
+          쓰이지 않습니다.
+        </p>
+      ) : null}
+      <div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-4', style === 'debate' && 'hidden')}>
         <Field label="역할 종류" htmlFor={`${key}-tag`}>
           <NativeSelect
             id={`${key}-tag`}
@@ -253,7 +287,12 @@ function CardRow({
       </div>
       <CardRoute
         resolution={resolution}
-        onApplyAlternative={(engine) => onChange({ preferredEngine: engine, model: undefined })}
+        onApplyAlternative={
+          // 도구 바꾸기는 서브에이전트 조리법에서만 뜻이 있다
+          collaborationOf(recipe) === 'subagents'
+            ? (engine) => onChange({ preferredEngine: engine, model: undefined })
+            : undefined
+        }
       />
       {open ? <CardEditor card={card} recipe={recipe} onChange={onChange} /> : null}
     </article>
@@ -438,8 +477,20 @@ export function RecipeEditorPage({ id }: { id: string }) {
     navigate(`/edit/${copy.id}`);
   };
 
+  const style = collaborationOf(recipe);
+  const setStyle = (next: Collaboration) => {
+    // 서브에이전트(기본값)는 필드를 아예 지워서 옛 형식과 똑같은 링크가 되게 한다
+    const { collaboration: _old, ...rest } = recipe;
+    saveRecipe(next === 'subagents' ? rest : { ...rest, collaboration: next });
+  };
+  const setVerified = (date: string) => {
+    const { lastVerified: _old, ...rest } = recipe;
+    saveRecipe(date ? { ...rest, lastVerified: date } : rest);
+  };
   const resolved = resolveRecipe(recipe, plans, providerData);
-  const optimized = optimizeRecipe(recipe, plans, providerData);
+  // 구독 최적화(도구 다시 배치)는 카드마다 도구를 고르는 서브에이전트 조리법에서만 뜻이 있다
+  const optimized =
+    style === 'subagents' ? optimizeRecipe(recipe, plans, providerData) : { changes: [], summary: '' };
   const cardName = (cardId: string) => {
     const card = recipe.cards.find((item) => item.id === cardId);
     return card ? card.displayName || card.name : '';
@@ -522,6 +573,74 @@ export function RecipeEditorPage({ id }: { id: string }) {
             />
           </Field>
         </div>
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1.5 text-sm font-medium">조리법 — 이 팀은 어떤 방식으로 함께 일하나요?</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {COLLABORATION_IDS.map((id) => {
+              const info = COLLABORATIONS[id];
+              const selected = style === id;
+              return (
+                <label
+                  key={id}
+                  className={cn(
+                    'flex cursor-pointer flex-col gap-1 rounded-xl border p-3 text-sm transition-colors',
+                    selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'hover:bg-muted/50',
+                  )}
+                >
+                  <span className="flex flex-wrap items-center gap-2 font-medium">
+                    <input
+                      type="radio"
+                      name="recipe-collaboration"
+                      className="accent-primary"
+                      checked={selected}
+                      onChange={() => setStyle(id)}
+                    />
+                    {info.label}
+                    {info.experimental ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-xs font-normal text-violet-800">
+                        <FlaskConical className="size-3" aria-hidden />
+                        실험 기능
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{info.description}</span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    쓸 수 있는 곳: {info.availability}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+        <Field
+          label="실제로 돌아가는지 확인한 날 (선택)"
+          htmlFor="recipe-verified"
+          hint="직접 돌려 보고 잘 되는 것을 확인한 날짜를 적어 주세요. 레시피에 '날짜 확인' 표시로 보여요. 도구가 자주 바뀌니, 다시 확인하면 날짜도 바꿔 주세요."
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id="recipe-verified"
+              type="date"
+              className="w-auto"
+              value={recipe.lastVerified ?? ''}
+              max={today()}
+              onChange={(event) => setVerified(event.target.value)}
+            />
+            <Button size="sm" variant="outline" onClick={() => setVerified(today())}>
+              오늘 확인했어요
+            </Button>
+            {recipe.lastVerified ? (
+              <>
+                <VerifiedBadge date={recipe.lastVerified} />
+                <Button size="sm" variant="ghost" onClick={() => setVerified('')}>
+                  지우기
+                </Button>
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">아직 확인 날짜가 없어요.</span>
+            )}
+          </div>
+        </Field>
         <Field
           label="실행 팁 (선택)"
           htmlFor="recipe-howto"
@@ -547,7 +666,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
             <span className="text-sm text-muted-foreground">카드를 추가하면 계산돼요.</span>
           ) : null}
         </div>
-        <RecipeRunSummary resolution={resolved} />
+        <RecipeRunSummary resolution={resolved} onSwitchStyle={setStyle} />
         {optimized.changes.length > 0 ? (
           <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3">
             <p className="flex items-center gap-2 text-sm font-medium">
@@ -569,7 +688,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
             </div>
           </div>
         ) : null}
-        {needsCodexBridge(recipe) ? (
+        {style === 'subagents' && needsCodexBridge(recipe) ? (
           <label className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
             <Switch
               checked={codexBridge}
@@ -653,8 +772,9 @@ export function RecipeEditorPage({ id }: { id: string }) {
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-semibold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
         <p className="text-sm text-muted-foreground">
-          흐름은 설정 파일에는 담기지 않아요. 대신 RECIPE.md의 '첫 프롬프트 예시'로 만들어져서, 실행할 때 AI에게
-          순서를 알려 줍니다.
+          {style === 'debate'
+            ? '토론형에서는 흐름이 발언 순서가 돼요. 아래 토론 프롬프트에 바로 반영됩니다.'
+            : "흐름은 설정 파일에는 담기지 않아요. 대신 아래 '첫 프롬프트'로 만들어져서, 실행할 때 AI에게 순서를 알려 줍니다. (RECIPE.md에도 들어가요.)"}
         </p>
         <FlowSection
           recipe={recipe}
@@ -668,6 +788,13 @@ export function RecipeEditorPage({ id }: { id: string }) {
         />
         <HandoffEditor recipe={recipe} onChange={(handoffs) => update({ handoffs })} />
       </section>
+
+      {recipe.cards.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl font-semibold">이렇게 시작해요</h2>
+          <RunPromptBox recipe={recipe} />
+        </section>
+      ) : null}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-xl font-semibold">꿀팁</h2>

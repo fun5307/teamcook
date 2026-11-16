@@ -4,6 +4,59 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 var __commonJSMin = (cb, mod) => () => (mod || (cb((mod = { exports: {} }).exports, mod, mod.exports), cb = null), mod.exports);
 var __require = /* #__PURE__ */ (() => createRequire(import.meta.url))();
+// src/data/collaboration.ts
+var COLLABORATIONS$1 = {
+	subagents: {
+		id: "subagents",
+		label: "서브에이전트",
+		chip: "서브에이전트",
+		description: "메인 AI가 일을 나눠 서브에이전트에게 맡기고, 결과만 돌려받습니다. 서브에이전트끼리는 서로 대화하지 않아요. 가장 무난하고 사용량도 적게 듭니다.",
+		availability: "Codex, Claude Code 등 카드마다 고른 도구에서",
+		experimental: false,
+		notes: []
+	},
+	"agent-team": {
+		id: "agent-team",
+		label: "에이전트 팀",
+		chip: "에이전트 팀",
+		description: "Claude Code가 리더가 되어 팀원을 여럿 띄웁니다. 팀원끼리 직접 대화하고 할 일 목록을 함께 쓰기 때문에, 서로 의견을 주고받아야 하는 일에 맞아요.",
+		availability: "Claude Code에서만 (실험 기능)",
+		experimental: true,
+		notes: [
+			"에이전트 팀은 Claude Code의 실험 기능이에요. 기본으로 꺼져 있어서 설정 파일로 켜야 하고, 동작이 바뀔 수 있어요.",
+			"팀원 수만큼 사용량이 늘어요. 공식 문서는 3~5명으로 시작하라고 권합니다.",
+			"리더는 처음 연 Claude Code 대화창으로 고정돼요. 팀원이 또 팀을 만들 수는 없어요.",
+			"대화를 이어서 열면(/resume) 팀원은 되살아나지 않아요. 리더에게 팀원을 다시 만들라고 하세요.",
+			"팀원이 일을 끝내고도 \"완료\" 표시를 빠뜨릴 때가 있어요. 멈춘 것 같으면 리더에게 확인을 부탁하세요."
+		],
+		sourceUrl: "https://code.claude.com/docs/en/agent-teams",
+		lastVerified: "2026-11-16"
+	},
+	debate: {
+		id: "debate",
+		label: "토론형",
+		chip: "토론형",
+		description: "설정 파일 없이 프롬프트 하나로 돌립니다. AI 하나가 여러 역할을 번갈아 맡아 토론하고 결론을 냅니다. 무료 웹 채팅을 포함해 어느 AI에서나 붙여 넣으면 돼요.",
+		availability: "어느 AI에서나 (무료 웹 채팅 포함)",
+		experimental: false,
+		notes: ["한 AI가 여러 역할을 연기하는 방식이라, 서로 다른 모델이 검토하는 것만큼 독립적이지는 않아요. 중요한 결정은 다른 AI에도 같은 프롬프트를 넣어 비교해 보세요."]
+	}
+};
+Object.keys(COLLABORATIONS$1);
+/** 레시피의 조리법. 없거나 모르는 값이면 'subagents'. */
+function collaborationOf(recipe) {
+	const value = recipe.collaboration;
+	return value && value in COLLABORATIONS$1 ? value : "subagents";
+}
+/**
+* 에이전트 팀을 켜는 프로젝트용 설정 (`.claude/settings.json`).
+* 2026-11-16 확인: https://code.claude.com/docs/en/agent-teams
+* 사용자의 `~/.claude/settings.json`은 건드리지 않는다. 프로젝트 폴더용 파일만 내보낸다.
+*/
+var AGENT_TEAMS_ENV_NAME = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS";
+var AGENT_TEAMS_SETTINGS_JSON = `${JSON.stringify({ env: { [AGENT_TEAMS_ENV_NAME]: "1" } }, null, 2)}\n`;
+/** 이미 `.claude/settings.json`이 있는 사람에게 보여 줄 병합 안내 */
+var AGENT_TEAMS_MERGE_HINT = `이미 .claude/settings.json이 있다면 덮어쓰지 말고, 그 파일의 "env" 안에 "${AGENT_TEAMS_ENV_NAME}": "1" 한 줄만 더하세요.`;
 // src/data/providers.ts
 var providerData = {
 	schemaVersion: 1,
@@ -16427,8 +16480,92 @@ function resolvePath(card, plans, providers, context = {}) {
 function providerOf(engineId, providers) {
 	return providers.engines[engineId]?.provider ?? null;
 }
-/** 레시피 전체의 실행 경로를 정하고 한 줄 요약을 만든다. */
+function countPaths(recipe, perCard) {
+	const counts = {
+		1: 0,
+		2: 0,
+		3: 0,
+		4: 0
+	};
+	let fallbackCount = 0;
+	for (const card of recipe.cards) {
+		const resolution = perCard[card.id];
+		counts[effectiveRoute(resolution).path] += 1;
+		if (resolution.locked && resolution.alternative) fallbackCount += 1;
+	}
+	return {
+		counts,
+		fallbackCount
+	};
+}
+/**
+* 에이전트 팀 조리법: 팀원은 전부 Claude Code 안에서 돈다 (카드에 적힌 도구와 상관없이).
+* Claude Code를 못 쓰면 🔒이고, 대안은 "서브에이전트 조리법으로 바꿔 쓰기"다.
+*/
+function resolveAgentTeam(recipe, plans, providers) {
+	const info = COLLABORATIONS$1["agent-team"];
+	const claude = providers.engines["claude-code"];
+	const perCard = {};
+	for (const card of recipe.cards) {
+		const resolution = resolvePath({
+			...card,
+			preferredEngine: "claude-code"
+		}, plans, providers);
+		if (resolution.locked) {
+			resolution.lockReason = `에이전트 팀은 Claude Code에서만 돌아가요. ${claude.lockReason}`;
+			if (resolution.alternative) {
+				const alt = resolution.alternative;
+				resolution.alternative = {
+					...alt,
+					reason: `조리법을 '서브에이전트'로 바꾸면 ${providers.engines[alt.engine].name}(${alt.label})로 실행할 수 있어요.`
+				};
+			}
+		} else delete resolution.alternative;
+		perCard[card.id] = resolution;
+	}
+	const { counts, fallbackCount } = countPaths(recipe, perCard);
+	const locked = bestAccess("claude-code", plans, providers) === null;
+	const base = summarize(recipe.cards.length, counts, fallbackCount);
+	const result = {
+		perCard,
+		summary: locked && recipe.cards.length > 0 ? `에이전트 팀은 Claude Code가 있어야 해요. 서브에이전트 조리법으로 바꾸면 ${base}` : base,
+		counts,
+		fallbackCount,
+		crossReview: "n/a",
+		styleNotes: info.notes
+	};
+	if (locked) result.styleLock = {
+		reason: `에이전트 팀은 Claude Code에서만 돌아가요. ${claude.lockReason}`,
+		suggestion: "조리법을 '서브에이전트'로 바꾸면 같은 역할 카드를 내 플랜으로 쓸 수 있는 다른 도구에서 돌릴 수 있어요.",
+		switchTo: "subagents"
+	};
+	return result;
+}
+/** 토론형 조리법: 설정 파일 없이 프롬프트 하나를 붙여 넣는다. 플랜과 상관없이 누구나 쓸 수 있다. */
+function resolveDebate(recipe) {
+	const perCard = {};
+	for (const card of recipe.cards) perCard[card.id] = {
+		path: 4,
+		engine: "manual",
+		label: "토론 프롬프트 안의 한 역할 (AI 하나가 번갈아 맡아요)",
+		locked: false,
+		notes: []
+	};
+	const { counts, fallbackCount } = countPaths(recipe, perCard);
+	return {
+		perCard,
+		summary: recipe.cards.length === 0 ? "아직 카드가 없어요." : "프롬프트 하나만 붙여 넣으면 돼요. 무료 웹 채팅을 포함해 어느 AI에서나 됩니다.",
+		counts,
+		fallbackCount,
+		crossReview: "n/a",
+		styleNotes: COLLABORATIONS$1.debate.notes
+	};
+}
+/** 레시피 전체의 실행 경로를 정하고 한 줄 요약을 만든다. 조리법(협업 방식)도 반영한다. */
 function resolveRecipe(recipe, plans, providers) {
+	const style = collaborationOf(recipe);
+	if (style === "agent-team") return resolveAgentTeam(recipe, plans, providers);
+	if (style === "debate") return resolveDebate(recipe);
 	const perCard = {};
 	for (const card of recipe.cards) perCard[card.id] = resolvePath(card, plans, providers);
 	const writerProviders = [];
@@ -16443,24 +16580,14 @@ function resolveRecipe(recipe, plans, providers) {
 		const provider = providerOf(effectiveRoute(perCard[card.id]).engine, providers);
 		return provider !== null && !writerProviders.includes(provider);
 	}) ? "ok" : "same-provider";
-	const counts = {
-		1: 0,
-		2: 0,
-		3: 0,
-		4: 0
-	};
-	let fallbackCount = 0;
-	for (const card of recipe.cards) {
-		const resolution = perCard[card.id];
-		counts[effectiveRoute(resolution).path] += 1;
-		if (resolution.locked && resolution.alternative) fallbackCount += 1;
-	}
+	const { counts, fallbackCount } = countPaths(recipe, perCard);
 	return {
 		perCard,
 		summary: summarize(recipe.cards.length, counts, fallbackCount),
 		counts,
 		fallbackCount,
-		crossReview
+		crossReview,
+		styleNotes: []
 	};
 }
 function summarize(total, counts, fallbackCount) {
@@ -16487,8 +16614,28 @@ function summarize(total, counts, fallbackCount) {
 }
 // src/lib/requiredPlans.ts
 function requiredPlans(recipe, providers) {
+	const style = collaborationOf(recipe);
+	if (recipe.cards.length === 0) return {
+		badges: [],
+		allFree: true,
+		details: []
+	};
+	if (style === "debate") {
+		const badge = {
+			engine: "manual",
+			text: "어느 AI든 무료로 가능",
+			free: true,
+			notes: COLLABORATIONS$1.debate.notes
+		};
+		return {
+			badges: [badge.text],
+			allFree: true,
+			details: [badge]
+		};
+	}
 	const engines = [];
-	for (const card of recipe.cards) if (!engines.includes(card.preferredEngine)) engines.push(card.preferredEngine);
+	if (style === "agent-team") engines.push("claude-code");
+	else for (const card of recipe.cards) if (!engines.includes(card.preferredEngine)) engines.push(card.preferredEngine);
 	const details = [];
 	for (const engineId of engines) {
 		const engine = providers.engines[engineId];
@@ -16508,7 +16655,7 @@ function requiredPlans(recipe, providers) {
 			engine: engineId,
 			text: cheapest.badge,
 			free: cheapest.free === true,
-			notes: cheapest.notes
+			notes: style === "agent-team" ? [...cheapest.notes, COLLABORATIONS$1["agent-team"].notes[0]] : cheapest.notes
 		});
 	}
 	details.sort((a, b) => Number(a.free) - Number(b.free));
@@ -16534,6 +16681,9 @@ var PERMISSION_LABELS = {
 * Antigravity·Grok은 그 도구를 쓰는 카드가 있을 때(원래 설정이든, 내 플랜 기준 대안이든)만 넣는다.
 */
 function exportEngines(recipe, providers, plans) {
+	const style = collaborationOf(recipe);
+	if (style === "agent-team") return ["claude-code"];
+	if (style === "debate") return [];
 	const used = new Set(recipe.cards.map((card) => card.preferredEngine));
 	if (plans) {
 		const resolved = resolveRecipe(recipe, plans, providers);
@@ -16573,23 +16723,80 @@ function starterPrompt(recipe) {
 		"할 일: (여기에 요청을 적으세요)"
 	].join("\n");
 }
+function flowSteps(recipe, verb) {
+	const byId = new Map(recipe.cards.map((card) => [card.id, card]));
+	const steps = [];
+	for (const handoff of recipe.handoffs) {
+		const from = byId.get(handoff.from);
+		const to = byId.get(handoff.to);
+		if (!from || !to) continue;
+		steps.push(verb(from, to, handoff.label ? `(${handoff.label})` : ""));
+	}
+	return steps;
+}
+/**
+* 에이전트 팀을 시작하는 첫 프롬프트.
+* 공식 문서(2026-11-16 확인)대로 자연어로 팀원을 소개하고, 팀원마다 같은 이름의
+* 서브에이전트 정의(.claude/agents/<이름>.md)를 '에이전트 유형'으로 쓰게 한다.
+*/
+function teamPrompt(recipe) {
+	const steps = flowSteps(recipe, (from, to, what) => `${from.name}의 결과${what}를 ${to.name}에게 넘긴다`);
+	const lines = [
+		"에이전트 팀을 만들어 줘. 서브에이전트가 아니라 에이전트 팀으로 진행해.",
+		"너는 리더다. 직접 작업하지 말고, 일을 나눠 맡기고 팀원들의 결과를 모아 정리해 줘.",
+		"",
+		`팀원 ${recipe.cards.length}명 (각각 같은 이름의 에이전트 유형을 써서 만든다):`,
+		...recipe.cards.map((card) => `- ${card.name} 에이전트 유형으로 팀원 1명 — ${card.displayName || card.name}: ${cell(card.role)}`)
+	];
+	if (steps.length > 0) lines.push("", "일하는 순서:", ...steps.map((step, index) => `${index + 1}. ${step}.`));
+	lines.push("", "할 일: (여기에 요청을 적으세요)");
+	return lines.join("\n");
+}
+/** 토론형 프롬프트. 설정 파일 없이, 어느 AI 채팅에나 그대로 붙여 넣는다. */
+function debatePrompt(recipe) {
+	const names = recipe.cards.map((card) => card.displayName || card.name);
+	const first = names[0] ?? "사회자";
+	const steps = flowSteps(recipe, (from, to, what) => `[${from.displayName || from.name}] 역할의 발언${what}을 [${to.displayName || to.name}] 역할이 이어받는다`);
+	const lines = [
+		`지금부터 너 혼자서 아래 ${recipe.cards.length}명의 역할을 번갈아 맡아 토론해 줘.`,
+		"",
+		"주제: (여기에 결정하고 싶은 것을 적으세요)",
+		"",
+		"[역할]"
+	];
+	recipe.cards.forEach((card, index) => {
+		lines.push(`${index + 1}. ${card.displayName || card.name} — ${cell(card.role)}`);
+		for (const line of card.instructions.split(/\r?\n/)) if (line.trim()) lines.push(`   ${line.trim()}`);
+	});
+	lines.push("", "[진행 순서]");
+	if (steps.length > 0) {
+		lines.push(`1. [${first}] 역할이 먼저 주제와 판단 기준을 정리한다.`);
+		steps.forEach((step, index) => lines.push(`${index + 2}. ${step}.`));
+	} else lines.push(...names.map((name, index) => `${index + 1}. [${name}] 역할이 발언한다.`));
+	lines.push("", "[규칙]", "- 발언마다 맨 앞에 [역할 이름]을 붙인다.", "- 역할끼리 쉽게 동의하지 않는다. 앞선 발언의 약한 부분을 구체적으로 짚는다.", "- 확인한 사실, 추론, 확인하지 못한 것을 구분한다. 수치나 출처를 지어내지 않는다.", "- 위 순서를 두 바퀴 돈다. 둘째 바퀴에서는 첫째 바퀴에서 나온 반론에 답한다.", `- 마지막에 [${first}] 역할이 "결론 / 근거 / 남은 쟁점 / 다음에 할 일"을 정리한다.`);
+	return lines.join("\n");
+}
 /** RECIPE.md 내용을 만든다. plans를 주면 '내 플랜 기준 실행 경로'도 적는다. */
 function buildRecipeMd(recipe, providers, plans) {
 	const required = requiredPlans(recipe, providers);
 	const byId = new Map(recipe.cards.map((card) => [card.id, card]));
 	const hasReadOnly = recipe.cards.some((card) => card.permission === "read-only");
 	const engines = exportEngines(recipe, providers, plans);
+	const style = collaborationOf(recipe);
+	const styleInfo = COLLABORATIONS$1[style];
 	const out = [];
 	out.push(`# ${recipe.title}`, "");
 	if (recipe.summary) out.push(recipe.summary, "");
 	if (recipe.useCase) out.push(`- **쓰임새:** ${recipe.useCase}`);
 	if (recipe.author) out.push(`- **만든 사람:** ${recipe.author}`);
+	out.push(`- **조리법(협업 방식):** ${styleInfo.label}${styleInfo.experimental ? " (실험 기능)" : ""} — ${styleInfo.availability}`);
+	if (recipe.lastVerified) out.push(`- **확인한 날:** ${recipe.lastVerified} (이 날짜에 실제로 돌아가는지 확인함)`);
 	out.push(`- **필요한 플랜:** ${required.badges.length > 0 ? required.badges.join(" · ") : "없음"} (${providers.lastVerified} 확인)`);
 	for (const badge of required.details) for (const note of badge.notes) out.push(`  - ${note}`);
 	out.push("");
 	out.push("## 팀 구성", "", "| 에이전트 | 하는 일 | 권장 도구 | 권한 |", "| --- | --- | --- | --- |");
 	for (const card of recipe.cards) {
-		const engine = providers.engines[card.preferredEngine]?.name ?? card.preferredEngine;
+		const engine = style === "agent-team" ? providers.engines["claude-code"].name : style === "debate" ? "프롬프트 안의 역할" : providers.engines[card.preferredEngine]?.name ?? card.preferredEngine;
 		out.push(`| ${cell(cardLabel(card))} | ${cell(card.role)} | ${engine} | ${PERMISSION_LABELS[card.permission]} |`);
 	}
 	out.push("");
@@ -16604,7 +16811,7 @@ function buildRecipeMd(recipe, providers, plans) {
 		});
 		out.push("");
 	}
-	if (plans) {
+	if (plans && style !== "debate") {
 		const resolved = resolveRecipe(recipe, plans, providers);
 		out.push("## 내 플랜 기준 실행 경로 (내보낸 시점)", "", `${resolved.summary}`, "");
 		for (const card of recipe.cards) {
@@ -16615,12 +16822,106 @@ function buildRecipeMd(recipe, providers, plans) {
 			out.push(`- ${cardLabel(card)}: ${lock}${PATH_SYMBOLS[route.path]} ${PATH_NAMES[route.path]} — ${engine}`);
 			if (resolution.alternative) out.push(`  - ${resolution.alternative.reason}`);
 		}
+		if (resolved.styleLock) out.push("", `> 🔒 ${resolved.styleLock.reason} ${resolved.styleLock.suggestion}`);
 		out.push("", "> 다른 사람은 플랜이 달라 경로가 다를 수 있어요.", "");
+	}
+	if (style === "agent-team") {
+		out.push(...agentTeamSections(recipe));
+		return out.join("\n");
+	}
+	if (style === "debate") {
+		out.push(...debateSections(recipe));
+		return out.join("\n");
 	}
 	out.push("## 설치 (1분)", "", "1. 이 폴더 안의 `.codex` 폴더와 `.claude` 폴더를 **내 프로젝트 폴더 맨 위**에 복사합니다.", "   - 점(.)으로 시작하는 폴더는 숨김 폴더라 안 보일 수 있어요. (Windows 탐색기: 보기 → 숨긴 항목 / macOS Finder: Cmd+Shift+.)", "   - 이미 `.codex/config.toml`이 있다면 덮어쓰지 말고, 이 파일의 `[agents]` 부분만 옮겨 적으세요.", "2. 두 도구 모두에서 팀 전체를 쓸 수 있게, 모든 에이전트를 Codex 형식(`.codex/agents/*.toml`)과 Claude Code 형식(`.claude/agents/*.md`)으로 둘 다 넣어 두었습니다. 쓰지 않는 쪽 폴더는 지워도 됩니다.", ...engines.includes("antigravity-cli") ? ["3. Antigravity를 쓴다면 `.agents` 폴더도 같은 곳에 복사합니다. (`.agents/agents/*.md`, 실행: `agy`)"] : [], ...engines.includes("grok-build") ? ["3. Grok Build를 쓴다면 `.grok` 폴더도 같은 곳에 복사합니다. (`.grok/agents/*.md`, 실행: `grok`, 에이전트 목록: `/agents`)"] : [], "", "## 실행 방법", "", "### 터미널에서 Codex로", "", "```bash", "cd 내-프로젝트-폴더", hasReadOnly ? "codex            # 검토·조사만 할 때는: codex --sandbox read-only" : "codex", "```", "", `확인: \`${recipe.cards[0]?.name ?? "reviewer"} 에이전트에게 이 프로젝트를 한 줄로 요약하게 해 줘\` 라고 입력해 보세요. 실행 중인 에이전트는 \`/subagents\`로 볼 수 있습니다.`, "", "### 터미널에서 Claude Code로", "", "```bash", "cd 내-프로젝트-폴더", "claude", "```", "", `확인: \`어떤 서브에이전트가 있어?\` 라고 물어보세요. 특정 에이전트를 콕 집어 부르려면 \`@agent-${recipe.cards[0]?.name ?? "reviewer"}\` 처럼 씁니다.`, "(`.claude/agents` 폴더를 처음 만든 경우에는 Claude Code를 한 번 껐다 켜야 보입니다.)", "", "### T3 Code · 1Code에서", "", "두 도구는 내 PC에 설치된 Codex·Claude Code를 대신 실행해 주는 화면입니다. 위처럼 파일을 프로젝트 폴더에 넣은 뒤 그 폴더를 프로젝트로 열면 됩니다.", "채팅마다 별도의 git 작업 폴더(worktree)를 만드는 도구에서는, **`.codex`와 `.claude` 폴더를 git에 커밋해 두어야** 에이전트가 보입니다.", "", "### 첫 프롬프트 예시", "", "```text", starterPrompt(recipe), "```", "");
 	if (recipe.howToRun) out.push("만든 사람의 실행 팁:", "", `> ${recipe.howToRun.replace(/\r?\n/g, "\n> ")}`, "");
 	out.push("## 알아 둘 점", "", "- **Codex의 읽기 전용:** Codex는 에이전트 파일만으로는 읽기 전용을 강제할 수 없습니다(서브에이전트는 메인 세션의 권한을 물려받음). 그래서 읽기 전용 에이전트의 지시문 끝에 \"수정하지 마라\"는 문장을 넣어 두었습니다. 확실히 막으려면 `codex --sandbox read-only`로 실행하세요.", "- **Claude Code의 읽기 전용:** `tools` 목록을 읽기 도구(Read, Grep, Glob)로 제한해 두었습니다.", "- **검토 결과는 주장입니다:** 다른 모델의 지적도 틀릴 수 있습니다. 작성자가 확인한 뒤 맞는 것만 반영하세요.", "- **다시 고치려면:** `recipe.json`을 teamcook 사이트에서 불러오면 이 팀을 그대로 편집할 수 있습니다.", "");
 	return out.join("\n");
+}
+function tipLines(recipe) {
+	return recipe.howToRun ? [
+		"만든 사람의 실행 팁:",
+		"",
+		`> ${recipe.howToRun.replace(/\r?\n/g, "\n> ")}`,
+		""
+	] : [];
+}
+/** 에이전트 팀 조리법의 설치·실행·확인 방법 (2026-11-16 공식 문서 확인) */
+function agentTeamSections(recipe) {
+	const info = COLLABORATIONS$1["agent-team"];
+	const firstName = recipe.cards[0]?.name ?? "reviewer";
+	return [
+		"## 설치 (1분)",
+		"",
+		"1. 이 폴더 안의 `.claude` 폴더를 **내 프로젝트 폴더 맨 위**에 복사합니다.",
+		"   - 점(.)으로 시작하는 폴더는 숨김 폴더라 안 보일 수 있어요. (Windows 탐색기: 보기 → 숨긴 항목 / macOS Finder: Cmd+Shift+.)",
+		"   - `.claude/agents/*.md`: 팀원 한 명 한 명의 역할 정의입니다.",
+		"   - `.claude/settings.json`: 에이전트 팀 기능을 켜는 설정입니다. 내용은 아래 한 가지뿐이에요.",
+		"",
+		"```json",
+		AGENT_TEAMS_SETTINGS_JSON.trimEnd(),
+		"```",
+		"",
+		`2. **${AGENT_TEAMS_MERGE_HINT}**`,
+		"",
+		"## 실행 방법 (Claude Code 전용)",
+		"",
+		"```bash",
+		"cd 내-프로젝트-폴더",
+		"claude",
+		"```",
+		"",
+		"설정 파일을 넣은 뒤에는 Claude Code를 **새로 시작**해야 적용됩니다. 그다음 아래 프롬프트를 붙여 넣고, 맨 아래 \"할 일\"만 바꿔 주세요.",
+		"",
+		"### 첫 프롬프트 (팀원 소개)",
+		"",
+		"```text",
+		teamPrompt(recipe),
+		"```",
+		"",
+		...tipLines(recipe),
+		"## 팀이 제대로 시작됐는지 확인하기",
+		"",
+		`1. 프롬프트를 보낸 뒤 화면 아래쪽 에이전트 목록에 팀원 ${recipe.cards.length}명의 이름이 보이면 성공입니다.`,
+		"2. 위·아래 화살표로 팀원을 고르고 Enter를 누르면 그 팀원의 대화를 볼 수 있고, 바로 말을 걸 수도 있습니다.",
+		"3. Ctrl+T를 누르면 팀이 함께 쓰는 할 일 목록이 보입니다.",
+		"4. 팀원이 아니라 서브에이전트로 일을 시작했다면 \"서브에이전트 말고 에이전트 팀으로 다시 해 줘\"라고 말하세요.",
+		`5. 끝낼 때는 "${firstName} 팀원을 종료해 줘"처럼 말합니다. 대화창을 닫으면 팀은 자동으로 정리됩니다.`,
+		"",
+		`팀원이 하나도 안 생긴다면: \`.claude/settings.json\`에 \`${AGENT_TEAMS_ENV_NAME}\`가 들어 있는지, Claude Code를 새로 시작했는지 확인하세요. 오래된 Claude Code라면 먼저 업데이트하세요.`,
+		"",
+		"## 알아 둘 점",
+		"",
+		...info.notes.map((note) => `- ${note}`),
+		"- **읽기 전용 팀원:** `tools` 목록을 읽기 도구(Read, Grep, Glob)로 제한해 두었습니다.",
+		"- **Claude Code가 없다면:** teamcook 사이트에서 `recipe.json`을 불러와 조리법을 \"서브에이전트\"로 바꾸면, 같은 역할을 Codex 등 다른 도구용 파일로 내보낼 수 있습니다.",
+		`- 공식 문서: ${info.sourceUrl} (${info.lastVerified} 확인)`,
+		""
+	];
+}
+/** 토론형 조리법의 실행 방법. 설정 파일이 없고 프롬프트만 있다. */
+function debateSections(recipe) {
+	return [
+		"## 실행 방법 (설치할 것이 없어요)",
+		"",
+		"1. 아래 프롬프트를 통째로 복사합니다. (같은 내용이 `debate-prompt.txt`에도 들어 있습니다.)",
+		"2. 쓰는 AI 채팅에 붙여 넣습니다. ChatGPT·Claude·Gemini 무료 웹 채팅도 되고, Codex·Claude Code 같은 터미널 도구도 됩니다.",
+		"3. \"주제:\" 줄만 내가 결정하고 싶은 것으로 바꿔서 보냅니다.",
+		"",
+		"### 토론 프롬프트",
+		"",
+		"```text",
+		debatePrompt(recipe),
+		"```",
+		"",
+		...tipLines(recipe),
+		"## 알아 둘 점",
+		"",
+		...COLLABORATIONS$1.debate.notes.map((note) => `- ${note}`),
+		"- **토론 결과는 주장입니다:** 결론에 쓰인 사실은 직접 확인한 뒤 쓰세요.",
+		"- **다시 고치려면:** `recipe.json`을 teamcook 사이트에서 불러오면 역할과 순서를 고칠 수 있습니다.",
+		""
+	];
 }
 // src/lib/exportZip.ts
 /** 파일·폴더 이름으로 쓸 수 없는 글자를 -로 바꾼다. 한글은 그대로 둔다. */
@@ -16631,7 +16932,8 @@ function safeName(value, fallback) {
 function buildRecipeFiles(recipe, providers, options = {}) {
 	const { plans } = options;
 	const engines = exportEngines(recipe, providers, plans);
-	const bridge = options.codexBridge === true && needsCodexBridge(recipe);
+	const style = collaborationOf(recipe);
+	const bridge = style === "subagents" && options.codexBridge === true && needsCodexBridge(recipe);
 	const root = safeName(recipe.title, "recipe");
 	const files = {};
 	const used = /* @__PURE__ */ new Set();
@@ -16640,12 +16942,27 @@ function buildRecipeFiles(recipe, providers, options = {}) {
 		let fileName = base;
 		for (let n = 2; used.has(fileName); n += 1) fileName = `${base}-${n}`;
 		used.add(fileName);
+		if (style === "debate") continue;
+		if (style === "agent-team") {
+			const { model, ...rest } = card;
+			const member = card.preferredEngine === "claude-code" && model ? {
+				...rest,
+				model
+			} : rest;
+			files[`${root}/.claude/agents/${fileName}.md`] = cardToClaudeMd({
+				...member,
+				preferredEngine: "claude-code"
+			});
+			continue;
+		}
 		files[`${root}/.codex/agents/${fileName}.toml`] = cardToCodexToml(card);
 		files[`${root}/.claude/agents/${fileName}.md`] = bridge && card.preferredEngine === "codex-cli" ? codexBridgeMd(card) : cardToClaudeMd(card);
 		if (engines.includes("antigravity-cli")) files[`${root}/.agents/agents/${fileName}.md`] = cardToAntigravityMd(card);
 		if (engines.includes("grok-build")) files[`${root}/.grok/agents/${fileName}.md`] = cardToGrokMd(card);
 	}
-	files[`${root}/.codex/config.toml`] = recipeToCodexConfig(recipe);
+	if (style === "subagents") files[`${root}/.codex/config.toml`] = recipeToCodexConfig(recipe);
+	if (style === "agent-team") files[`${root}/.claude/settings.json`] = AGENT_TEAMS_SETTINGS_JSON;
+	if (style === "debate") files[`${root}/debate-prompt.txt`] = `${debatePrompt(recipe)}\n`;
 	files[`${root}/recipe.json`] = `${JSON.stringify(recipe, null, 2)}\n`;
 	files[`${root}/RECIPE.md`] = buildRecipeMd(recipe, providers, plans);
 	if (bridge) files[`${root}/RECIPE.md`] += [
@@ -17084,6 +17401,12 @@ var PERMISSIONS = [
 	"edit",
 	"full"
 ];
+var COLLABORATIONS = [
+	"subagents",
+	"agent-team",
+	"debate"
+];
+var DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 var MAX_CARDS = 30;
 var MAX_HANDOFFS = 100;
 var MAX_SHORT = 300;
@@ -17180,6 +17503,8 @@ function parseRecipe(raw) {
 			maxDepth: wholeNumber(settings.maxDepth, 1, 1, 5)
 		}
 	};
+	if (raw.collaboration !== void 0) recipe.collaboration = COLLABORATIONS.includes(raw.collaboration) ? raw.collaboration : "subagents";
+	if (typeof raw.lastVerified === "string" && DATE_PATTERN.test(raw.lastVerified)) recipe.lastVerified = raw.lastVerified;
 	const author = text(raw.author, MAX_SHORT);
 	if (author) recipe.author = author;
 	const howToRun = text(raw.howToRun, MAX_LONG);
@@ -17235,6 +17560,11 @@ function readShareHash(hash) {
 	return hash.slice(prefix.length);
 }
 // src/cli/install.ts
+/** --force여도 덮어쓰지 않는 파일과, 그때 보여 줄 안내 */
+var PROTECTED_FILES = {
+	".codex/config.toml": "이미 있는 .codex/config.toml은 덮어쓰지 않아요. [agents] 부분만 직접 옮겨 적으세요.",
+	".claude/settings.json": AGENT_TEAMS_MERGE_HINT
+};
 /** 공유 링크(또는 # 뒤 문자열)에서 레시피를 꺼낸다. */
 function recipeFromLink(link) {
 	const trimmed = link.trim();
@@ -17256,16 +17586,24 @@ function planInstall(link, options = {}) {
 	const files = [];
 	for (const [fullPath, content] of Object.entries(exported)) {
 		const relative = fullPath.slice(fullPath.indexOf("/") + 1);
-		if (relative === "RECIPE.md" || relative === "recipe.json") files.push({
+		if (!relative.startsWith(".")) files.push({
 			path: `${folder}/${relative}`,
 			content,
 			neverOverwrite: false
 		});
-		else files.push({
-			path: relative,
-			content,
-			neverOverwrite: relative === ".codex/config.toml"
-		});
+		else {
+			const mergeHint = PROTECTED_FILES[relative];
+			files.push(mergeHint ? {
+				path: relative,
+				content,
+				neverOverwrite: true,
+				mergeHint
+			} : {
+				path: relative,
+				content,
+				neverOverwrite: false
+			});
+		}
 	}
 	return {
 		ok: true,
@@ -17323,12 +17661,14 @@ function main(argv) {
 	console.log(`레시피: ${plan.recipe.title} (에이전트 ${plan.recipe.cards.length}개)`);
 	console.log(`설치 위치: ${dir}\n`);
 	let skipped = 0;
+	const hints = [];
 	for (const file of plan.files) {
 		const target = path.join(dir, file.path);
 		if (!path.resolve(target).startsWith(path.resolve(dir) + path.sep)) continue;
 		const exists = existsSync(target);
 		if (exists && (file.neverOverwrite || !force)) {
 			skipped += 1;
+			if (file.mergeHint) hints.push(file.mergeHint);
 			console.log(`  건너뜀 (이미 있음)  ${file.path}`);
 			continue;
 		}
@@ -17340,9 +17680,9 @@ function main(argv) {
 	}
 	if (skipped > 0) {
 		console.log("\n이미 있는 파일은 건드리지 않았어요. 덮어쓰려면 --force를 붙이세요.");
-		console.log("(.codex/config.toml은 --force여도 덮어쓰지 않아요. [agents] 부분만 직접 옮겨 적으세요.)");
+		for (const hint of hints) console.log(`- ${hint}`);
 	}
-	console.log("\n다음 단계: 이 폴더에서 codex 또는 claude를 실행하세요. 실행 방법은 .teamcook/ 안의 RECIPE.md에 있어요.");
+	console.log("\n다음 단계: 실행 방법과 첫 프롬프트는 .teamcook/ 안의 RECIPE.md에 있어요.");
 	return 0;
 }
 process.exitCode = main(process.argv.slice(2));

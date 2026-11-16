@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/common';
-import { FitLabel, PlanBadges, engineName } from '@/components/RouteInfo';
+import { FitLabel, PlanBadges, StyleChip, VerifiedBadge, engineName } from '@/components/RouteInfo';
+import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
 import { builtinRecipes } from '@/data/recipes';
 import { newId } from '@/lib/id';
@@ -14,7 +15,7 @@ import { importFile } from '@/lib/importFiles';
 import { fitsMyPlans, requiredPlans } from '@/lib/requiredPlans';
 import { navigate } from '@/lib/router';
 import { useStore } from '@/store/useStore';
-import type { AgentCard, EngineId, ProviderId, Recipe, UserPlans } from '@/types';
+import type { AgentCard, Collaboration, EngineId, ProviderId, Recipe, UserPlans } from '@/types';
 
 type Filter = 'all' | 'fits' | 'full';
 
@@ -24,7 +25,12 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'full', label: '바꾸지 않고 그대로 되는 것만' },
 ];
 
-/** 제목·설명·쓰임새·카드 이름에 검색어가 들어 있는지 (띄어 쓴 단어는 모두 들어 있어야 함) */
+/** 조리법 필터에 맞는지 ('all'이면 모두) */
+export function matchesStyle(recipe: Recipe, style: Collaboration | 'all'): boolean {
+  return style === 'all' || collaborationOf(recipe) === style;
+}
+
+/** 제목·설명·쓰임새·조리법·카드 이름에 검색어가 들어 있는지 (띄어 쓴 단어는 모두 들어 있어야 함) */
 export function matchesQuery(recipe: Recipe, query: string): boolean {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return true;
@@ -33,6 +39,7 @@ export function matchesQuery(recipe: Recipe, query: string): boolean {
     recipe.summary,
     recipe.useCase,
     recipe.author ?? '',
+    COLLABORATIONS[collaborationOf(recipe)].label,
     ...recipe.cards.flatMap((card) => [card.name, card.displayName, card.role]),
   ]
     .join(' ')
@@ -68,16 +75,23 @@ export function plansSummary(plans: UserPlans): string {
 function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans; href: string }) {
   const required = requiredPlans(recipe, providerData);
   const fit = fitsMyPlans(recipe, plans, providerData);
+  const style = collaborationOf(recipe);
   const engines: EngineId[] = [];
   for (const card of recipe.cards) {
-    if (!engines.includes(card.preferredEngine)) engines.push(card.preferredEngine);
+    const engine = style === 'agent-team' ? 'claude-code' : card.preferredEngine;
+    if (!engines.includes(engine)) engines.push(engine);
   }
+  const where = style === 'debate' ? '프롬프트만' : engines.map(engineName).join(' + ') || '카드 없음';
   return (
     <a
       href={href}
       className="group flex flex-col gap-3 rounded-2xl border bg-card p-5 transition-shadow hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
       <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StyleChip recipe={recipe} />
+          <VerifiedBadge date={recipe.lastVerified} />
+        </div>
         <h3 className="text-lg font-semibold tracking-tight group-hover:text-primary">{recipe.title}</h3>
         <p className="line-clamp-3 text-sm text-muted-foreground">
           {recipe.summary || '설명이 아직 없어요.'}
@@ -94,9 +108,7 @@ function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans;
         <PlanBadges required={required} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <FitLabel fit={fit} />
-          <span className="text-xs text-muted-foreground">
-            {engines.map(engineName).join(' + ') || '카드 없음'}
-          </span>
+          <span className="text-xs text-muted-foreground">{where}</span>
         </div>
       </div>
     </a>
@@ -110,12 +122,13 @@ export function GalleryPage() {
   const saveRecipe = useStore((state) => state.saveRecipe);
 
   const [filter, setFilter] = useState<Filter>('all');
+  const [styleFilter, setStyleFilter] = useState<Collaboration | 'all'>('all');
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<{ tone: 'success' | 'error'; text: string }[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const matches = (recipe: Recipe) => {
-    if (!matchesQuery(recipe, query)) return false;
+    if (!matchesQuery(recipe, query) || !matchesStyle(recipe, styleFilter)) return false;
     if (filter === 'all') return true;
     const fit = fitsMyPlans(recipe, plans, providerData);
     return filter === 'fits' ? fit !== 'no' : fit === 'full';
@@ -265,6 +278,32 @@ export function GalleryPage() {
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="조리법 필터">
+          <span className="text-sm text-muted-foreground">조리법</span>
+          {(['all', ...COLLABORATION_IDS] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={styleFilter === id}
+              title={id === 'all' ? undefined : COLLABORATIONS[id].description}
+              onClick={() => setStyleFilter(id)}
+              className={cn(
+                'rounded-full border px-3 py-1 text-sm transition-colors',
+                styleFilter === id
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'bg-background hover:bg-muted',
+              )}
+            >
+              {id === 'all' ? '모든 조리법' : COLLABORATIONS[id].label}
+            </button>
+          ))}
+        </div>
+        {styleFilter !== 'all' ? (
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{COLLABORATIONS[styleFilter].label}:</span>{' '}
+            {COLLABORATIONS[styleFilter].description}
+          </p>
+        ) : null}
         {hiddenCount > 0 ? (
           <p className="text-xs text-muted-foreground">
             검색어나 필터에 맞지 않는 레시피 {hiddenCount}개를 숨겼어요.

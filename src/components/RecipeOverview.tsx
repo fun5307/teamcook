@@ -2,11 +2,22 @@
 // 주의: 공유 링크로 들어온 데이터는 남이 만든 것이다. 반드시 텍스트로만 그린다
 // (React가 자동으로 글자를 안전하게 처리하므로 dangerouslySetInnerHTML만 쓰지 않으면 된다).
 
-import { ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Check, Copy } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { FlowSection } from '@/components/FlowSection';
-import { CardRoute, PlanBadges, RecipeRunSummary, engineName } from '@/components/RouteInfo';
+import {
+  CardRoute,
+  PlanBadges,
+  RecipeRunSummary,
+  StyleChip,
+  VerifiedBadge,
+  engineName,
+} from '@/components/RouteInfo';
+import { COLLABORATIONS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
-import { PERMISSION_LABELS, starterPrompt } from '@/lib/recipeMd';
+import { copyText } from '@/lib/download';
+import { PERMISSION_LABELS, runPrompt } from '@/lib/recipeMd';
 import { requiredPlans } from '@/lib/requiredPlans';
 import { resolveRecipe } from '@/lib/resolvePath';
 import { ROLE_LABELS } from '@/lib/roles';
@@ -44,6 +55,32 @@ export function FlowList({ recipe }: { recipe: Recipe }) {
   );
 }
 
+const PROMPT_TITLES = {
+  subagents: '첫 프롬프트 예시 (흐름을 문장으로 옮긴 것)',
+  'agent-team': '첫 프롬프트 (팀원 소개) — Claude Code에 붙여 넣고 "할 일"만 바꾸세요',
+  debate: '토론 프롬프트 — 쓰는 AI 채팅에 붙여 넣고 "주제"만 바꾸세요',
+};
+
+/** 조리법에 맞는 '처음에 붙여 넣을 프롬프트'와 복사 버튼 */
+export function RunPromptBox({ recipe }: { recipe: Recipe }) {
+  const [copied, setCopied] = useState(false);
+  const prompt = runPrompt(recipe);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">{PROMPT_TITLES[collaborationOf(recipe)]}</p>
+        <Button size="sm" variant="outline" onClick={async () => setCopied(await copyText(prompt))}>
+          {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+          {copied ? '복사했어요' : '프롬프트 복사'}
+        </Button>
+      </div>
+      <pre className="max-h-96 overflow-auto rounded-lg bg-muted p-3 font-sans text-sm whitespace-pre-wrap">
+        {prompt}
+      </pre>
+    </div>
+  );
+}
+
 export function RecipeOverview({
   recipe,
   plans,
@@ -55,10 +92,16 @@ export function RecipeOverview({
 }) {
   const required = requiredPlans(recipe, providerData);
   const resolved = resolveRecipe(recipe, plans, providerData);
+  const style = collaborationOf(recipe);
+  const styleInfo = COLLABORATIONS[style];
 
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <VerifiedBadge date={recipe.lastVerified} />
+          <StyleChip recipe={recipe} />
+        </div>
         {recipe.summary ? <p className="text-base leading-relaxed">{recipe.summary}</p> : null}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           {recipe.useCase ? <span>쓰임새: {recipe.useCase}</span> : null}
@@ -69,6 +112,9 @@ export function RecipeOverview({
           <span className="text-sm text-muted-foreground">필요한 플랜</span>
           <PlanBadges required={required} showDate />
         </div>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">조리법 — {styleInfo.label}:</span> {styleInfo.description}
+        </p>
       </section>
 
       <RecipeRunSummary resolution={resolved} lead={runLead} />
@@ -84,7 +130,9 @@ export function RecipeOverview({
                 <span className="text-xs text-muted-foreground">{roleLabel(card.tags)}</span>
               ) : null}
               <span className="text-xs text-muted-foreground">
-                · {engineName(card.preferredEngine)} · {PERMISSION_LABELS[card.permission]}
+                {style === 'debate'
+                  ? '· 프롬프트 안의 역할'
+                  : `· ${engineName(style === 'agent-team' ? 'claude-code' : card.preferredEngine)} · ${PERMISSION_LABELS[card.permission]}`}
               </span>
             </div>
             <p className="text-sm">{card.role}</p>
@@ -108,10 +156,7 @@ export function RecipeOverview({
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">이렇게 시작해요</h2>
         {recipe.howToRun ? <p className="text-sm leading-relaxed">{recipe.howToRun}</p> : null}
-        <p className="text-xs text-muted-foreground">첫 프롬프트 예시 (흐름을 문장으로 옮긴 것)</p>
-        <pre className="overflow-auto rounded-lg bg-muted p-3 font-sans text-sm whitespace-pre-wrap">
-          {starterPrompt(recipe)}
-        </pre>
+        <RunPromptBox recipe={recipe} />
       </section>
     </div>
   );

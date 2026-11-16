@@ -1,9 +1,10 @@
 // 실행 경로(①~④, 🔒, 대안)와 '필요한 플랜' 배지를 그리는 부품들.
 // 판단은 전부 lib/resolvePath.ts, lib/requiredPlans.ts가 하고, 여기서는 그리기만 한다.
 
-import { ArrowRight, Lightbulb, Lock } from 'lucide-react';
+import { ArrowRight, CalendarCheck, FlaskConical, Lightbulb, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { COLLABORATIONS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
 import type { RequiredPlans } from '@/lib/requiredPlans';
 import {
@@ -12,7 +13,7 @@ import {
   type PathResolution,
   type RecipeResolution,
 } from '@/lib/resolvePath';
-import type { EngineId, PathLevel } from '@/types';
+import type { Collaboration, EngineId, PathLevel, Recipe } from '@/types';
 
 const PATH_STYLES: Record<PathLevel, string> = {
   1: 'border-emerald-200 bg-emerald-50 text-emerald-800',
@@ -33,6 +34,38 @@ export function PathBadge({ path, short = false }: { path: PathLevel; short?: bo
     <span className={cn(pill, PATH_STYLES[path])} title={PATH_NAMES[path]}>
       <span aria-hidden>{PATH_SYMBOLS[path]}</span>
       {short ? <span className="sr-only">{PATH_NAMES[path]}</span> : PATH_NAMES[path]}
+    </span>
+  );
+}
+
+const STYLE_CHIP: Record<Collaboration, string> = {
+  subagents: 'border-zinc-200 bg-zinc-50 text-zinc-700',
+  'agent-team': 'border-violet-200 bg-violet-50 text-violet-800',
+  debate: 'border-teal-200 bg-teal-50 text-teal-800',
+};
+
+/** 조리법(협업 방식) 이름표. 실험 기능이면 플라스크 표시가 붙는다. */
+export function StyleChip({ recipe }: { recipe: Pick<Recipe, 'collaboration'> }) {
+  const info = COLLABORATIONS[collaborationOf(recipe)];
+  return (
+    <span className={cn(pill, STYLE_CHIP[info.id])} title={info.description}>
+      {info.experimental ? <FlaskConical className="size-3" aria-hidden /> : null}
+      {info.chip}
+      {info.experimental ? <span className="font-normal">· 실험 기능</span> : null}
+    </span>
+  );
+}
+
+/** "2026-11-16 확인" 표시: 이 레시피가 실제로 돌아가는 것을 확인한 날 */
+export function VerifiedBadge({ date }: { date?: string }) {
+  if (!date) return null;
+  return (
+    <span
+      className={cn(pill, 'border-emerald-300 bg-emerald-50 text-emerald-800')}
+      title="이 날짜에 실제로 돌아가는지 확인한 레시피예요."
+    >
+      <CalendarCheck className="size-3" aria-hidden />
+      {date} 확인
     </span>
   );
 }
@@ -114,10 +147,14 @@ export function CardRoute({
 export function RecipeRunSummary({
   resolution,
   lead = '내 플랜으로 이 레시피를 돌리면',
+  onSwitchStyle,
 }: {
   resolution: RecipeResolution;
   lead?: string;
+  /** 주면 조리법이 잠겼을 때 '조리법 바꾸기' 버튼이 나온다 */
+  onSwitchStyle?: (style: Collaboration) => void;
 }) {
+  const { styleLock } = resolution;
   return (
     <div className="flex flex-col gap-1 rounded-xl border bg-muted/40 px-4 py-3">
       <p className="text-sm">
@@ -133,6 +170,26 @@ export function RecipeRunSummary({
             </span>
           ))}
       </div>
+      {styleLock ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-sm">
+          <LockBadge />
+          <span className="min-w-0 flex-1 text-rose-900">
+            {styleLock.reason} {styleLock.suggestion}
+          </span>
+          {onSwitchStyle ? (
+            <Button size="xs" variant="outline" onClick={() => onSwitchStyle(styleLock.switchTo)}>
+              {COLLABORATIONS[styleLock.switchTo].label} 조리법으로 바꾸기
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {resolution.styleNotes.length > 0 ? (
+        <ul className="list-disc pl-5 text-xs text-muted-foreground">
+          {resolution.styleNotes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      ) : null}
       {resolution.crossReview === 'ok' ? (
         <p className="text-xs text-emerald-800">
           ✅ 교차 검토: 작성자와 검토자가 서로 다른 회사 모델이에요.

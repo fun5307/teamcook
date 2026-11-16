@@ -4,6 +4,7 @@
 import type { ReactNode } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Notice, PageHeader } from '@/components/common';
+import { AGENT_TEAMS_SETTINGS_JSON, COLLABORATIONS } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
 import { CLI_DOWNLOAD_COMMAND } from '@/data/site';
 
@@ -230,6 +231,67 @@ node teamcook.mjs add "https://teamcook-eta.vercel.app/#r=…"`}</Code>
           내보낸 zip에는 모든 에이전트가 두 형식으로 다 들어 있어서, 한쪽 도구만 있어도 팀 전체를 그 도구 하나로
           돌릴 수 있어요.
         </p>
+      </Step>
+
+      <Step number={8} title="조리법(협업 방식)에 따라 실행 방법이 달라요">
+        <p>
+          레시피마다 <strong>조리법</strong>이 있어요. 위 1~7번은 기본 조리법인 <strong>서브에이전트</strong> 기준이고,
+          나머지 두 가지는 이렇게 돌립니다.
+        </p>
+
+        <h3 className="mt-2 font-semibold">서브에이전트 (기본)</h3>
+        <p className="text-muted-foreground">{COLLABORATIONS.subagents.description}</p>
+        <p>위 1~3번대로 파일을 넣고, RECIPE.md의 '첫 프롬프트 예시'를 붙여 넣습니다.</p>
+
+        <h3 className="mt-2 font-semibold">에이전트 팀 (Claude Code 전용 · 실험 기능)</h3>
+        <p className="text-muted-foreground">{COLLABORATIONS['agent-team'].description}</p>
+        <ol className="list-decimal pl-5">
+          <li>
+            zip 안의 <code>.claude</code> 폴더를 프로젝트 폴더 맨 위에 복사합니다. 팀원 정의(
+            <code>.claude/agents/*.md</code>)와, 에이전트 팀을 켜는 <code>.claude/settings.json</code>이 들어 있어요.
+          </li>
+          <li>
+            이미 <code>.claude/settings.json</code>이 있다면 덮어쓰지 말고, 아래 <code>env</code> 줄만 그 파일에
+            더하세요.
+          </li>
+          <li>
+            Claude Code를 <strong>새로 시작</strong>하고, RECIPE.md의 '첫 프롬프트(팀원 소개)'를 붙여 넣습니다.
+          </li>
+          <li>
+            화면 아래 에이전트 목록에 팀원 이름이 보이면 성공입니다. 위·아래 화살표와 Enter로 팀원 대화를 보고,{' '}
+            <kbd>Ctrl</kbd>+<kbd>T</kbd>로 함께 쓰는 할 일 목록을 봅니다.
+          </li>
+        </ol>
+        <Code>{AGENT_TEAMS_SETTINGS_JSON.trimEnd()}</Code>
+        <ul className="list-disc pl-5 text-muted-foreground">
+          {COLLABORATIONS['agent-team'].notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+        <Notice tone="warn">
+          에이전트 팀은 켜는 방법과 한계를 공식 문서로 확인했지만({COLLABORATIONS['agent-team'].lastVerified}), 실험
+          기능이라 동작이 바뀔 수 있어요. 팀원이 생기지 않고 서브에이전트로 일을 시작하면 "서브에이전트 말고 에이전트
+          팀으로 다시 해 줘"라고 말하세요.
+        </Notice>
+        <div className="flex flex-wrap gap-3">
+          <Source href={COLLABORATIONS['agent-team'].sourceUrl ?? ''}>Claude Code 에이전트 팀 공식 문서</Source>
+        </div>
+
+        <h3 className="mt-2 font-semibold">토론형 (어느 AI에서나 · 무료 가능)</h3>
+        <p className="text-muted-foreground">{COLLABORATIONS.debate.description}</p>
+        <ol className="list-decimal pl-5">
+          <li>
+            레시피 화면의 <strong>프롬프트 복사</strong>를 누릅니다. (zip에도 <code>debate-prompt.txt</code>로 들어
+            있어요.)
+          </li>
+          <li>ChatGPT·Claude·Gemini 등 쓰는 AI 채팅에 붙여 넣습니다. 설치할 것은 없습니다.</li>
+          <li>"주제:" 줄만 내가 결정하고 싶은 것으로 바꿔서 보냅니다.</li>
+        </ol>
+        <ul className="list-disc pl-5 text-muted-foreground">
+          {COLLABORATIONS.debate.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
       </Step>
 
       <p className="text-xs text-muted-foreground">
