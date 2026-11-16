@@ -212,3 +212,14 @@ describe('Codex 프로젝트 설정 (.codex/config.toml)', () => {
     });
   });
 });
+
+describe('메타 주석 이름 (teamcook, 옛 이름 agent-recipes)', () => {
+  it('새로 내보내는 파일은 "# teamcook:" 주석을 쓴다', () => {
+    expect(cardToCodexToml(baseCard).startsWith('# teamcook: {')).toBe(true);
+  });
+
+  it('이름을 바꾸기 전에 내보낸 "# agent-recipes:" 파일도 그대로 읽는다', () => {
+    const old = cardToCodexToml(baseCard).replace('# teamcook:', '# agent-recipes:');
+    expect(codexTomlToCard(old, { id: baseCard.id })).toEqual(baseCard);
+  });
+});

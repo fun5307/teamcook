@@ -1,4 +1,6 @@
-# AI 팀 레시피 (가칭 agent-recipes) — 작업 안내
+# teamcook — 작업 안내
+
+> 서비스 이름은 **teamcook**으로 확정(2026-11-16). 슬로건: **"AI 팀을 레시피로 요리하세요"**. 옛 가칭은 agent-recipes.
 
 > 이 파일과 `AGENTS.md`는 **같은 내용**이다. 하나를 고치면 다른 하나도 똑같이 고친다.
 > 전체 지시서는 `PROJECT_BRIEF.md`, 전략은 `MCP-strategy.md`, 현재 상태와 다음 할 일은 `HANDOFF.md`에 있다.

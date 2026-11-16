@@ -154,12 +154,12 @@ export function GalleryPage() {
           void onFiles(event.dataTransfer.files);
         }}
       >
-        <p className="text-sm font-medium text-primary">실행은 어디서든, 팀 설계와 레시피는 여기서.</p>
+        <p className="text-sm font-medium text-primary">teamcook · 실행은 어디서든, 팀 설계와 레시피는 여기서.</p>
         <h1 className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-          여러 AI가 역할을 나눠 일하는 팀을 설계하고, 링크 하나로 나누세요
+          AI 팀을 레시피로 요리하세요
         </h1>
         <p className="max-w-2xl text-base text-muted-foreground">
-          작성자·검토자·조사원 같은 역할 카드로 팀을 짜면, 내 요금제로 쓸 수 있는 실행 경로를 알려 주고 Codex와
+          여러 AI가 역할을 나눠 일하는 팀을 설계하고, 링크 하나로 나누세요. 작성자·검토자·조사원 같은 역할 카드로 팀을 짜면, 내 요금제로 쓸 수 있는 실행 경로를 알려 주고 Codex와
           Claude Code 설정 파일로 내보내 줍니다. 내보낸 파일은 터미널, T3 Code, 1Code 어디서든 그대로 쓸 수 있어요.
         </p>
         <div className="flex flex-wrap gap-2">

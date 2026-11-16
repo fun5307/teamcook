@@ -59,6 +59,7 @@ export const useStore = create<AppState>()(
         })),
     }),
     {
+      // 저장 이름은 옛 가칭 그대로 둔다. 바꾸면 이미 저장된 사용자 레시피가 사라진다.
       name: 'agent-recipes',
       version: 1,
       // 저장된 데이터가 깨졌거나 옛 모양이어도 앱이 죽지 않게, 읽을 때 한 번 다듬는다.

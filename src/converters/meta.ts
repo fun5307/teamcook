@@ -1,4 +1,5 @@
-// 설정 파일 맨 위에 붙이는 한 줄 주석 "# agent-recipes: {...}".
+// 설정 파일 맨 위에 붙이는 한 줄 주석 "# teamcook: {...}".
+// (이름을 확정하기 전에 내보낸 파일의 "# agent-recipes: {...}"도 계속 읽는다.)
 // Codex TOML이나 Claude 머리말에는 자리가 없는 카드 정보(표시 이름, 역할 태그, 권한 등)를
 // 주석으로 실어 두었다가, 다시 불러올 때 되살린다. 주석이라 Codex·Claude Code는 무시한다.
 
@@ -22,7 +23,7 @@ export class ConvertError extends Error {
   }
 }
 
-const META_PATTERN = /^[ \t]*#[ \t]*agent-recipes:[ \t]*(\{.*\})[ \t]*$/m;
+const META_PATTERN = /^[ \t]*#[ \t]*(?:teamcook|agent-recipes):[ \t]*(\{.*\})[ \t]*$/m;
 
 const PERMISSIONS: Permission[] = ['read-only', 'edit', 'full'];
 const ENGINES: EngineId[] = [
@@ -65,7 +66,7 @@ export function readMeta(text: string): CardMeta {
 /** 메타 주석 한 줄을 만든다. 실을 정보가 없으면 null. */
 export function metaLine(meta: CardMeta): string | null {
   if (Object.keys(meta).length === 0) return null;
-  return `# agent-recipes: ${JSON.stringify(meta)}`;
+  return `# teamcook: ${JSON.stringify(meta)}`;
 }
 
 /** 줄바꿈을 \n으로 통일하고 앞뒤 공백을 정리한다. */

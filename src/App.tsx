@@ -40,7 +40,7 @@ export default function App() {
       <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
           <a href="#/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
-            <span aria-hidden>🍳</span> AI 팀 레시피
+            <span aria-hidden>🍳</span> teamcook
           </a>
           <nav className="flex flex-wrap gap-1" aria-label="주 메뉴">
             {NAV.map((item) => {
@@ -69,7 +69,7 @@ export default function App() {
 
       <footer className="border-t">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-1 px-4 py-6 text-xs text-muted-foreground">
-          <p>실행은 어디서든, 팀 설계와 레시피는 여기서. 이 사이트는 에이전트를 직접 실행하지 않아요.</p>
+          <p>teamcook — 실행은 어디서든, 팀 설계와 레시피는 여기서. 이 사이트는 에이전트를 직접 실행하지 않아요.</p>
           <p>
             레시피와 내 AI 현황은 이 브라우저에만 저장됩니다. 로그인도, 서버 저장도, API 키 입력도 없어요. 요금제
             정보는 {providerData.lastVerified}에 확인했습니다.

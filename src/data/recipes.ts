@@ -11,7 +11,7 @@ const crossReview: Recipe = {
   summary:
     'Claude Code가 기능을 구현하고, 다른 회사 모델인 Codex가 읽기 전용으로 검토합니다. 같은 모델이 자기 결과를 검토할 때 놓치는 문제를 잡아냅니다.',
   useCase: '기능 구현 후 검토',
-  author: 'agent-recipes',
+  author: 'teamcook',
   cards: [
     {
       id: 'cr-writer',
@@ -65,7 +65,7 @@ const planBuildReview: Recipe = {
   summary:
     'Codex 하나로 돌리는 3인 팀입니다. 기획자가 계획을 세우고, 구현 담당이 만들고, 검토자가 읽기 전용으로 확인합니다. ChatGPT 계정만 있으면 됩니다.',
   useCase: '작은 기능을 계획부터 검토까지',
-  author: 'agent-recipes',
+  author: 'teamcook',
   cards: [
     {
       id: 'pbr-planner',
@@ -135,7 +135,7 @@ const researchTeam: Recipe = {
   summary:
     '조사원 둘이 서로 다른 관점(사실·근거 / 반대 근거·위험)으로 동시에 조사하고, 정리원이 하나의 보고서로 묶습니다. 한쪽 시각에 치우친 조사를 막아 줍니다.',
   useCase: '자료 조사와 의사결정 준비',
-  author: 'agent-recipes',
+  author: 'teamcook',
   cards: [
     {
       id: 'rt-facts',

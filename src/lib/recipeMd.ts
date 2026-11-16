@@ -154,7 +154,7 @@ export function buildRecipeMd(recipe: Recipe, providers: ProviderData, plans?: U
     '- **Codex의 읽기 전용:** Codex는 에이전트 파일만으로는 읽기 전용을 강제할 수 없습니다(서브에이전트는 메인 세션의 권한을 물려받음). 그래서 읽기 전용 에이전트의 지시문 끝에 "수정하지 마라"는 문장을 넣어 두었습니다. 확실히 막으려면 `codex --sandbox read-only`로 실행하세요.',
     '- **Claude Code의 읽기 전용:** `tools` 목록을 읽기 도구(Read, Grep, Glob)로 제한해 두었습니다.',
     '- **검토 결과는 주장입니다:** 다른 모델의 지적도 틀릴 수 있습니다. 작성자가 확인한 뒤 맞는 것만 반영하세요.',
-    '- **다시 고치려면:** `recipe.json`을 AI 팀 레시피 사이트에서 불러오면 이 팀을 그대로 편집할 수 있습니다.',
+    '- **다시 고치려면:** `recipe.json`을 teamcook 사이트에서 불러오면 이 팀을 그대로 편집할 수 있습니다.',
     '',
   );
   return out.join('\n');

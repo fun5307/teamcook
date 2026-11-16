@@ -128,7 +128,7 @@ export function codexTomlToCard(text: string, options: { id?: string } = {}): Ag
 export function recipeToCodexConfig(recipe: Recipe): string {
   const threads = Math.max(1, Math.round(recipe.settings.maxThreads));
   return [
-    `# AI 팀 레시피: ${recipe.title.replace(/[\r\n]+/g, ' ')}`,
+    `# teamcook 레시피: ${recipe.title.replace(/[\r\n]+/g, ' ')}`,
     '# 동시에 열 수 있는 서브에이전트 수 (메인 세션 제외)',
     '[agents]',
     `max_concurrent_threads_per_session = ${threads}`,

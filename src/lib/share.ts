@@ -54,7 +54,7 @@ export function decodeRecipe(encoded: string): DecodeResult {
   }
 }
 
-/** 공유 링크를 만든다. baseUrl 예: 'https://agent-recipes.vercel.app/' */
+/** 공유 링크를 만든다. baseUrl 예: 'https://teamcook.vercel.app/' */
 export function buildShareLink(recipe: Recipe, baseUrl: string): ShareLink {
   const base = baseUrl.split('#')[0];
   const url = `${base}#${SHARE_HASH_KEY}=${encodeRecipe(recipe)}`;
