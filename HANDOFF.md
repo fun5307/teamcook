@@ -1,14 +1,15 @@
-# HANDOFF — 인계 문서
+# HANDOFF — teamcook 인계 문서
 
 > 다음에 이어받는 모델(또는 사람)이 이 대화 없이도 작업을 이어갈 수 있게 쓰는 문서. 단계가 끝날 때마다 갱신한다.
 > 먼저 읽을 것: `CLAUDE.md`(작업 규칙, 폴더 구조) → 이 문서 → 필요하면 `PROJECT_BRIEF.md`.
 
-## 현재 상태 (2026-11-16 09:10 KST 기준)
+## 현재 상태 (2026-11-16 기준)
 
-- **0~4단계 완료.** 5단계 중 '실행 안내 페이지'까지 완료. '시간 남으면' 항목(흐름 캔버스, 꿀팁, 파일 끌어다 놓기)도 완료. **GitHub 올리기와 Vercel 배포는 아직** (사용자 계정 로그인이 필요해서 사용자가 해야 함. 아래 '사용자가 할 일' 참고).
-- 배포 링크: (아직 없음)
-- 저장소 링크: (아직 없음 — 로컬 git에만 커밋돼 있음)
-- 확인된 것: `npm test` 96개 통과, `npm run typecheck` 통과, `npm run build` 통과, 브라우저(Edge 헤드리스)로 전체 흐름을 자동 실행해 콘솔 오류 0건.
+- **서비스 이름: teamcook** (확정). 슬로건: "AI 팀을 레시피로 요리하세요". 옛 가칭 agent-recipes.
+- **0~5단계 완료.** '시간 남으면' 항목(흐름 캔버스, 꿀팁, 파일 끌어다 놓기)도 완료.
+- 저장소: https://github.com/fun5307/teamcook (`main`에 push하면 Vercel이 자동으로 다시 배포)
+- 배포 링크: (사용자가 Vercel에 배포 완료. 주소를 여기에 적을 것)
+- 확인된 것: `npm test` 98개 통과, 타입 검사·빌드 통과, 브라우저 자동 실행으로 전체 흐름 콘솔 오류 0건. **사용자가 'Claude 작성 + Codex 교차 검토' zip을 내보내 실제 Claude Code·Codex에서 에이전트 인식을 확인함.**
 
 ## 단계별 DoD 체크 현황
 
@@ -26,27 +27,28 @@
 - [x] 전부 무료 / ChatGPT Plus만 / Claude Pro만 / 둘 다 유료 4개 유형 테스트 통과 (`src/lib/resolvePath.test.ts`)
 - [x] 기본 레시피 3종 배지 테스트 통과
 
-### 3단계 · 편집기 + 내 AI 현황 + 내보내기 — 화면 완료, 실제 CLI 확인만 남음
+### 3단계 · 편집기 + 내 AI 현황 + 내보내기 — 완료
 - [x] 레시피를 만들고 새로고침해도 남아 있다 (자동 실행으로 확인)
 - [x] '내 AI 현황'을 바꾸면 배지와 대안이 즉시 바뀐다 (자동 실행으로 확인)
-- [ ] **zip을 테스트 프로젝트에 풀고 `codex`와 `claude`에서 에이전트가 인식되는지 — 사용자가 직접 확인해야 함.** (아래 '사용자가 할 일' 1번)
+- [x] zip을 테스트 프로젝트에 풀고 `codex`와 `claude`에서 에이전트가 인식된다 (사용자가 직접 확인, 2026-11-16)
 
 ### 4단계 · 공유 링크 + 기본 레시피 + 갤러리 — 완료
 - [x] 링크를 다른 브라우저(새 브라우저 컨텍스트)에서 열면 같은 레시피가 보인다
 - [x] 공유받은 레시피에 내 플랜 기준 경로가 바로 표시된다
 - [x] 필터를 켜면 플랜에 맞지 않는 레시피가 숨겨진다
 
-### 5단계 · 실행 안내 + 배포 — 일부 완료
+### 5단계 · 실행 안내 + 배포 — 완료
 - [x] '어디서 돌리나요?' 페이지 (`src/pages/HowToRunPage.tsx`)
-- [ ] GitHub 저장소 만들고 올리기 (사용자 계정 필요)
-- [ ] Vercel 배포 (사용자 계정 필요)
+- [x] GitHub 저장소 만들고 올리기 (fun5307/teamcook)
+- [x] Vercel 배포 (사용자가 완료)
+- [ ] 배포된 주소에서 갤러리 → 편집 → 공유 링크 → 가져오기 → zip 내보내기를 한 번 직접 눌러 보기
 
 ### 시간 남으면 하는 것
 - [x] 꿀팁: 편집기 아래에 팁 7개 + 카드별 경고(검토자가 편집 권한이면 경고 등) — `src/data/tips.ts`
 - [x] 흐름 캔버스 (React Flow): `src/components/FlowCanvas.tsx`. 카드 = 상자, 넘겨주기 = 화살표, 상자에 경로 배지. 편집기에서는 상자 오른쪽 점에서 끌어 잇기, 화살표를 눌러 지우기. 자동 배치는 `src/lib/flowLayout.ts`(위치는 저장하지 않음). 화살표 라벨은 캔버스 아래 줄에서 고친다.
 - [x] 파일 끌어다 놓기: 갤러리 맨 위 상자와 편집기의 '에이전트 카드' 영역에 파일을 놓으면 불러온다. (끌어다 놓기는 자동 실행으로 확인하지 못함. 파일 선택 버튼은 사용자의 실제 TOML 4개로 확인함.)
 
-## 사용자가 할 일 (AI가 대신 못 하는 것)
+## 사용자가 할 일 (1~3번은 2026-11-16에 완료. 기록으로 남겨 둠)
 
 1. **내보낸 zip이 실제 도구에서 인식되는지 확인** (5분)
    1. `npm run dev` → 브라우저에서 http://localhost:5173 → 기본 레시피 하나 열기 → `zip으로 내보내기`
@@ -61,10 +63,10 @@
 
 ### 배포 절차 (처음 하는 사람용)
 
-1. https://github.com/new 에서 저장소를 만든다 (이름 예: `agent-recipes`, README 추가 체크는 **끄기**).
+1. https://github.com/new 에서 저장소를 만든다 (이름: `teamcook`, README 추가 체크는 **끄기**).
 2. 이 폴더의 터미널에서:
    ```bash
-   git remote add origin https://github.com/<내-아이디>/agent-recipes.git
+   git remote add origin https://github.com/<내-아이디>/teamcook.git
    git push -u origin main
    ```
    (처음이면 브라우저 로그인 창이 뜬다.)
@@ -76,7 +78,6 @@
 ## 알려진 버그와 임시 처리
 
 - **Vitest가 Windows 소문자 드라이브 경로(`c:\...`)에서 실패한다.** `npm test`는 `scripts/vitest.mjs`가 드라이브 문자를 대문자로 바꿔 다시 실행하는 방식으로 우회했다. `npx vitest`를 직접 실행하지 말 것.
-- **Codex에서 에이전트가 실제로 인식되는지는 미확인.** `codex debug prompt-input`으로는 확인할 수 없었다(도구 목록이 출력에 없음). 형식은 2026-11-16 공식 문서의 예시와 같다.
 - **Claude의 `permissionMode: plan`만 있고 `tools`가 없는 파일**을 불러오면 권한이 '제한 없음'으로 표시된다. `permissionMode`는 `extra.claude`에 보존되어 다시 내보낼 때는 그대로 나온다(표시만 부정확).
 - **카드를 다른 형식의 파일 하나로만 주고받으면** 반대쪽 형식 전용 필드(`extra.claude` ↔ `extra.codex`)는 실리지 않는다. 온전한 보존은 `recipe.json`이 맡는다.
 - `settings.maxDepth`는 데이터에는 있지만 화면에서 고칠 수 없고 내보내지도 않는다(Codex 공식 설정표에 대응 키가 없음).
@@ -101,13 +102,18 @@
 - `Permission`의 `'full'`은 "모든 권한"이 아니라 **"제한 없음 = 부모 세션 설정을 따름"**이다. 에이전트 파일은 권한을 줄이거나 부탁할 수만 있기 때문.
 - `AgentCard.extra`는 `{ codex?: {...}, claude?: {...} }`로 나눴다. Codex 전용 필드가 Claude 파일로 새지 않게 하려는 것.
 - `AgentCard.model`은 `preferredEngine`용이다. 다른 형식으로 내보낼 때는 `model` 필드에 쓰지 않는다(GPT 모델 이름이 Claude 파일에 들어가면 깨짐).
-- **메타 주석:** 형식에 자리가 없는 카드 정보(표시 이름, 역할 태그, 권한, 원래 엔진)는 파일의 주석 한 줄 `# agent-recipes: {…}`에 싣는다. 주석이라 Codex·Claude Code는 무시한다. (`src/converters/meta.ts`)
+- **메타 주석:** 형식에 자리가 없는 카드 정보(표시 이름, 역할 태그, 권한, 원래 엔진)는 파일의 주석 한 줄 `# teamcook: {…}`에 싣는다. 주석이라 Codex·Claude Code는 무시한다. (`src/converters/meta.ts`)
 - `resolvePath`에 선택 인자 `context.writerProviders`를 추가했다(교차 검토 판단용). `resolveRecipe`가 작성자를 먼저 정한 뒤 검토자를 다시 계산한다.
 - `resolvePath` 결과: 막힌 카드는 `{ locked: true, path: 4, engine: 'manual', alternative: {...} }`. **실제로 쓰게 되는 경로는 `effectiveRoute()`로 얻는다.**
 - `alternative.kind`: `'fallback'`(막혀서 필요한 대안) / `'suggestion'`(막히진 않았지만 더 나은 선택 — 교차 검토, 구독 최적화).
 - 플랜이 `'none'`(안 써요)이면 무료 경로도 없다고 본다. 그래야 갤러리 필터가 의미가 있다. 대신 "무료 계정을 만들면 쓸 수 있어요" 안내 문장을 준다.
 - 대안으로는 `status: "ready"`(설정 파일 내보내기 지원)인 엔진만 추천한다. 지금은 Codex와 Claude Code뿐.
 - 기본 레시피 3번(조사원 + 정리원)은 전부 Claude Code로 구성했다(배지가 3종 모두 다르게 나오도록).
+
+### 이름 변경 (agent-recipes → teamcook)
+- 화면 제목, 문서, `package.json`, 기본 레시피의 만든 사람, 내보낸 파일의 주석을 모두 teamcook으로 바꿨다.
+- **일부러 옛 이름을 남긴 곳 두 군데:** ① `src/store/useStore.ts`의 localStorage 저장 이름 `agent-recipes` (바꾸면 이미 저장된 레시피가 사라짐), ② `src/converters/meta.ts`가 읽는 옛 주석 `# agent-recipes: {…}` (새 파일은 `# teamcook: {…}`로 쓰고, 옛 주석도 계속 읽음).
+- 프로젝트 폴더 이름(`c:claude-MCP`)과 `PROJECT_BRIEF.md`·`MCP-strategy.md` 본문은 바꾸지 않았다(당시 기록).
 
 ### 공유 링크
 - 형식: `<주소>#r=<lz-string compressToEncodedURIComponent(JSON)>`, `schemaVersion: 1` (`src/types.ts`의 `RECIPE_SCHEMA_VERSION`).
@@ -124,7 +130,7 @@
 
 ## 내일 할 일 순서
 
-1. 위 '사용자가 할 일' 1~3번이 끝났는지 확인하고, 실제 CLI 확인에서 나온 문제를 고친다 (가장 먼저).
+1. 배포된 주소를 이 문서에 적고, 배포된 사이트에서 전체 흐름을 한 번 직접 눌러 본다. 공개 저장소에 `MCP-strategy.md`·`samples/codex/`를 둬도 되는지도 정한다.
 2. 흐름 캔버스 다듬기: 캔버스 안에서 화살표 라벨 바로 고치기, 상자를 눌러 그 카드 편집 열기.
 3. 디자인 다듬기, 코드 분할로 빌드 경고 없애기(jszip·yaml·smol-toml을 내보내기·불러오기 때만 불러오기).
 4. 그다음은 `PROJECT_BRIEF.md` 6단계(레시피 허브: 서버 저장, 검색, 포크 / Gemini·Grok 어댑터 / 구독 최적화 고도화).
