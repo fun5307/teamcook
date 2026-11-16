@@ -1,7 +1,7 @@
 // 실행 경로(①~④, 🔒, 대안)와 '필요한 플랜' 배지를 그리는 부품들.
 // 판단은 전부 lib/resolvePath.ts, lib/requiredPlans.ts가 하고, 여기서는 그리기만 한다.
 
-import { ArrowRight, Lightbulb, Lock } from 'lucide-react';
+import { ArrowRight, Check, Lightbulb, Lock, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { COLLABORATIONS, collaborationOf } from '@/data/collaboration';
@@ -239,10 +239,11 @@ const FIT_LABELS = {
 /** 갤러리 카드에 붙는 '내 플랜에 맞는지' 표시 */
 export function FitLabel({ fit }: { fit: keyof typeof FIT_LABELS }) {
   const { text, style } = FIT_LABELS[fit];
-  const icon = fit === 'full' ? '✅' : fit === 'with-alternatives' ? '🔁' : '🔒';
+  const Icon = fit === 'full' ? Check : fit === 'with-alternatives' ? Repeat : Lock;
   return (
-    <span className={cn('text-xs font-medium', style)}>
-      {icon} {text}
+    <span className={cn('inline-flex items-center gap-1 text-xs font-medium', style)}>
+      <Icon className="size-3.5 shrink-0" aria-hidden />
+      {text}
     </span>
   );
 }

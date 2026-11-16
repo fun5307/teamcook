@@ -26,7 +26,7 @@ export function FactTable({ rows, className }: { rows: [string, ReactNode][]; cl
       {rows.map(([label, value]) => (
         <div key={label} className="flex gap-3 border-t py-1.5 first:border-t-0">
           <dt className="w-24 shrink-0 font-bold">{label}</dt>
-          <dd className="min-w-0 flex-1">{value}</dd>
+          <dd className="min-w-0 flex-1 text-pretty">{value}</dd>
         </div>
       ))}
     </dl>

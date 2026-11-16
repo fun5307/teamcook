@@ -88,7 +88,7 @@ function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans;
   return (
     <a
       href={href}
-      className="group flex flex-col border-2 bg-card focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="group flex flex-col border-2 bg-card transition-[box-shadow] duration-150 hover:shadow-[4px_4px_0_0_var(--foreground)] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
       <div
         className="flex items-center justify-between gap-2 px-3.5 py-1 text-sm font-bold text-white"
@@ -99,8 +99,8 @@ function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans;
       </div>
       <div className="flex flex-1 flex-col gap-3 p-3.5">
         <div className="flex flex-col gap-1.5">
-          <h3 className="text-xl leading-snug font-bold group-hover:underline">{recipe.title}</h3>
-          <p className="line-clamp-3 text-sm">{recipe.summary || '설명이 아직 없어요.'}</p>
+          <h3 className="text-xl leading-snug font-bold text-balance group-hover:underline">{recipe.title}</h3>
+          <p className="line-clamp-3 text-sm text-pretty">{recipe.summary || '설명이 아직 없어요.'}</p>
         </div>
         <div className="mt-auto">
           <h4 className="label-rule-sm text-sm font-bold">레시피 정보</h4>
