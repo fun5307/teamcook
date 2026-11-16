@@ -15,7 +15,7 @@ function Step({ number, title, children }: { number: number; title: string; chil
         {number}
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2 text-sm leading-relaxed">
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h2 className="label-rule text-lg font-bold">{title}</h2>
         {children}
       </div>
     </section>

@@ -44,9 +44,9 @@ export function FlowList({ recipe }: { recipe: Recipe }) {
         return (
           <li key={handoff.id} className="flex flex-wrap items-center gap-2 text-sm">
             <span className="w-5 text-right text-xs text-muted-foreground">{index + 1}.</span>
-            <span className="rounded-md border bg-background px-2 py-0.5 font-medium">{from.displayName}</span>
+            <span className="rounded-md border bg-card px-2 py-0.5 font-medium">{from.displayName}</span>
             <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
-            <span className="rounded-md border bg-background px-2 py-0.5 font-medium">{to.displayName}</span>
+            <span className="rounded-md border bg-card px-2 py-0.5 font-medium">{to.displayName}</span>
             {handoff.label ? <span className="text-muted-foreground">{handoff.label}</span> : null}
           </li>
         );
@@ -120,7 +120,7 @@ export function RecipeOverview({
       <RecipeRunSummary resolution={resolved} lead={runLead} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">팀 구성</h2>
+        <h2 className="label-rule text-lg font-bold">팀 구성</h2>
         {recipe.cards.map((card) => (
           <article key={card.id} className="flex flex-col gap-2 rounded-xl border bg-card p-4">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -148,13 +148,13 @@ export function RecipeOverview({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
+        <h2 className="label-rule text-lg font-bold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
         <FlowSection recipe={recipe} resolution={resolved} />
         <FlowList recipe={recipe} />
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">이렇게 시작해요</h2>
+        <h2 className="label-rule text-lg font-bold">이렇게 시작해요</h2>
         {recipe.howToRun ? <p className="text-sm leading-relaxed">{recipe.howToRun}</p> : null}
         <RunPromptBox recipe={recipe} />
       </section>

@@ -37,10 +37,10 @@ export default function App() {
   const route = useRoute();
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b-[3px] bg-card">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
-          <a href="#/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
-            <span aria-hidden>🍳</span> teamcook
+          <a href="#/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
+            <span aria-hidden className="inline-block size-4 bg-foreground" /> teamcook
           </a>
           <nav className="flex flex-wrap gap-1" aria-label="주 메뉴">
             {NAV.map((item) => {
@@ -51,8 +51,8 @@ export default function App() {
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'rounded-full px-3 py-1.5 text-sm transition-colors',
-                    active ? 'bg-secondary font-medium' : 'text-muted-foreground hover:bg-muted',
+                    'px-2.5 py-1 text-sm font-medium',
+                    active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
                   )}
                 >
                   {item.label}

@@ -1,7 +1,7 @@
 // 실행 경로(①~④, 🔒, 대안)와 '필요한 플랜' 배지를 그리는 부품들.
 // 판단은 전부 lib/resolvePath.ts, lib/requiredPlans.ts가 하고, 여기서는 그리기만 한다.
 
-import { ArrowRight, CalendarCheck, FlaskConical, Lightbulb, Lock } from 'lucide-react';
+import { ArrowRight, Lightbulb, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { COLLABORATIONS, collaborationOf } from '@/data/collaboration';
@@ -38,33 +38,33 @@ export function PathBadge({ path, short = false }: { path: PathLevel; short?: bo
   );
 }
 
-const STYLE_CHIP: Record<Collaboration, string> = {
-  subagents: 'border-zinc-200 bg-zinc-50 text-zinc-700',
-  'agent-team': 'border-violet-200 bg-violet-50 text-violet-800',
-  debate: 'border-teal-200 bg-teal-50 text-teal-800',
+/** 조리법을 구분하는 띠 색 (index.css의 --style-* 값) */
+export const STYLE_COLORS: Record<Collaboration, string> = {
+  subagents: 'var(--style-subagents)',
+  'agent-team': 'var(--style-agent-team)',
+  debate: 'var(--style-debate)',
 };
 
-/** 조리법(협업 방식) 이름표. 실험 기능이면 플라스크 표시가 붙는다. */
+/** 조리법(협업 방식) 이름표: 라벨의 색 띠와 같은 색 */
 export function StyleChip({ recipe }: { recipe: Pick<Recipe, 'collaboration'> }) {
   const info = COLLABORATIONS[collaborationOf(recipe)];
   return (
-    <span className={cn(pill, STYLE_CHIP[info.id])} title={info.description}>
-      {info.experimental ? <FlaskConical className="size-3" aria-hidden /> : null}
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold whitespace-nowrap text-white"
+      style={{ background: STYLE_COLORS[info.id] }}
+      title={info.description}
+    >
       {info.chip}
-      {info.experimental ? <span className="font-normal">· 실험 기능</span> : null}
+      {info.experimental ? <span className="font-medium">실험 기능</span> : null}
     </span>
   );
 }
 
-/** "2026-11-16 확인" 표시: 이 레시피가 실제로 돌아가는 것을 확인한 날 */
+/** "2026-11-16 확인": 이 레시피가 실제로 돌아가는 것을 확인한 날. 눈에 띄지 않게 글자로만 적는다. */
 export function VerifiedBadge({ date }: { date?: string }) {
   if (!date) return null;
   return (
-    <span
-      className={cn(pill, 'border-emerald-300 bg-emerald-50 text-emerald-800')}
-      title="이 날짜에 실제로 돌아가는지 확인한 레시피예요."
-    >
-      <CalendarCheck className="size-3" aria-hidden />
+    <span className="text-xs text-muted-foreground" title="이 날짜에 실제로 돌아가는지 확인한 레시피예요.">
       {date} 확인
     </span>
   );
@@ -156,7 +156,7 @@ export function RecipeRunSummary({
 }) {
   const { styleLock } = resolution;
   return (
-    <div className="flex flex-col gap-1 rounded-xl border bg-muted/40 px-4 py-3">
+    <div className="flex flex-col gap-1 border-2 bg-card px-4 py-3">
       <p className="text-sm">
         <span className="text-muted-foreground">{lead} → </span>
         <strong className="font-semibold">{resolution.summary}</strong>

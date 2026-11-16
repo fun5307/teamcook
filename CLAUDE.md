@@ -56,6 +56,7 @@ src/
 │  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
 └─ pages/                  # Gallery, RecipeEditor, MyPlans, SharedRecipe, HowToRun
 samples/codex/             # 사용자의 실제 Codex TOML (변환기 테스트용)
+design/                    # 디자인 시안 (브라우저로 여는 HTML). 채택: C "포장 라벨"
 ```
 
 **설계 원칙:** 모든 화면은 `Recipe` 데이터 하나를 읽고 쓴다. 제공사별 차이는 `converters/`와 `providers.json`에만 둔다.
@@ -70,6 +71,7 @@ samples/codex/             # 사용자의 실제 Codex TOML (변환기 테스트
 - 전역 설치나 시스템 설정 변경은 실행 전에 사용자에게 묻는다.
 - 공유 링크는 하위 호환을 지킨다 (`schemaVersion` 필수, 옛 버전 읽기 코드 유지).
 - 레시피의 조리법은 `recipe.collaboration`을 직접 읽지 말고 `collaborationOf(recipe)`로 읽는다 (없으면 서브에이전트).
+- 디자인은 "포장 라벨" 방향이다 (`HANDOFF.md`의 '디자인 방향'). 색·모서리는 `src/index.css`의 `:root`에서만 고친다. 확인 날짜는 강조하지 않는다. 세부 UI는 사용자가 직접 다듬는다.
 - 단계가 끝날 때마다 `HANDOFF.md`를 갱신한다.
 
 ## 자주 쓰는 명령

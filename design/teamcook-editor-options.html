@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>teamcook 편집 화면 시안 3종</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;600;800&family=Do+Hyeon&family=Gothic+A1:wght@400;500;700&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Doto:wght@700;900&display=swap" rel="stylesheet">
+<style>
+/* ───── 시안을 담는 틀 ───── */
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: #1b1b1b; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif; line-height: 1.6; }
+.doc { max-width: 1180px; margin: 0 auto; padding: 40px 20px 80px; }
+.doc > h1 { font-size: 28px; margin: 0 0 8px; }
+.doc > p { margin: 0 0 8px; max-width: 70ch; color: #444; }
+.opt { margin-top: 56px; }
+.opt > h2 { font-size: 22px; margin: 0 0 4px; }
+.opt > p { margin: 0 0 16px; color: #444; max-width: 72ch; }
+
+/* ───── 세 시안이 함께 쓰는 뼈대 (배치만) ───── */
+.ed { border: 1px solid #cfcfcf; border-radius: 6px; overflow: hidden; word-break: keep-all; overflow-wrap: anywhere; }
+.ed a { color: inherit; text-decoration: none; }
+.ed button, .ed input, .ed select, .ed textarea { font: inherit; color: inherit; }
+.ed button { cursor: pointer; }
+.ed :focus-visible { outline: 3px solid #1a5fff; outline-offset: 2px; }
+.ed h1, .ed h2, .ed h3, .ed p { margin: 0; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 28px; }
+.nav .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 24px; padding-top: 12px; padding-bottom: 12px; }
+.nav nav { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; padding: 28px 0 20px; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.layout { display: grid; gap: 24px; padding-bottom: 40px; }
+.basics { grid-area: basics; } .need { grid-area: need; } .cooks { grid-area: cooks; } .flow { grid-area: flow; }
+.f { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.f input, .f select, .f textarea { width: 100%; background: #fff; padding: 7px 10px; }
+.f textarea { resize: vertical; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 14px; }
+.styles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.styles label { display: block; padding: 8px 10px; cursor: pointer; }
+.styles small { display: block; }
+.list { list-style: none; margin: 0; padding: 0; }
+.card { margin-bottom: 12px; }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.card-head .dots { flex: 1; min-width: 20px; }
+.card-body { margin-top: 12px; }
+.steps { list-style: none; margin: 0 0 12px; padding: 0; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; align-items: center; padding: 6px 0; }
+.steps li::before { content: counter(s); }
+.steps select, .steps input { width: 100%; background: #fff; padding: 6px 8px; min-width: 0; }
+@media (max-width: 760px) {
+  .layout { grid-template-columns: 1fr !important; grid-template-areas: "basics" "need" "cooks" "flow" !important; }
+  .steps li { grid-template-columns: auto 1fr; }
+  .steps li > :nth-child(n+2) { grid-column: 2; }
+}
+
+/* ═════ A · 요리책 펼침면 ═════ */
+.a { --paper: #F5F8F6; --ink: #16233C; --indigo: #27469A; --yolk: #FFD23F; --leek: #2C7A4B; --rule: #C6CFDB; --tint: #E8EEF7;
+  background: var(--paper); color: var(--ink); font-family: 'Hahmlet', serif; font-size: 15px; line-height: 1.75; }
+.a .nav .wrap { border-bottom: 2px solid var(--ink); padding-left: 0; padding-right: 0; }
+.a .nav { padding: 0 28px; }
+.a .logo { font-weight: 800; font-size: 22px; }
+.a .nav nav a[aria-current] { box-shadow: inset 0 -0.55em 0 var(--yolk); }
+.a .top h1 { font-size: 15px; font-weight: 600; color: var(--indigo); }
+.a .btn { border: 1.5px solid var(--ink); background: transparent; padding: 7px 16px; border-radius: 999px; }
+.a .btn.is-main { background: var(--ink); color: var(--paper); }
+.a .btn.is-quiet { border-color: transparent; text-decoration: underline; text-underline-offset: 4px; padding: 7px 6px; }
+.a .layout { grid-template-columns: 19rem minmax(0, 1fr); grid-template-areas: "need basics" "need cooks" "need flow"; gap: 28px 40px; border-top: 2px solid var(--ink); }
+.a .need { background: var(--tint); padding: 26px 24px; align-self: start; }
+.a .basics, .a .cooks, .a .flow { padding-top: 0; }
+.a .basics { padding-top: 26px; }
+.a h2 { font-weight: 800; font-size: 20px; margin-bottom: 12px; }
+.a h3.sub { font-weight: 600; font-size: 14px; color: var(--indigo); margin: 20px 0 6px; }
+.a .f > span { font-size: 13px; color: var(--indigo); }
+.a .f input, .a .f select, .a .f textarea, .a .steps select, .a .steps input { border: 0; border-bottom: 1.5px solid var(--ink); background: transparent; border-radius: 0; padding-left: 0; }
+.a .f.is-title input { font-weight: 800; font-size: clamp(24px, 3.2vw, 36px); letter-spacing: -0.015em; line-height: 1.3; }
+.a .styles label { border: 1.5px solid var(--rule); border-radius: 10px; background: #fff; }
+.a .styles label.is-on { border-color: var(--ink); box-shadow: inset 0 -0.5em 0 var(--yolk); }
+.a .styles small { color: #45526A; font-size: 12.5px; line-height: 1.5; }
+.a .list li { padding: 7px 0; border-bottom: 1px dashed #A9B6CC; display: flex; justify-content: space-between; gap: 12px; }
+.a .list li { flex-wrap: wrap; gap: 0 12px; }
+.a .list li > span:first-child { white-space: nowrap; }
+.a .list li span:last-child { color: #45526A; text-align: right; margin-left: auto; font-size: 14px; }
+.a .mark { background: linear-gradient(transparent 58%, var(--yolk) 58%); padding: 0 2px; }
+.a .ok { color: var(--leek); font-weight: 600; margin-top: 10px; }
+.a .card { border-top: 1px solid var(--rule); padding-top: 14px; }
+.a .card-head h3 { font-weight: 600; font-size: 20px; }
+.a .card-head code { font-family: inherit; font-size: 13px; color: var(--indigo); }
+.a .card-head .engine { color: #45526A; }
+.a .card-head .dots { border: 0; }
+.a .steps li::before { font-weight: 800; font-size: 26px; color: var(--indigo); width: 1.2em; }
+
+/* ═════ B · 분식집 메뉴판 ═════ */
+.b { --board: #FFD500; --sign: #E3002B; --ink: #000; --white: #fff; --green: #0B7A3B;
+  background: var(--board); color: var(--ink); font-family: 'Gothic A1', sans-serif; font-size: 15px; line-height: 1.6; }
+.b .dh, .b h2, .b .logo, .b .nav nav, .b .btn, .b .card-head h3, .b .engine, .b .f > span, .b .styles b { font-family: 'Do Hyeon', sans-serif; font-weight: 400; }
+.b .nav { background: var(--sign); color: var(--white); }
+.b .logo { font-size: 30px; line-height: 1; }
+.b .nav nav { font-size: 19px; gap: 6px; }
+.b .nav nav a { padding: 4px 12px; }
+.b .nav nav a[aria-current] { background: var(--white); color: var(--sign); }
+.b .top h1 { font-family: 'Do Hyeon', sans-serif; font-weight: 400; font-size: 40px; line-height: 1.1; }
+.b .btn { border: 3px solid var(--ink); background: var(--white); padding: 5px 16px; font-size: 19px; border-radius: 0; }
+.b .btn.is-main { background: var(--ink); color: var(--board); }
+.b .layout { grid-template-columns: minmax(0, 1fr) 20rem; grid-template-areas: "basics need" "cooks cooks" "flow flow"; gap: 20px; }
+.b .layout > * { background: var(--white); border: 4px solid var(--ink); padding: 20px 24px; }
+.b h2 { font-size: 26px; border-bottom: 5px solid var(--sign); padding-bottom: 2px; margin-bottom: 14px; }
+.b h3.sub { font-family: 'Do Hyeon', sans-serif; font-weight: 400; font-size: 20px; margin: 16px 0 4px; }
+.b .f > span { font-size: 18px; }
+.b .f input, .b .f select, .b .f textarea, .b .steps select, .b .steps input { border: 3px solid var(--ink); border-radius: 0; }
+.b .f.is-title input { font-family: 'Do Hyeon', sans-serif; font-size: 28px; padding: 4px 10px; }
+.b .styles label { border: 3px solid var(--ink); }
+.b .styles b { font-size: 20px; }
+.b .styles label.is-on { background: var(--ink); color: var(--white); }
+.b .styles small { font-size: 13px; line-height: 1.45; }
+.b .list li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 5px 0; }
+.b .list li::before { content: "✓"; width: 22px; height: 22px; border: 3px solid var(--ink); display: grid; place-content: center; font-weight: 700; font-size: 13px; line-height: 1; margin-top: 2px; }
+.b .list li span:last-child { display: block; font-size: 13px; grid-column: 2; }
+.b .list li span:first-child { font-weight: 700; }
+.b .ok { background: var(--green); color: var(--white); font-weight: 700; padding: 4px 10px; margin-top: 10px; display: inline-block; }
+.b .card { border-bottom: 2px solid var(--ink); padding-bottom: 14px; }
+.b .card-head h3 { font-size: 26px; line-height: 1.2; }
+.b .card-head code { font-family: inherit; font-weight: 700; font-size: 13px; border: 2px solid var(--ink); padding: 0 6px; }
+.b .card-head .dots { border-bottom: 4px dotted var(--ink); transform: translateY(-5px); }
+.b .card-head .engine { font-size: 24px; color: var(--sign); }
+.b .steps li::before { width: 34px; height: 34px; border-radius: 50%; background: var(--sign); color: var(--white); display: grid; place-content: center; font-family: 'Do Hyeon', sans-serif; font-size: 21px; }
+
+/* ═════ C · 포장 라벨과 날짜 도장 ═════ */
+.c { --shelf: #E7EDEA; --label: #fff; --ink: #000; --basil: #1D8749; --eggplant: #5A3890; --tomato: #E2412B; --stamp: #2B3AC6;
+  background: var(--shelf); color: var(--ink); font-family: 'IBM Plex Sans KR', sans-serif; font-size: 14.5px; line-height: 1.6; }
+.c .nav { background: var(--label); border-bottom: 3px solid var(--ink); }
+.c .logo { font-weight: 700; font-size: 20px; letter-spacing: -0.02em; display: inline-flex; align-items: center; gap: 8px; }
+.c .logo::before { content: ""; width: 18px; height: 18px; background: var(--ink); }
+.c .nav nav { font-weight: 500; gap: 4px; }
+.c .nav nav a { padding: 4px 10px; }
+.c .nav nav a[aria-current] { background: var(--ink); color: var(--label); }
+.c .top h1 { font-weight: 700; font-size: 26px; letter-spacing: -0.04em; }
+.c .btn { border: 2px solid var(--ink); background: var(--label); padding: 6px 14px; font-weight: 700; border-radius: 3px; }
+.c .btn.is-main { background: var(--ink); color: var(--label); }
+.c .layout { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-areas: "basics need" "cooks cooks" "flow flow"; gap: 18px; }
+.c .layout > * { background: var(--label); border: 2px solid var(--ink); padding: 18px 22px; }
+.c .basics { border-top: 26px solid var(--basil) !important; position: relative; }
+.c .basics::before { content: "서브에이전트"; position: absolute; top: -25px; left: 22px; color: #fff; font-weight: 700; font-size: 14px; }
+.c h2 { font-weight: 700; font-size: 18px; letter-spacing: -0.03em; border-bottom: 7px solid var(--ink); padding-bottom: 3px; margin-bottom: 10px; }
+.c h3.sub { font-weight: 700; font-size: 14px; margin: 14px 0 0; border-bottom: 4px solid var(--ink); padding-bottom: 2px; }
+.c .f { flex-direction: row; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--ink); padding-bottom: 8px; margin-bottom: 8px; }
+.c .f > span { font-weight: 700; flex: 0 0 6.5em; }
+.c .f input, .c .f select, .c .f textarea, .c .steps select, .c .steps input { border: 1.5px solid #9AA5A0; border-radius: 3px; background: #FAFCFB; }
+.c .f.is-title input { font-weight: 700; font-size: 22px; letter-spacing: -0.035em; }
+.c .card-body .f { flex-direction: column; gap: 3px; border-bottom: 0; padding-bottom: 0; margin-bottom: 12px; }
+.c .card-body .f > span { flex: none; font-size: 13px; }
+.c .styles label { border: 2px solid var(--ink); border-radius: 3px; border-top-width: 10px; }
+.c .styles label:nth-child(1) { border-top-color: var(--basil); } .c .styles label:nth-child(2) { border-top-color: var(--eggplant); } .c .styles label:nth-child(3) { border-top-color: var(--tomato); }
+.c .styles label.is-on { background: var(--ink); color: #fff; }
+.c .styles small { font-size: 12.5px; line-height: 1.45; }
+.c .list li { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--ink); }
+.c .list li span:first-child { font-weight: 700; }
+.c .list li span:last-child { text-align: right; }
+.c .ok { font-weight: 700; margin-top: 10px; }
+.c .stamp { color: var(--stamp); font-weight: 700; display: inline-block; transform: rotate(-2deg); margin-top: 12px; }
+.c .stamp b { font-family: 'Doto', monospace; font-weight: 900; font-size: 1.5em; letter-spacing: 0.06em; margin-left: 6px; -webkit-text-stroke: 0.6px currentColor; }
+.c .card { border-bottom: 1px solid var(--ink); padding-bottom: 12px; }
+.c .card-head h3 { font-weight: 700; font-size: 19px; letter-spacing: -0.03em; }
+.c .card-head code { font-family: inherit; font-size: 13px; background: var(--shelf); padding: 0 6px; }
+.c .card-head .engine { font-weight: 700; }
+.c .steps li::before { font-weight: 700; width: 1.4em; }
+.c .steps li::before { content: counter(s) "."; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>teamcook 편집 화면 시안 3종</h1>
+  <p>앞서 본 A·B·C 방향을 편집 화면에 입혀 본 그림입니다. 세 시안 모두 같은 레시피("Claude 작성 + Codex 교차 검토")를 편집하는 모습이고, 버튼과 입력 칸은 동작하지 않는 예시입니다.</p>
+
+  <section class="opt"><h2>시안 A. 요리책 펼침면</h2><p>왼쪽에 "재료"가 고정돼 있고, 오른쪽에서 제목·요리사·만드는 법을 적어 내려갑니다. 입력 칸은 상자 대신 밑줄이라 공책에 적는 느낌입니다.</p><div class="ed a" data-theme="a"></div></section>
+  <section class="opt"><h2>시안 B. 분식집 메뉴판</h2><p>흰 주문서 여러 장이 노란 판 위에 놓입니다. 카드 한 장이 메뉴 한 줄이라, 점선 끝에 그 요리사가 일하는 도구가 옵니다.</p><div class="ed b" data-theme="b"></div></section>
+  <section class="opt"><h2>시안 C. 포장 라벨과 날짜 도장</h2><p>입력 칸이 라벨의 표 한 줄 한 줄입니다. 맨 위 띠 색이 조리법을 알려 주고, 확인한 날은 도장으로 찍힙니다.</p><div class="ed c" data-theme="c"></div></section>
+</div>
+
+<script>
+// 화면 예시만 그린다 (동작 없음). 세 시안이 같은 내용을 쓰고, 이름표만 시안마다 다르다.
+const WORDS = {
+  a: { need: '재료', plans: '필요한 플랜', mine: '내 플랜으로 만들면', cooks: '요리사', flow: '만드는 법', add: '요리사 추가', verified: '직접 만들어 본 날' },
+  b: { need: '들어가는 재료', plans: '필요한 플랜', mine: '내 플랜으로는', cooks: '요리사', flow: '만드는 순서', add: '요리사 추가', verified: '확인한 날' },
+  c: { need: '레시피 정보', plans: '필요한 플랜', mine: '내 플랜', cooks: '팀원', flow: '만드는 순서', add: '팀원 추가', verified: '확인한 날' },
+};
+const people = '<option>작성자</option><option>교차 검토자</option>';
+for (const el of document.querySelectorAll('.ed')) {
+  const t = el.dataset.theme, w = WORDS[t];
+  el.innerHTML = `
+  <header class="nav"><div class="wrap"><a class="logo" href="#">teamcook</a>
+    <nav aria-label="메뉴"><a href="#" aria-current="page">레시피</a><a href="#">내 AI 현황</a><a href="#">어디서 돌리나요?</a></nav></div></header>
+  <div class="wrap">
+    <div class="top">
+      <div><h1>레시피 편집</h1><p>고치는 즉시 이 브라우저에 저장돼요.</p></div>
+      <div class="acts"><button class="btn is-main">zip으로 내보내기</button><button class="btn">링크 복사</button><button class="btn is-quiet">복제</button><button class="btn is-quiet">삭제</button></div>
+    </div>
+    <div class="layout">
+      <section class="basics">
+        <label class="f is-title"><span>레시피 제목</span><input value="Claude 작성 + Codex 교차 검토"></label>
+        <label class="f"><span>무엇을 하는 레시피인가요?</span><textarea rows="2">Claude Code가 기능을 구현하고, 다른 회사 모델인 Codex가 읽기 전용으로 검토합니다.</textarea></label>
+        <div class="f" style="border:0;margin-bottom:6px;padding:0"><span>조리법</span></div>
+        <div class="styles" role="radiogroup" aria-label="조리법">
+          <label class="is-on"><b>서브에이전트</b><small>메인 AI가 일을 나눠 맡기고 결과만 받아요</small></label>
+          <label><b>에이전트 팀</b><small>팀원끼리 직접 대화해요. Claude Code 전용, 실험 기능</small></label>
+          <label><b>토론형</b><small>프롬프트 하나로 여러 역할이 토론해요</small></label>
+        </div>
+        <label class="f"><span>${w.verified}</span><input type="date" value="2026-11-16" style="max-width:12rem"></label>
+      </section>
+
+      <aside class="need">
+        <h2>${w.need}</h2>
+        <h3 class="sub">${w.plans}</h3>
+        <ul class="list">
+          <li><span><span class="mark">Claude Pro</span></span><span>작성자가 Claude Code에서</span></li>
+          <li><span>ChatGPT 무료 계정</span><span>검토자가 Codex에서</span></li>
+        </ul>
+        <h3 class="sub">${w.mine}</h3>
+        <p class="ok">2명 모두 구독으로 실행돼요</p>
+        <p style="font-size:13px;margin-top:6px">작성자와 검토자가 서로 다른 회사 모델이에요.</p>
+        ${t === 'c' ? '<span class="stamp">확인<b>2026.11.16</b></span>' : ''}
+      </aside>
+
+      <section class="cooks">
+        <h2>${w.cooks} 2명</h2>
+        <article class="card">
+          <div class="card-head"><h3>작성자</h3><code>writer</code><span class="dots"></span><span class="engine">Claude Code</span><button class="btn">접기</button></div>
+          <div class="card-body">
+            <div class="row">
+              <label class="f"><span>화면에 보이는 이름</span><input value="작성자"></label>
+              <label class="f"><span>에이전트 이름</span><input value="writer"></label>
+            </div>
+            <label class="f"><span>언제 이 ${w.cooks}에게 맡기나요?</span><input value="요청받은 기능을 구현하거나 버그를 고칠 때 사용. 코드를 직접 수정하고 테스트까지 돌린다."></label>
+            <div class="row">
+              <label class="f"><span>역할 종류</span><select><option>작성자</option></select></label>
+              <label class="f"><span>돌릴 도구</span><select><option>Claude Code</option></select></label>
+              <label class="f"><span>권한</span><select><option>편집 가능</option></select></label>
+            </div>
+            <label class="f"><span>지시문</span><textarea rows="4">너는 이 프로젝트의 구현 담당이다.
+
+- 요청받은 범위만 바꾼다. 관련 없는 파일은 건드리지 않는다.
+- 바꾼 뒤에는 테스트나 빌드를 실행해 직접 확인한다.</textarea></label>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-head"><h3>교차 검토자</h3><code>reviewer</code><span class="dots"></span><span class="engine">Codex</span><button class="btn">편집</button></div>
+          <p style="margin-top:4px">방금 변경된 파일의 버그·보안 문제·빠진 테스트를 검토할 때 사용. 읽기 전용.</p>
+        </article>
+        <div class="acts"><button class="btn">${w.add}</button><button class="btn is-quiet">파일에서 불러오기</button></div>
+      </section>
+
+      <section class="flow">
+        <h2>${w.flow}</h2>
+        <ol class="steps">
+          <li><select aria-label="넘겨주는 쪽">${people}</select><span>→</span><select aria-label="넘겨받는 쪽"><option>교차 검토자</option></select><input aria-label="무엇을 넘기는지" value="변경 내용 전달"></li>
+          <li><select aria-label="넘겨주는 쪽"><option>교차 검토자</option></select><span>→</span><select aria-label="넘겨받는 쪽">${people}</select><input aria-label="무엇을 넘기는지" value="검토 결과"></li>
+        </ol>
+        <div class="acts"><button class="btn">순서 추가</button><button class="btn is-quiet">첫 프롬프트 복사</button></div>
+      </section>
+    </div>
+  </div>`;
+}
+</script>
+</body>
+</html>

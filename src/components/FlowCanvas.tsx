@@ -172,7 +172,7 @@ export default function FlowCanvas({
         <Background gap={20} size={1} />
         {editable ? (
           <Panel position="top-left">
-            <div className="rounded-lg border bg-background/95 px-2.5 py-1.5 text-xs text-muted-foreground shadow-sm">
+            <div className="rounded-lg border bg-card/95 px-2.5 py-1.5 text-xs text-muted-foreground shadow-sm">
               {selectedHandoff && onRemove ? (
                 <span className="flex items-center gap-2 text-foreground">
                   {nameOf(selectedHandoff.from)} → {nameOf(selectedHandoff.to)}

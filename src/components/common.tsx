@@ -9,13 +9,27 @@ export function NativeSelect({ className, ...props }: ComponentProps<'select'>) 
   return (
     <select
       className={cn(
-        'h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none',
+        'h-8 w-full rounded-lg border border-input bg-card px-2.5 text-sm outline-none',
         'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       {...props}
     />
+  );
+}
+
+/** 식품 라벨의 표처럼 줄로 나눈 "이름 | 값" 목록. 굵은 줄이 있는 제목(label-rule) 바로 아래에 둔다. */
+export function FactTable({ rows, className }: { rows: [string, ReactNode][]; className?: string }) {
+  return (
+    <dl className={cn('border-b-4 text-sm', className)}>
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex gap-3 border-t py-1.5 first:border-t-0">
+          <dt className="w-24 shrink-0 font-bold">{label}</dt>
+          <dd className="min-w-0 flex-1">{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -79,7 +93,7 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-3xl font-bold">{title}</h1>
         {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}

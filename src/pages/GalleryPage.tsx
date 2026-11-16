@@ -5,8 +5,8 @@ import { FilePlus2, FolderOpen, Search, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Notice } from '@/components/common';
-import { FitLabel, PlanBadges, StyleChip, VerifiedBadge, engineName } from '@/components/RouteInfo';
+import { FactTable, Notice } from '@/components/common';
+import { FitLabel, STYLE_COLORS, engineName } from '@/components/RouteInfo';
 import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
 import { builtinRecipes } from '@/data/recipes';
@@ -82,34 +82,38 @@ function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans;
     if (!engines.includes(engine)) engines.push(engine);
   }
   const where = style === 'debate' ? '프롬프트만' : engines.map(engineName).join(' + ') || '카드 없음';
+  const info = COLLABORATIONS[style];
+  const names = recipe.cards.map((card) => card.displayName || card.name).join(', ');
+  const count = style === 'debate' ? `${recipe.cards.length}개` : `${recipe.cards.length}명`;
   return (
     <a
       href={href}
-      className="group flex flex-col gap-3 rounded-2xl border bg-card p-5 transition-shadow hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="group flex flex-col border-2 bg-card focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
-      <div className="flex flex-col gap-1.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <StyleChip recipe={recipe} />
-          <VerifiedBadge date={recipe.lastVerified} />
-        </div>
-        <h3 className="text-lg font-semibold tracking-tight group-hover:text-primary">{recipe.title}</h3>
-        <p className="line-clamp-3 text-sm text-muted-foreground">
-          {recipe.summary || '설명이 아직 없어요.'}
-        </p>
+      <div
+        className="flex items-center justify-between gap-2 px-3.5 py-1 text-sm font-bold text-white"
+        style={{ background: STYLE_COLORS[style] }}
+      >
+        <span>{info.label}</span>
+        {info.experimental ? <span>실험 기능</span> : null}
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {recipe.cards.map((card) => (
-          <span key={card.id} className="rounded-md border bg-background px-2 py-0.5 text-xs">
-            {card.displayName}
-          </span>
-        ))}
-      </div>
-      <div className="mt-auto flex flex-col gap-2 border-t pt-3">
-        <PlanBadges required={required} />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <FitLabel fit={fit} />
-          <span className="text-xs text-muted-foreground">{where}</span>
+      <div className="flex flex-1 flex-col gap-3 p-3.5">
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-xl leading-snug font-bold group-hover:underline">{recipe.title}</h3>
+          <p className="line-clamp-3 text-sm">{recipe.summary || '설명이 아직 없어요.'}</p>
         </div>
+        <div className="mt-auto">
+          <h4 className="label-rule-sm text-sm font-bold">레시피 정보</h4>
+          <FactTable
+            rows={[
+              [style === 'debate' ? '역할' : '팀원', recipe.cards.length > 0 ? `${count} (${names})` : '카드 없음'],
+              ['필요한 플랜', required.badges.join(', ') || '카드를 추가하면 계산돼요'],
+              ['돌리는 곳', where],
+              ...(recipe.lastVerified ? ([['확인한 날', recipe.lastVerified]] as [string, string][]) : []),
+            ]}
+          />
+        </div>
+        <FitLabel fit={fit} />
       </div>
     </a>
   );
@@ -179,43 +183,54 @@ export function GalleryPage() {
   return (
     <div className="flex flex-col gap-8">
       <section
-        className="flex flex-col gap-4 rounded-3xl border bg-gradient-to-br from-orange-50 via-background to-amber-50 p-6 sm:p-10"
+        className="grid border-[3px] bg-card md:grid-cols-[1.2fr_1fr]"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
           void onFiles(event.dataTransfer.files);
         }}
       >
-        <p className="text-sm font-medium text-primary">teamcook · 실행은 어디서든, 팀 설계와 레시피는 여기서.</p>
-        <h1 className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-          AI 팀을 레시피로 요리하세요
-        </h1>
-        <p className="max-w-2xl text-base text-muted-foreground">
-          여러 AI가 역할을 나눠 일하는 팀을 설계하고, 링크 하나로 나누세요. 작성자·검토자·조사원 같은 역할 카드로 팀을 짜면, 내 요금제로 쓸 수 있는 실행 경로를 알려 주고 Codex와
-          Claude Code 설정 파일로 내보내 줍니다. 내보낸 파일은 터미널, T3 Code, 1Code 어디서든 그대로 쓸 수 있어요.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button size="lg" onClick={onCreate}>
-            <FilePlus2 aria-hidden />새 레시피 만들기
-          </Button>
-          <Button size="lg" variant="outline" onClick={() => fileInput.current?.click()}>
-            <FolderOpen aria-hidden />
-            파일에서 불러오기
-          </Button>
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            accept=".toml,.md,.json"
-            className="hidden"
-            onChange={(event) => void onFiles(event.target.files)}
+        <div className="flex flex-col gap-4 p-6 sm:p-9">
+          <h1 className="text-4xl leading-[1.1] font-bold tracking-[-0.045em] sm:text-6xl sm:leading-[1.1]">
+            AI 팀을 레시피로 요리하세요
+          </h1>
+          <p className="max-w-xl text-base">
+            역할을 나눈 AI 팀을 레시피 한 장으로 짜고 링크 하나로 나눕니다. 내 요금제로 쓸 수 있는 실행 경로를
+            알려 주고, Codex와 Claude Code 설정 파일로 내보내 줍니다.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="lg" onClick={onCreate}>
+              <FilePlus2 aria-hidden />새 레시피 만들기
+            </Button>
+            <Button size="lg" variant="outline" onClick={() => fileInput.current?.click()}>
+              <FolderOpen aria-hidden />
+              파일에서 불러오기
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              accept=".toml,.md,.json"
+              className="hidden"
+              onChange={(event) => void onFiles(event.target.files)}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            불러올 수 있는 파일: Codex 에이전트(.toml), Claude 서브에이전트(.md), 레시피(recipe.json). 이 상자에
+            파일을 끌어다 놓아도 돼요. 파일은 내 브라우저 안에서만 읽고, 어디로도 전송하지 않아요.
+          </p>
+        </div>
+        <div className="border-t-[3px] p-6 md:border-t-0 md:border-l-[3px]">
+          <h2 className="label-rule text-xl font-bold">내용물</h2>
+          <FactTable
+            rows={[
+              ['역할 카드', '작성자, 검토자, 조사원 등으로 팀을 짭니다'],
+              ['실행 경로', '내 요금제로 쓸 수 있는 길을 알려 줍니다'],
+              ['내보내기', 'Codex, Claude Code 설정 파일 (터미널, T3 Code, 1Code에서 그대로)'],
+              ['공유', '가입 없이 링크 하나'],
+            ]}
           />
         </div>
-        <p className="text-xs text-muted-foreground">
-          불러올 수 있는 파일: Codex 에이전트(.toml), Claude 서브에이전트(.md), 레시피(recipe.json). 이 상자에 파일을
-          끌어다 놓아도 돼요. 파일은 내
-          브라우저 안에서만 읽고, 어디로도 전송하지 않아요.
-        </p>
       </section>
 
       {messages.length > 0 ? (
@@ -228,7 +243,7 @@ export function GalleryPage() {
         </div>
       ) : null}
 
-      <section className="flex flex-col gap-3 rounded-2xl border p-4">
+      <section className="flex flex-col gap-3 border-2 bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm">
             <span className="text-muted-foreground">내 AI 현황: </span>
@@ -271,7 +286,7 @@ export function GalleryPage() {
                 'rounded-full border px-3 py-1 text-sm transition-colors',
                 filter === item.id
                   ? 'border-primary bg-primary text-primary-foreground'
-                  : 'bg-background hover:bg-muted',
+                  : 'bg-card hover:bg-muted',
               )}
             >
               {item.label}
@@ -291,7 +306,7 @@ export function GalleryPage() {
                 'rounded-full border px-3 py-1 text-sm transition-colors',
                 styleFilter === id
                   ? 'border-primary bg-primary text-primary-foreground'
-                  : 'bg-background hover:bg-muted',
+                  : 'bg-card hover:bg-muted',
               )}
             >
               {id === 'all' ? '모든 조리법' : COLLABORATIONS[id].label}
@@ -313,7 +328,7 @@ export function GalleryPage() {
 
       {myRecipes.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className="text-xl font-semibold">내 레시피</h2>
+          <h2 className="label-rule text-xl font-bold">내 레시피</h2>
           {visibleMine.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visibleMine.map((recipe) => (
@@ -332,7 +347,7 @@ export function GalleryPage() {
       ) : null}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-semibold">기본 레시피</h2>
+        <h2 className="label-rule text-xl font-bold">기본 레시피</h2>
         {visibleBuiltin.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visibleBuiltin.map((recipe) => (

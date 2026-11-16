@@ -1,13 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource/ibm-plex-sans-kr/400.css";
+@import "@fontsource/ibm-plex-sans-kr/500.css";
+@import "@fontsource/ibm-plex-sans-kr/700.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+    --font-sans: 'IBM Plex Sans KR', 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,39 +50,48 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * 디자인 방향: "포장 라벨" (design/teamcook-design-options.html 의 시안 C).
+ * 연한 진열대 바탕 위에 흰 라벨, 검은 테두리와 굵은 줄. 색은 조리법 3종을 구분하는 띠에만 쓴다.
+ * 색을 바꾸려면 여기만 고치면 된다.
+ */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.55 0.19 32);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --background: #E7EDEA;
+    --foreground: #000;
+    --card: #fff;
+    --card-foreground: #000;
+    --popover: #fff;
+    --popover-foreground: #000;
+    --primary: #000;
+    --primary-foreground: #fff;
+    --secondary: #fff;
+    --secondary-foreground: #000;
+    --muted: #EEF2F0;
+    --muted-foreground: #4A5450;
+    --accent: #E7EDEA;
+    --accent-foreground: #000;
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.7 0.12 40);
+    --border: #000;
+    --input: #9AA5A0;
+    --ring: #2B3AC6;
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --radius: 0.1875rem;
+    --sidebar: #fff;
+    --sidebar-foreground: #000;
+    --sidebar-primary: #000;
+    --sidebar-primary-foreground: #fff;
+    --sidebar-accent: #EEF2F0;
+    --sidebar-accent-foreground: #000;
+    --sidebar-border: #000;
+    --sidebar-ring: #2B3AC6;
+    /* 조리법을 구분하는 띠 색 */
+    --style-subagents: #1D8749;
+    --style-agent-team: #5A3890;
+    --style-debate: #E2412B;
 }
 
 .dark {
@@ -133,4 +144,11 @@
   html {
     @apply font-sans;
     }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.03em;
+    }
 }
+
+/* 라벨의 굵은 줄: 제목 아래에 긋는다 */
+.label-rule { border-bottom: 6px solid var(--foreground); padding-bottom: 2px; }
+.label-rule-sm { border-bottom: 4px solid var(--foreground); padding-bottom: 2px; }
