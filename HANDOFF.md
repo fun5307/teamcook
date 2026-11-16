@@ -10,7 +10,8 @@
 - **6·7단계 중 계정·API 키 없이 가능한 것 완료** (사용자 요청으로 당일 진행). 아래 '6·7단계 현황' 참고.
 - 저장소: https://github.com/fun5307/teamcook (`main`에 push하면 Vercel이 자동으로 다시 배포)
 - 배포 링크: https://teamcook-eta.vercel.app/
-- 확인된 것: `npm test` 127개 통과, 타입 검사·빌드 통과, 브라우저 자동 실행으로 전체 흐름 콘솔 오류 0건. **사용자가 'Claude 작성 + Codex 교차 검토' zip을 내보내 실제 Claude Code·Codex에서 에이전트 인식을 확인함.**
+- **조리법(협업 방식) 추가 완료** (추가 지시서 `BRIEF_collaboration-styles.md`). 아래 '조리법 현황' 참고. **사용자의 실제 Claude Code 확인이 남아 있음.**
+- 확인된 것: `npm test` 156개 통과, 타입 검사·빌드 통과, 브라우저 자동 실행으로 전체 흐름 콘솔 오류 0건. **사용자가 'Claude 작성 + Codex 교차 검토' zip을 내보내 실제 Claude Code·Codex에서 에이전트 인식을 확인함.**
 
 ## 단계별 DoD 체크 현황
 
@@ -75,6 +76,52 @@
 - zip에는 Codex·Claude 형식을 항상 넣고, Antigravity·Grok 형식은 그 도구를 쓰는 카드가 있을 때(원래 설정이든 내 플랜의 대안이든)만 넣는다. (`exportEngines`)
 - `.md` 파일은 세 도구가 같은 확장자를 쓴다. 불러올 때 `detectMarkdownEngine`이 머리말을 보고 고른다(Antigravity는 고유 항목·도구 이름, Grok은 우리가 넣은 주석의 `format: "grok"`).
 - 형식 전용 필드는 `extra.antigravity`, `extra.grok`에 보관한다.
+
+## 조리법(협업 방식) 현황 (2026-11-16, `BRIEF_collaboration-styles.md`)
+
+방향: teamcook의 경쟁력은 **"지금 실제로 돌아가는, 확인 날짜가 찍힌 레시피"**다. 레시피가 서브에이전트 구조뿐 아니라 협업 방식까지 담는다.
+
+### 결정 사항
+| 항목 | 결정 |
+| --- | --- |
+| 필드 이름 | `Recipe.collaboration?: 'subagents' \| 'agent-team' \| 'debate'` (타입 이름 `Collaboration`), `Recipe.lastVerified?: string`(YYYY-MM-DD) |
+| 기본값 | 조리법이 없으면 `'subagents'`. 읽을 때는 항상 `collaborationOf(recipe)`를 쓴다 (`src/data/collaboration.ts`) |
+| schemaVersion | **1 그대로.** 둘 다 선택 필드라 옛 링크가 그대로 열린다 |
+| 모르는 값 | `parseRecipe`가 모르는 조리법은 `'subagents'`로, 날짜 모양이 아닌 `lastVerified`는 버린다 |
+| 저장 방식 | 편집기에서 서브에이전트를 고르면 `collaboration` 키를 아예 지운다 (옛 형식과 똑같은 링크가 되게) |
+| 조리법 정보 위치 | 화면 문구, 주의 문장, 공식 문서 주소·확인 날짜, 내보낼 설정 내용 모두 `src/data/collaboration.ts` 한 곳 |
+| 확인한 공식 문서 | https://code.claude.com/docs/en/agent-teams — **2026-11-16 확인.** 지시서의 조사 내용과 같았다 |
+
+### 공식 문서에서 확인한 것 (에이전트 팀, 2026-11-16)
+- 켜는 법: `settings.json`의 `env`에 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1"`. 실험 기능이고 기본으로 꺼져 있다.
+- 시작: 자연어로 팀원을 설명한다. **기존 서브에이전트 정의(`.claude/agents/*.md`)를 팀원의 '에이전트 유형'으로 쓸 수 있다** → 그래서 팀원 파일은 기존 Claude 변환기를 그대로 쓴다.
+- 리더는 처음 연 대화창으로 고정 → **리더는 카드로 만들지 않고** 첫 프롬프트에서 "너는 리더다"라고 알려 준다.
+- 화면 방식은 기본값(in-process)을 그대로 둔다. 어느 터미널에서나 되고, 나눠 보기는 tmux·iTerm2가 필요하다. `teammateMode`는 내보내지 않는다.
+- 한계(화면과 RECIPE.md에 옮겨 적음): /resume 때 팀원이 되살아나지 않음, 할 일 완료 표시 누락, 종료가 느림, 세션당 팀 하나, 팀원이 팀을 만들 수 없음, 리더 고정.
+- 문서에 **없던 것:** 최소 버전, Windows 관련 언급, 어느 플랜에서 되는지. 그래서 배지는 Claude Code를 쓸 수 있는 조건(Pro 이상 또는 API 키)을 그대로 쓴다.
+
+### 조리법별 동작
+| 조리법 | zip 내용 | 배지 | 실행 경로 |
+| --- | --- | --- | --- |
+| 서브에이전트 | 예전과 같음 | 예전과 같음 | 예전과 같음 |
+| 에이전트 팀 | `.claude/agents/*.md` + `.claude/settings.json` + RECIPE.md(팀원 소개 프롬프트, 확인 절차) + recipe.json. **`.codex`는 넣지 않는다** | Claude Code 조건만 (카드에 다른 도구가 적혀 있어도) | 모든 카드를 Claude Code로 계산. 못 쓰면 🔒 + `styleLock`(대안: 서브에이전트 조리법으로 바꾸기) |
+| 토론형 | RECIPE.md + `debate-prompt.txt` + recipe.json. 설정 파일 없음 | '어느 AI든 무료로 가능' | 잠기지 않음. `fitsMyPlans`는 항상 `full` |
+
+- 설치 명령(`cli/teamcook.mjs`)은 `.claude/settings.json`을 `.codex/config.toml`처럼 **`--force`여도 덮어쓰지 않고** 병합 안내를 보여 준다.
+- 사용자의 `~/.claude/settings.json`을 고치는 기능은 없다. 프로젝트 폴더용 파일만 내보낸다.
+- 구독 최적화 제안과 'Codex 자동 호출'은 서브에이전트 조리법에서만 보인다.
+- 기본 레시피 2종 추가: `builtin-feature-team`(에이전트 팀), `builtin-decision-debate`(토론형). **배열 순서를 바꾸지 말 것**(테스트가 앞의 3개를 순서대로 꺼내 쓴다).
+
+### 지시서와 다르게 한 점
+- 지시서 표는 에이전트 팀 zip에 "추가로 넣는 것"만 적었지만, **`.codex` 파일은 뺐다.** 에이전트 팀은 Claude Code 전용이라 Codex 파일이 섞이면 헷갈린다. 다른 도구에서 쓰려면 조리법을 서브에이전트로 바꿔 내보내면 된다.
+- 토론형 zip에 `debate-prompt.txt`를 더했다(설정 파일이 아니라, 복사하기 쉬운 프롬프트 원문).
+- A2A 개념 설명 단락은 넣지 않았다(지시서에서 "필요하면"이라고 한 항목).
+
+### 미확인 항목
+- **에이전트 팀이 실제 Claude Code에서 시작되는지 — 사용자 확인 필요.** 설정 내용과 프롬프트는 공식 문서대로 만들었지만 실행해 보지 못했다. 확인 절차는 내보낸 RECIPE.md의 '팀이 제대로 시작됐는지 확인하기'.
+- **기본 레시피의 `lastVerified`는 지시서대로 전부 2026-11-16으로 채웠다.** 실제로 사용자가 돌려 본 것은 'Claude 작성 + Codex 교차 검토'뿐이다. 에이전트 팀 레시피가 사용자 확인에서 실패하면 날짜를 지우거나 고친 뒤 다시 찍어야 한다(`src/data/recipes.ts`의 `VERIFIED`).
+- 토론 프롬프트를 실제 AI 채팅에 넣었을 때의 결과 품질.
+- 배포 사이트에서의 전체 흐름은 로컬 브라우저 자동 실행으로만 확인했다(갤러리 → 조리법 필터 → 편집 → 공유 링크 → zip, 콘솔 오류 0건).
 
 ## 사용자가 할 일 (1~3번은 2026-11-16에 완료. 기록으로 남겨 둠)
 

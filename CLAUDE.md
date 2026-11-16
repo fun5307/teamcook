@@ -35,7 +35,8 @@ src/
 ├─ data/
 │  ├─ providers.json       # 요금제·무료 범위·엔진 정보 (여기만 고치면 됨, 확인 날짜·출처 필수)
 │  ├─ providers.ts         # providers.json을 타입과 함께 내보냄
-│  ├─ recipes.ts           # 기본 레시피 3종
+│  ├─ recipes.ts           # 기본 레시피 5종 (순서 바꾸지 말 것, 새 것은 뒤에)
+│  ├─ collaboration.ts     # 조리법(협업 방식: 서브에이전트·에이전트 팀·토론형) 문구, 공식 문서 확인 기록, 에이전트 팀 설정
 │  ├─ cardTemplates.ts     # 카드 추가용 역할별 틀
 │  └─ tips.ts              # 꿀팁과 카드 경고
 ├─ converters/             # 형식 변환은 전부 여기에만 (codex.ts, claude.ts, markdownAgents.ts = Antigravity·Grok)
@@ -68,6 +69,7 @@ samples/codex/             # 사용자의 실제 Codex TOML (변환기 테스트
 - `~/.codex/auth.json`, `~/.claude` 안의 인증 파일은 읽지도 쓰지도 않는다.
 - 전역 설치나 시스템 설정 변경은 실행 전에 사용자에게 묻는다.
 - 공유 링크는 하위 호환을 지킨다 (`schemaVersion` 필수, 옛 버전 읽기 코드 유지).
+- 레시피의 조리법은 `recipe.collaboration`을 직접 읽지 말고 `collaborationOf(recipe)`로 읽는다 (없으면 서브에이전트).
 - 단계가 끝날 때마다 `HANDOFF.md`를 갱신한다.
 
 ## 자주 쓰는 명령
@@ -84,4 +86,4 @@ npm run build:cli  # 설치 명령 묶음 (cli/teamcook.mjs). src/cli나 변환�
 
 ## 현재 단계
 
-(2026-11-16 기준) 0~5단계 완료(배포: https://teamcook-eta.vercel.app/, 저장소: fun5307/teamcook). 6·7단계 중 계정·API 키 없이 가능한 것(Antigravity·Grok 어댑터, 구독 최적화, 검색, Codex 연결 다리, 설치 명령)도 완료. 남은 것과 이유는 `HANDOFF.md`의 '6·7단계 현황'.
+(2026-11-16 기준) 0~5단계 완료(배포: https://teamcook-eta.vercel.app/, 저장소: fun5307/teamcook). 6·7단계 중 계정·API 키 없이 가능한 것(Antigravity·Grok 어댑터, 구독 최적화, 검색, Codex 연결 다리, 설치 명령)도 완료. 남은 것과 이유는 `HANDOFF.md`의 '6·7단계 현황'. 조리법(협업 방식)과 확인 날짜 표시도 추가 완료(`BRIEF_collaboration-styles.md`, `HANDOFF.md`의 '조리법 현황'). 에이전트 팀이 실제 Claude Code에서 시작되는지는 사용자 확인 대기.
