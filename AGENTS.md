@@ -46,7 +46,8 @@ src/
 │  ├─ recipeMd.ts          # RECIPE.md 생성
 │  └─ exportZip.ts         # zip 내보내기
 ├─ store/                  # zustand + localStorage
-├─ components/ui/          # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
+├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등)
+│  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
 └─ pages/                  # Gallery, RecipeEditor, MyPlans, SharedRecipe, HowToRun
 samples/codex/             # 사용자의 실제 Codex TOML (변환기 테스트용)
 ```
@@ -77,4 +78,4 @@ npm run build      # 배포용 빌드 (dist/)
 
 ## 현재 단계
 
-(2026-11-16 기준) 0~4단계와 5단계의 실행 안내 페이지까지 완료. 남은 것: 실제 CLI에서 에이전트 인식 확인, GitHub 올리기, Vercel 배포(모두 사용자 계정 필요), 그리고 흐름 캔버스. 자세한 내용은 `HANDOFF.md`.
+(2026-11-16 기준) 0~4단계, 5단계의 실행 안내 페이지, 흐름 캔버스·꿀팁·파일 끌어다 놓기까지 완료. 남은 것: 실제 CLI에서 에이전트 인식 확인, GitHub 올리기, Vercel 배포 (모두 사용자 계정이 필요). 자세한 내용은 `HANDOFF.md`.

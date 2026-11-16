@@ -146,7 +146,14 @@ export function GalleryPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-4 rounded-3xl border bg-gradient-to-br from-orange-50 via-background to-amber-50 p-6 sm:p-10">
+      <section
+        className="flex flex-col gap-4 rounded-3xl border bg-gradient-to-br from-orange-50 via-background to-amber-50 p-6 sm:p-10"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          void onFiles(event.dataTransfer.files);
+        }}
+      >
         <p className="text-sm font-medium text-primary">실행은 어디서든, 팀 설계와 레시피는 여기서.</p>
         <h1 className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
           여러 AI가 역할을 나눠 일하는 팀을 설계하고, 링크 하나로 나누세요
@@ -173,7 +180,8 @@ export function GalleryPage() {
           />
         </div>
         <p className="text-xs text-muted-foreground">
-          불러올 수 있는 파일: Codex 에이전트(.toml), Claude 서브에이전트(.md), 레시피(recipe.json). 파일은 내
+          불러올 수 있는 파일: Codex 에이전트(.toml), Claude 서브에이전트(.md), 레시피(recipe.json). 이 상자에 파일을
+          끌어다 놓아도 돼요. 파일은 내
           브라우저 안에서만 읽고, 어디로도 전송하지 않아요.
         </p>
       </section>

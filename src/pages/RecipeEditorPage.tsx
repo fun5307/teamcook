@@ -538,7 +538,14 @@ export function RecipeEditorPage({ id }: { id: string }) {
         </p>
       </section>
 
-      <section className="flex flex-col gap-3">
+      <section
+        className="flex flex-col gap-3"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          void onFiles(event.dataTransfer.files);
+        }}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-xl font-semibold">에이전트 카드</h2>
           <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
