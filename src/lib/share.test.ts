@@ -214,8 +214,15 @@ describe('첫 프롬프트 예시', () => {
   it('넘겨주기 순서를 문장으로 만든다', () => {
     const prompt = starterPrompt(planBuildReview);
     expect(prompt).toContain('1. planner가 먼저 일한다.');
-    expect(prompt).toContain('2. planner의 결과(작업 계획)를 implementer에게 넘긴다.');
-    expect(prompt).toContain('4. reviewer의 결과(검토 결과)를 implementer에게 넘긴다.');
+    expect(prompt).toContain('2. planner의 결과(작업 계획: 단계별 계획 (바꿀 파일, 할 일, 확인 방법))를 implementer에게 넘긴다.');
+    expect(prompt).toContain('4. reviewer의 결과(검토 결과: 지적 목록 (위치, 이유))를 implementer에게 넘긴다.');
+    // 산출물이나 설명이 없는 넘겨주기는 예전처럼 괄호 없이 적는다
+    const plain = starterPrompt({
+      ...planBuildReview,
+      cards: planBuildReview.cards.map(({ deliverables: _d, ...card }) => card),
+      handoffs: planBuildReview.handoffs.map(({ label: _l, deliverableIds: _i, ...handoff }) => handoff),
+    });
+    expect(plain).toContain('2. planner의 결과를 implementer에게 넘긴다.');
   });
 
   it('넘겨주기가 없으면 에이전트 이름만 나열한다', () => {

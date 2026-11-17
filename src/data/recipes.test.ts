@@ -7,12 +7,14 @@ import { builtinRecipes } from './recipes';
 import { parseRecipe } from '../lib/recipeSchema';
 import { buildRecipeFiles } from '../lib/exportZip';
 import { providerData } from './providers';
+import { DETAILED_RECIPE_IDS } from './recipeDetails';
+import { checkRecipe } from '../lib/exportCheck';
 
 describe('기본 레시피', () => {
-  it('20종이고 id가 겹치지 않는다', () => {
-    expect(builtinRecipes).toHaveLength(20);
-    expect(moreRecipes).toHaveLength(15);
-    expect(new Set(builtinRecipes.map((recipe) => recipe.id)).size).toBe(20);
+  it('21종이고 id가 겹치지 않는다', () => {
+    expect(builtinRecipes).toHaveLength(21);
+    expect(moreRecipes).toHaveLength(16);
+    expect(new Set(builtinRecipes.map((recipe) => recipe.id)).size).toBe(21);
   });
 
   it('모든 레시피가 형식 검사를 그대로 통과한다 (공유 링크로 보내도 똑같다)', () => {
@@ -42,8 +44,20 @@ describe('기본 레시피', () => {
     }
   });
 
-  it('직접 확인하지 않은 추가 레시피에는 확인 날짜를 적지 않는다', () => {
-    for (const recipe of moreRecipes) expect(recipe.lastVerified).toBeUndefined();
+  it('실제로 돌려 보지 않은 레시피에는 "실제 실행 확인" 기록을 적지 않는다', () => {
+    // 사용자가 실제 도구에서 확인한 것은 'Claude 작성 + Codex 교차 검토' 하나뿐이다
+    for (const recipe of builtinRecipes) {
+      const ran = (recipe.verification ?? []).some((record) => record.kind === 'run');
+      expect(ran).toBe(recipe.id === 'builtin-cross-review');
+    }
+  });
+
+  it('모든 기본 레시피에 보완 내용이 있고, 내보내기 점검에 "수정 필요"가 없다', () => {
+    expect([...DETAILED_RECIPE_IDS].sort()).toEqual(builtinRecipes.map((recipe) => recipe.id).sort());
+    for (const recipe of builtinRecipes) {
+      const errors = checkRecipe(recipe, providerData).filter((issue) => issue.level === 'error');
+      expect(errors.map((issue) => issue.code)).toEqual([]);
+    }
   });
 
   it('모든 레시피를 zip 파일 목록으로 내보낼 수 있다', () => {

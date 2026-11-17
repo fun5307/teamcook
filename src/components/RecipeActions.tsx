@@ -1,18 +1,16 @@
-// 레시피에 대해 할 수 있는 일: 링크 복사(공유), zip 내보내기, 내 레시피로 가져오기.
+// 레시피에 대해 할 수 있는 일: 링크 복사(공유), 내 레시피로 가져오기. (내보내기는 ExportDialog.tsx)
 
 import { useState } from 'react';
-import { Check, Download, Link2 } from 'lucide-react';
+import { Check, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Notice } from '@/components/common';
-import { providerData } from '@/data/providers';
 import { installCommand, suggestRecipeUrl } from '@/data/site';
-import { copyText, downloadBytes } from '@/lib/download';
-import { buildRecipeZip, zipFileName } from '@/lib/exportZip';
+import { copyText } from '@/lib/download';
 import { newId } from '@/lib/id';
 import { SHARE_WARN_LENGTH, buildShareLink, type ShareLink } from '@/lib/share';
-import type { Recipe, UserPlans } from '@/types';
+import type { Recipe } from '@/types';
 
 /** 레시피를 복사해 새 id를 붙인다 (기본·공유 레시피를 내 것으로 가져올 때). */
 export function cloneRecipe(recipe: Recipe, title?: string): Recipe {
@@ -91,31 +89,3 @@ export function ShareButton({ recipe }: { recipe: Recipe }) {
   );
 }
 
-/** 'zip으로 내보내기' 버튼 */
-export function ExportZipButton({
-  recipe,
-  plans,
-  codexBridge = false,
-}: {
-  recipe: Recipe;
-  plans: UserPlans;
-  /** Claude Code가 Codex 담당 카드를 codex exec로 부르게 내보낼지 (실험적) */
-  codexBridge?: boolean;
-}) {
-  const [busy, setBusy] = useState(false);
-  const onExport = async () => {
-    setBusy(true);
-    try {
-      const bytes = await buildRecipeZip(recipe, providerData, { plans, codexBridge });
-      downloadBytes(bytes, zipFileName(recipe), 'application/zip');
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Button onClick={onExport} disabled={busy || recipe.cards.length === 0}>
-      <Download aria-hidden />
-      zip으로 내보내기
-    </Button>
-  );
-}

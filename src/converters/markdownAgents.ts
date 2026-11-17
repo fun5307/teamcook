@@ -16,6 +16,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { AgentCard, EngineId, Permission } from '../types';
 import { newId } from '../lib/id';
 import { CODEX_READONLY_GUARD } from './codex';
+import { addSpecMeta, composeInstructions, restoreSpec } from './instructions';
 import { type CardMeta, ConvertError, metaLine, normalizeText, readMeta } from './meta';
 
 interface Format {
@@ -88,13 +89,14 @@ function toMarkdown(card: AgentCard, format: Format): string {
   if (card.model && !isNative) meta.model = card.model;
   if (card.tools && card.tools.length > 0) meta.tools = card.tools;
   if (format.tagFormat) meta.format = 'grok';
+  addSpecMeta(meta, card);
 
   const frontmatter: Record<string, unknown> = { name: card.name, description: card.role };
   if (tools) frontmatter.tools = tools;
   if (card.model && isNative) frontmatter.model = card.model;
   Object.assign(frontmatter, rest);
 
-  let instructions = normalizeText(card.instructions);
+  let instructions = composeInstructions(card);
   // 도구 목록으로 막을 수 없는 형식은 지시문 끝에 '수정하지 마라' 문장을 붙인다
   if (!format.tools && card.permission === 'read-only') {
     instructions = instructions ? `${instructions}\n\n${CODEX_READONLY_GUARD}` : CODEX_READONLY_GUARD;
@@ -168,7 +170,7 @@ function fromMarkdown(text: string, format: Format, options: { id?: string }): A
   if (meta.tools) card.tools = meta.tools;
   if (meta.tags) card.tags = meta.tags;
   if (Object.keys(rest).length > 0) card.extra = { [format.extraKey]: rest };
-  return card;
+  return restoreSpec(card, meta);
 }
 
 /** 카드 → Antigravity 커스텀 에이전트 파일 내용 */

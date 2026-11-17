@@ -1,22 +1,20 @@
-// 기본 레시피 20종: 여기의 5종 + moreRecipes.ts의 15종. 첫 화면의 상황별 묶음은 moreRecipes.ts의 SHELVES.
+// 기본 레시피 21종: 여기의 5종 + moreRecipes.ts의 16종. 학습 정보는 recipeDetails.ts에서 입힌다. 첫 화면의 상황별 묶음은 moreRecipes.ts의 SHELVES.
 // 배지와 실행 경로는 여기 적지 않는다. lib/requiredPlans.ts, lib/resolvePath.ts가 계산한다.
 // 모델 이름은 일부러 비워 둔다(각 도구의 기본 모델을 따름). 모델 이름은 자주 바뀌기 때문이다.
 
 import type { Recipe } from '../types';
 import { moreRecipes } from './moreRecipes';
+import { withDetails } from './recipeDetails';
 
-/** 기본 레시피가 실제로 돌아가는지 마지막으로 확인한 날 */
-const VERIFIED = '2026-11-16';
 
 const crossReview: Recipe = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'builtin-cross-review',
   title: 'Claude 작성 + Codex 교차 검토',
   summary:
     'Claude Code가 기능을 구현하고, 다른 회사 모델인 Codex가 읽기 전용으로 검토합니다. 같은 모델이 자기 결과를 검토할 때 놓치는 문제를 잡아냅니다.',
   useCase: '기능 구현 후 검토',
   author: 'teamcook',
-  lastVerified: VERIFIED,
   cards: [
     {
       id: 'cr-writer',
@@ -64,14 +62,13 @@ const crossReview: Recipe = {
 };
 
 const planBuildReview: Recipe = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'builtin-plan-build-review',
   title: '기획 → 구현 → 검토 (Codex만)',
   summary:
     'Codex 하나로 돌리는 3인 팀입니다. 기획자가 계획을 세우고, 구현 담당이 만들고, 검토자가 읽기 전용으로 확인합니다. ChatGPT 계정만 있으면 됩니다.',
   useCase: '작은 기능을 계획부터 검토까지',
   author: 'teamcook',
-  lastVerified: VERIFIED,
   cards: [
     {
       id: 'pbr-planner',
@@ -135,14 +132,13 @@ const planBuildReview: Recipe = {
 };
 
 const researchTeam: Recipe = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'builtin-research-team',
   title: '조사원 여러 명 + 정리원',
   summary:
     '조사원 둘이 서로 다른 관점(사실·근거 / 반대 근거·위험)으로 동시에 조사하고, 정리원이 하나의 보고서로 묶습니다. 한쪽 시각에 치우친 조사를 막아 줍니다.',
   useCase: '자료 조사와 의사결정 준비',
   author: 'teamcook',
-  lastVerified: VERIFIED,
   cards: [
     {
       id: 'rt-facts',
@@ -209,14 +205,13 @@ const researchTeam: Recipe = {
 
 // 조리법: 에이전트 팀 (Claude Code 전용, 실험 기능). 리더는 처음 연 Claude Code 대화창이라 카드로 두지 않는다.
 const featureTeam: Recipe = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'builtin-feature-team',
   title: '기능 구현 팀 (리더 + 구현 2 + 검토 1)',
   summary:
     'Claude Code 에이전트 팀으로 돌리는 구현 팀입니다. 처음 연 대화창이 리더가 되어 일을 나누고, 구현 담당 두 명이 서로 겹치지 않는 부분을 맡고, 검토자가 읽기 전용으로 확인합니다. 팀원끼리 직접 대화하며 맞춰 갑니다.',
   useCase: '화면과 서버처럼 나눌 수 있는 기능 구현',
   author: 'teamcook',
-  lastVerified: VERIFIED,
   collaboration: 'agent-team',
   cards: [
     {
@@ -284,14 +279,13 @@ const featureTeam: Recipe = {
 
 // 조리법: 토론형 (설정 파일 없이 프롬프트 하나. 무료 웹 채팅에서도 된다)
 const decisionDebate: Recipe = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'builtin-decision-debate',
   title: '결정 토론 (사회자·조사·검증·반대자)',
   summary:
     '무엇을 고를지 망설여질 때 쓰는 토론입니다. AI 하나가 네 역할을 번갈아 맡아 근거를 모으고, 따져 보고, 일부러 반대한 뒤 결론을 냅니다. 설치할 것 없이 프롬프트만 붙여 넣으면 됩니다.',
   useCase: '기술 선택, 우선순위, 할지 말지 결정',
   author: 'teamcook',
-  lastVerified: VERIFIED,
   collaboration: 'debate',
   cards: [
     {
@@ -368,4 +362,4 @@ export const builtinRecipes: Recipe[] = [
   featureTeam,
   decisionDebate,
   ...moreRecipes,
-];
+].map(withDetails);

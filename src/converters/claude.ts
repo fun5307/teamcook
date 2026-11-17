@@ -12,6 +12,7 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { AgentCard, Permission } from '../types';
 import { newId } from '../lib/id';
+import { addSpecMeta, composeInstructions, restoreSpec } from './instructions';
 import { type CardMeta, ConvertError, metaLine, normalizeText, readMeta } from './meta';
 
 /** 읽기 전용 카드의 기본 도구 */
@@ -72,6 +73,7 @@ export function cardToClaudeMd(card: AgentCard): string {
   if (permissionFromTools(tools) !== card.permission) meta.permission = card.permission;
   if (!isNative) meta.engine = card.preferredEngine;
   if (card.model && !isNative) meta.model = card.model;
+  addSpecMeta(meta, card);
 
   const frontmatter: Record<string, unknown> = {
     name: card.name,
@@ -84,7 +86,7 @@ export function cardToClaudeMd(card: AgentCard): string {
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd();
   const comment = metaLine(meta);
   const head = comment ? `${comment}\n${yaml}` : yaml;
-  return `---\n${head}\n---\n\n${normalizeText(card.instructions)}\n`;
+  return `---\n${head}\n---\n\n${composeInstructions(card)}\n`;
 }
 
 /** Claude Code 서브에이전트 파일 내용 → 카드. 형식이 잘못되면 ConvertError를 던진다. */
@@ -151,5 +153,5 @@ export function claudeMdToCard(text: string, options: { id?: string } = {}): Age
   if (tools && !sameList(tools, defaultTools(permission))) card.tools = tools;
   if (meta.tags) card.tags = meta.tags;
   if (Object.keys(rest).length > 0) card.extra = { claude: rest };
-  return card;
+  return restoreSpec(card, meta);
 }

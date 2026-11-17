@@ -75,6 +75,7 @@ export default function FlowCanvas({
   resolution,
   onConnect,
   onRemove,
+  onSelect,
 }: {
   recipe: Recipe;
   resolution: RecipeResolution;
@@ -82,6 +83,8 @@ export default function FlowCanvas({
   onConnect?: (from: string, to: string) => void;
   /** 화살표를 지울 때 (넘겨주기 id) */
   onRemove?: (handoffId: string) => void;
+  /** 화살표를 눌러 골랐을 때 (편집 화면이 해당 전달 정보 칸으로 옮겨 간다) */
+  onSelect?: (handoffId: string) => void;
 }) {
   const editable = Boolean(onConnect);
   const [selected, setSelected] = useState<string | null>(null);
@@ -165,7 +168,11 @@ export default function FlowCanvas({
         zoomOnScroll={false}
         preventScrolling={false}
         onConnect={handleConnect}
-        onEdgeClick={(_event, edge) => editable && setSelected(edge.id === selected ? null : edge.id)}
+        onEdgeClick={(_event, edge) => {
+          if (!editable) return;
+          setSelected(edge.id === selected ? null : edge.id);
+          onSelect?.(edge.id);
+        }}
         onPaneClick={() => setSelected(null)}
         proOptions={{ hideAttribution: false }}
       >

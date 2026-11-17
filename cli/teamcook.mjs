@@ -10,7 +10,7 @@ var COLLABORATIONS$1 = {
 		id: "subagents",
 		label: "서브에이전트",
 		chip: "서브에이전트",
-		description: "메인 AI가 일을 나눠 서브에이전트에게 맡기고, 결과만 돌려받습니다. 서브에이전트끼리는 서로 대화하지 않아요. 가장 무난하고 사용량도 적게 듭니다.",
+		description: "메인 AI가 일을 나눠 서브에이전트에게 맡기고, 결과를 돌려받습니다. 서브에이전트끼리 직접 소통할 수 있는지는 도구마다 다르고, 이 사이트는 그것을 설정하지 않아요. 가장 무난한 방식입니다.",
 		availability: "Codex, Claude Code 등 카드마다 고른 도구에서",
 		experimental: false,
 		notes: []
@@ -36,7 +36,7 @@ var COLLABORATIONS$1 = {
 		id: "debate",
 		label: "토론형",
 		chip: "토론형",
-		description: "설정 파일 없이 프롬프트 하나로 돌립니다. AI 하나가 여러 역할을 번갈아 맡아 토론하고 결론을 냅니다. 무료 웹 채팅을 포함해 어느 AI에서나 붙여 넣으면 돼요.",
+		description: "설정 파일 없이 프롬프트 하나로 돌립니다. 한 AI가 여러 역할을 번갈아 맡아 토론하고 결론을 냅니다. 별도 세션끼리 주고받는 협업과는 다릅니다. 역할은 프롬프트 안에 들어가고, 무료 웹 채팅을 포함해 어느 AI에서나 붙여 넣으면 돼요.",
 		availability: "어느 AI에서나 (무료 웹 채팅 포함)",
 		experimental: false,
 		notes: ["한 AI가 여러 역할을 연기하는 방식이라, 서로 다른 모델이 검토하는 것만큼 독립적이지는 않아요. 중요한 결정은 다른 AI에도 같은 프롬프트를 넣어 비교해 보세요."]
@@ -15930,6 +15930,46 @@ function metaLine(meta) {
 function normalizeText(text) {
 	return text.replace(/\r\n?/g, "\n").trim();
 }
+// src/converters/instructions.ts
+/** 덧붙인 부분의 시작을 알리는 줄. 다시 불러올 때 이 줄부터 잘라 원본 지시문을 되살린다. */
+var STRUCT_MARKER = "--- 역할 카드에서 정한 내용 (teamcook이 덧붙임) ---";
+function list(title, items) {
+	const clean = (items ?? []).map((item) => item.trim()).filter(Boolean);
+	return clean.length > 0 ? [
+		"",
+		`[${title}]`,
+		...clean.map((item) => `- ${item}`)
+	] : [];
+}
+function deliverableLine(item) {
+	return item.description?.trim() ? `${item.name.trim()}: ${item.description.trim()}` : item.name.trim();
+}
+/** 구조화된 항목만 글로 옮긴 것. 항목이 하나도 없으면 빈 문자열. 순서는 항상 같다. */
+function structuredBlock(card) {
+	const lines = [
+		...list("받을 입력", card.requiredInputs),
+		...list("필수 산출물 (끝날 때 반드시 내놓는다)", (card.deliverables ?? []).filter((item) => item.name.trim()).map(deliverableLine)),
+		...list("완료 기준 (모두 만족해야 끝난 것이다)", card.completionCriteria),
+		...list("하지 않을 일", card.boundaries)
+	];
+	return lines.length > 0 ? [STRUCT_MARKER, ...lines.slice(1)].join("\n") : "";
+}
+/** 실제 설정 파일에 들어갈 지시문: 원본 지시문 + 구조화된 항목 */
+function composeInstructions(card) {
+	const original = normalizeText(card.instructions);
+	const block = structuredBlock(card);
+	if (!block) return original;
+	return original ? `${original}\n\n${block}` : block;
+}
+/** 메타 주석에 구조화된 항목을 싣는다 (다시 불러올 때 되살리려고). */
+function addSpecMeta(meta, card) {
+	const spec = {};
+	if (card.requiredInputs?.length) spec.inputs = card.requiredInputs;
+	if (card.deliverables?.length) spec.deliverables = card.deliverables;
+	if (card.completionCriteria?.length) spec.criteria = card.completionCriteria;
+	if (card.boundaries?.length) spec.boundaries = card.boundaries;
+	if (Object.keys(spec).length > 0) meta.spec = spec;
+}
 // src/converters/claude.ts
 /** 읽기 전용 카드의 기본 도구 */
 var CLAUDE_READONLY_TOOLS = [
@@ -15974,6 +16014,7 @@ function cardToClaudeMd(card) {
 	if (permissionFromTools$1(tools) !== card.permission) meta.permission = card.permission;
 	if (!isNative) meta.engine = card.preferredEngine;
 	if (card.model && !isNative) meta.model = card.model;
+	addSpecMeta(meta, card);
 	const frontmatter = {
 		name: card.name,
 		description: card.role
@@ -15983,7 +16024,7 @@ function cardToClaudeMd(card) {
 	Object.assign(frontmatter, card.extra?.claude ?? {});
 	const yaml = (0, import_dist.stringify)(frontmatter, { lineWidth: 0 }).trimEnd();
 	const comment = metaLine(meta);
-	return `---\n${comment ? `${comment}\n${yaml}` : yaml}\n---\n\n${normalizeText(card.instructions)}\n`;
+	return `---\n${comment ? `${comment}\n${yaml}` : yaml}\n---\n\n${composeInstructions(card)}\n`;
 }
 // node_modules/smol-toml/dist/stringify.js
 /*!
@@ -16190,7 +16231,8 @@ function cardToCodexToml(card) {
 	if (!isNative) meta.engine = card.preferredEngine;
 	if (card.model && !isNative) meta.model = card.model;
 	if (card.tools && card.tools.length > 0) meta.tools = card.tools;
-	let instructions = normalizeText(card.instructions);
+	addSpecMeta(meta, card);
+	let instructions = composeInstructions(card);
 	if (card.permission === "read-only") instructions = instructions ? `${instructions}\n\n${CODEX_READONLY_GUARD}` : CODEX_READONLY_GUARD;
 	const lines = [];
 	const comment = metaLine(meta);
@@ -16261,6 +16303,7 @@ function toMarkdown(card, format) {
 	if (card.model && !isNative) meta.model = card.model;
 	if (card.tools && card.tools.length > 0) meta.tools = card.tools;
 	if (format.tagFormat) meta.format = "grok";
+	addSpecMeta(meta, card);
 	const frontmatter = {
 		name: card.name,
 		description: card.role
@@ -16268,7 +16311,7 @@ function toMarkdown(card, format) {
 	if (tools) frontmatter.tools = tools;
 	if (card.model && isNative) frontmatter.model = card.model;
 	Object.assign(frontmatter, rest);
-	let instructions = normalizeText(card.instructions);
+	let instructions = composeInstructions(card);
 	if (!format.tools && card.permission === "read-only") instructions = instructions ? `${instructions}\n\n${CODEX_READONLY_GUARD}` : CODEX_READONLY_GUARD;
 	const yaml = (0, import_dist.stringify)(frontmatter, { lineWidth: 0 }).trimEnd();
 	const comment = metaLine(meta);
@@ -16317,6 +16360,178 @@ var isReviewer = (card) => has(card, ["reviewer"]);
 /** 교차 검토에서 '작성자'로 보는 역할 */
 var isWriter = (card) => has(card, HEAVY);
 var isHeavy = (card) => has(card, HEAVY);
+// src/lib/support.ts
+var ENFORCEMENT_LABELS = {
+	instruction: "지시문으로 안내",
+	"tool-limit": "도구 제한",
+	"env-required": "실행 환경 설정 필요",
+	unknown: "확인 필요"
+};
+/** 이 카드가 실제로 돌게 되는 도구 (에이전트 팀은 전부 Claude Code, 토론형은 프롬프트) */
+function effectiveEngine(card, style) {
+	if (style === "debate") return "manual";
+	if (style === "agent-team") return "claude-code";
+	return card.preferredEngine;
+}
+/** 카드의 권한 선택이 내보낸 설정에서 어떻게 지켜지는지 */
+function permissionSupport(card, style) {
+	const engine = effectiveEngine(card, style);
+	const readOnly = card.permission === "read-only";
+	if (style === "debate") return {
+		modes: ["instruction"],
+		text: "토론형은 프롬프트만 씁니다. 권한은 설정 파일로 제한되지 않고, 붙여 넣는 AI의 설정을 그대로 따릅니다."
+	};
+	if (engine === "claude-code") {
+		const custom = card.tools && card.tools.length > 0 ? card.tools : void 0;
+		if (card.permission === "full" && !custom) return {
+			modes: ["env-required"],
+			text: "도구를 제한하지 않습니다. 무엇을 할 수 있는지는 Claude Code 메인 세션의 권한 설정을 따릅니다."
+		};
+		if (custom && permissionFromTools$1(custom) !== card.permission) return {
+			modes: ["unknown"],
+			text: `직접 적은 도구 목록(${custom.join(", ")})이 고른 권한과 맞지 않습니다. 파일에는 적은 목록이 그대로 들어가므로, 권한이 지켜지는지 목록을 확인하세요.`
+		};
+		const tools = custom ?? (readOnly ? CLAUDE_READONLY_TOOLS : CLAUDE_EDIT_TOOLS);
+		return readOnly ? {
+			modes: ["tool-limit"],
+			text: `Claude Code 설정의 tools를 ${tools.join(", ")}로 제한합니다. 파일을 고치는 도구가 목록에 없습니다.`
+		} : {
+			modes: ["tool-limit", "env-required"],
+			text: `Claude Code 설정의 tools를 ${tools.join(", ")}로 적습니다. 실제로 수정을 허락할지는 Claude Code의 권한 설정(물어보기, 자동 허용 등)을 따릅니다.`
+		};
+	}
+	if (engine === "codex-cli") return readOnly ? {
+		modes: ["instruction", "env-required"],
+		text: "Codex는 에이전트 파일로 읽기 전용을 강제할 수 없습니다. 지시문 끝에 \"수정하지 마라\"는 문장을 넣을 뿐이고, 기술적으로 막으려면 codex --sandbox read-only 로 실행해야 합니다."
+	} : {
+		modes: ["env-required"],
+		text: "Codex는 에이전트 파일로 권한을 바꿀 수 없습니다. 메인 세션의 샌드박스·승인 설정을 그대로 물려받습니다."
+	};
+	if (engine === "antigravity-cli") return readOnly ? {
+		modes: ["tool-limit", "unknown"],
+		text: "설정의 tools를 읽기 도구(view_file, grep_search)로 적습니다. 형식은 공식 문서로 확인했지만 실제 Antigravity에서 막히는지는 실행해 보지 못했습니다."
+	} : {
+		modes: ["unknown"],
+		text: "Antigravity에서 이 권한이 어떻게 적용되는지 실행해 확인하지 못했습니다."
+	};
+	if (engine === "grok-build") return readOnly ? {
+		modes: ["instruction", "unknown"],
+		text: "Grok Build는 도구 이름 목록을 확인하지 못해, 지시문 끝에 \"수정하지 마라\"는 문장만 넣습니다. 기술적으로 막지 않습니다."
+	} : {
+		modes: ["unknown"],
+		text: "Grok Build에서 이 권한이 어떻게 적용되는지 확인하지 못했습니다."
+	};
+	return {
+		modes: ["instruction"],
+		text: "설정 파일을 쓰지 않는 경로입니다. 권한은 지시문으로만 안내되고, 붙여 넣는 AI의 설정을 따릅니다."
+	};
+}
+/** 설계한 내용이 내보낸 파일과 프롬프트의 어디에 들어가는지 (실제 생성 로직 기준) */
+function reflectionScope(recipe, providers) {
+	const style = collaborationOf(recipe);
+	const engines = [...new Set(recipe.cards.map((card) => effectiveEngine(card, style)))];
+	const extra = ["antigravity-cli", "grok-build"].filter((id) => engines.includes(id)).map((id) => providers.engines[id].configFormat ?? providers.engines[id].name);
+	const modes = /* @__PURE__ */ new Set();
+	for (const card of recipe.cards) for (const mode of permissionSupport(card, style).modes) modes.add(mode);
+	const permissionRow = {
+		item: "권한 제한",
+		where: [...modes].map((mode) => ENFORCEMENT_LABELS[mode]).join(", ") || "카드 없음",
+		note: "카드마다 수단이 다릅니다. 역할별 설명을 확인하세요. \"읽기 전용\"을 골랐다고 항상 기술적으로 막히는 것은 아닙니다."
+	};
+	if (style === "debate") return [
+		{
+			item: "역할 정의",
+			where: "토론 프롬프트 (debate-prompt.txt, RECIPE.md)",
+			note: "설정 파일은 만들지 않습니다."
+		},
+		{
+			item: "작업 순서",
+			where: "토론 프롬프트의 진행 순서",
+			note: "AI가 프롬프트를 따르는 만큼만 지켜집니다. 사이트가 순서를 강제하지 않습니다."
+		},
+		{
+			item: "산출물·완료 기준",
+			where: "토론 프롬프트의 역할 설명",
+			note: "역할마다 내놓을 것과 끝나는 조건을 프롬프트에 적습니다."
+		},
+		{
+			item: "팀원 메시지",
+			where: "해당 없음",
+			note: "한 AI가 여러 역할을 번갈아 맡습니다. 별도 세션끼리 주고받는 협업과는 다릅니다."
+		},
+		permissionRow
+	];
+	if (style === "agent-team") return [
+		{
+			item: "역할 정의",
+			where: ".claude/agents/*.md",
+			note: "팀원을 만들 때 \"에이전트 유형\"으로 씁니다. 리더는 처음 연 대화창이라 파일이 없습니다."
+		},
+		{
+			item: "작업 순서",
+			where: "첫 프롬프트, RECIPE.md",
+			note: "리더가 프롬프트를 읽고 일을 나눕니다. 사이트나 파일이 순서를 강제하지 않습니다."
+		},
+		{
+			item: "산출물·완료 기준",
+			where: "각 팀원 파일의 지시문 끝",
+			note: "팀원의 지시문에 덧붙습니다."
+		},
+		{
+			item: "팀원 메시지",
+			where: "Claude Code 에이전트 팀 기능",
+			note: "팀원끼리의 메시지와 공용 할 일 목록은 Claude Code가 제공합니다(실험 기능, 공식 문서로 확인). 에이전트 팀을 켜는 설정은 .claude/settings.json에 들어갑니다."
+		},
+		permissionRow
+	];
+	return [
+		{
+			item: "역할 정의",
+			where: [
+				".codex/agents/*.toml",
+				".claude/agents/*.md",
+				...extra
+			].join(", "),
+			note: "모든 역할을 Codex와 Claude Code 두 형식으로 넣습니다. 쓰지 않는 쪽은 지워도 됩니다."
+		},
+		{
+			item: "작업 순서",
+			where: "첫 프롬프트, RECIPE.md",
+			note: "메인 AI가 프롬프트를 읽고 순서대로 맡깁니다. 사이트나 파일이 순서를 강제하지 않습니다."
+		},
+		{
+			item: "산출물·완료 기준",
+			where: "각 역할 파일의 지시문 끝",
+			note: "역할의 지시문에 덧붙습니다."
+		},
+		{
+			item: "팀원 메시지",
+			where: "설정하지 않음",
+			note: "내보낸 서브에이전트는 결과를 메인 AI에게 돌려줍니다. 서브에이전트끼리 직접 소통할 수 있는지는 도구마다 다르고, 이 사이트는 그것을 설정하지 않습니다."
+		},
+		permissionRow
+	];
+}
+/** '내 플랜으로 가능' 옆에 항상 붙이는 문장 */
+var PLAN_FIT_NOTE = "선택한 요금제 정보를 기준으로 찾은 실행 경로입니다. 이 PC의 설치·로그인·실제 실행 상태는 확인하지 않았습니다.";
+/** 흐름 영역에 항상 붙이는 문장 */
+var FLOW_NOTE = "이 흐름은 시작 프롬프트와 설명서에 반영됩니다. 사이트가 실제 실행 순서를 강제하지는 않습니다.";
+// src/lib/exportCheck.ts
+/** 넘겨주기가 가리키는 산출물: 찾은 것과, 지워져서 못 찾은 id */
+function handoffDeliverables(recipe, handoff) {
+	const from = recipe.cards.find((card) => card.id === handoff.from);
+	const found = [];
+	const missing = [];
+	for (const id of handoff.deliverableIds ?? []) {
+		const deliverable = from?.deliverables?.find((item) => item.id === id);
+		if (deliverable) found.push(deliverable);
+		else missing.push(id);
+	}
+	return {
+		found,
+		missing
+	};
+}
 // src/lib/resolvePath.ts
 var PATH_NAMES = {
 	1: "구독 로그인",
@@ -16670,6 +16885,45 @@ function requiredPlans(recipe, providers) {
 		details: finished
 	};
 }
+// src/lib/verification.ts
+var KIND_LABELS = {
+	docs: "문서 확인",
+	file: "파일 생성 확인",
+	run: "실제 실행 확인",
+	unclassified: "확인 방식 미기록"
+};
+var KIND_HINTS = {
+	docs: "공식 문서의 설정 형식과 맞는지 확인했어요. 실행해 본 것은 아니에요.",
+	file: "설정 파일과 설명서가 만들어지는 것을 확인했어요. 실행해 본 것은 아니에요.",
+	run: "실제 도구에서 돌려 보고 적은 기록이에요.",
+	unclassified: "예전 형식의 날짜만 남아 있어요. 무엇을 어떻게 확인했는지는 기록이 없어요."
+};
+var RESULT_LABELS = {
+	success: "성공",
+	failure: "실패",
+	"n/a": "해당 없음"
+};
+var SOURCE_LABELS = {
+	user: "사용자 기록",
+	auto: "자동 점검",
+	author: "만든 쪽 기록",
+	unknown: "출처 모름"
+};
+/** 한 줄 요약. 예: '파일 생성 확인 · 2026-11-16 · 성공 · 자동 점검' */
+function verificationLine(record) {
+	const parts = [KIND_LABELS[record.kind], record.checkedAt];
+	if (record.kind !== "unclassified") parts.push(RESULT_LABELS[record.result]);
+	parts.push(SOURCE_LABELS[record.source]);
+	return parts.join(" · ");
+}
+/** 도구·버전·환경을 적은 것만 이어 붙인다. 없으면 빈 문자열 (짐작해서 채우지 않는다). */
+function verificationDetail(record) {
+	return [
+		record.tool,
+		record.toolVersion,
+		record.environment
+	].filter(Boolean).join(", ");
+}
 // src/lib/recipeMd.ts
 var PERMISSION_LABELS = {
 	"read-only": "읽기 전용",
@@ -16704,23 +16958,50 @@ function cardLabel(card) {
 * 넘겨주기 흐름을 바탕으로 "첫 프롬프트" 예시를 만든다.
 * 에이전트 파일에는 흐름이 담기지 않으므로, 흐름은 첫 프롬프트로 알려 줘야 한다.
 */
-function starterPrompt(recipe) {
-	const byId = new Map(recipe.cards.map((card) => [card.id, card]));
-	const steps = [];
-	for (const handoff of recipe.handoffs) {
-		const from = byId.get(handoff.from);
-		const to = byId.get(handoff.to);
-		if (!from || !to) continue;
-		const what = handoff.label ? `(${handoff.label})` : "";
-		steps.push(`${from.name}의 결과${what}를 ${to.name}에게 넘긴다`);
+/** 넘겨주기 한 건의 전달 정보: 직접 쓴 설명과 고른 산출물. 예: '(변경 내용 전달: 변경 요약, 테스트 결과)' */
+function handoffWhat(recipe, handoff) {
+	const names = handoffDeliverables(recipe, handoff).found.map((item) => item.name).join(", ");
+	const label = handoff.label?.trim() ?? "";
+	if (label && names) return `(${label}: ${names})`;
+	if (label || names) return `(${label || names})`;
+	return "";
+}
+/** 역할별 산출물을 한 줄로. 예: 'writer(변경 요약, 테스트 결과) / reviewer(지적 목록)' */
+function deliverableSummary(recipe, useDisplayName = false) {
+	return recipe.cards.filter((card) => card.deliverables?.length).map((card) => {
+		return `${useDisplayName ? card.displayName || card.name : card.name}(${card.deliverables.map((item) => item.name).join(", ")})`;
+	}).join(" / ");
+}
+/** 프롬프트 끝에 붙이는 '마지막 정리' 지시: 누가 모으고, 어떤 형식으로 내놓는지 */
+function wrapUpLines(recipe, who) {
+	const outputs = deliverableSummary(recipe);
+	const criteria = recipe.successCriteria ?? [];
+	if (!outputs && criteria.length === 0) return [];
+	const lines = [`모든 단계가 끝나면 ${who} 결과를 하나로 모아 아래 형식으로 정리해 줘.`];
+	if (outputs) lines.push(`- 역할별 산출물: ${outputs}`);
+	if (criteria.length > 0) {
+		lines.push("- 성공 조건을 만족했는지 하나씩 확인:");
+		criteria.forEach((item, index) => lines.push(`  ${index + 1}) ${item}`));
 	}
-	if (steps.length === 0) return `${recipe.cards.map((card) => card.name).join(", ")} 에이전트를 써서 다음 일을 해 줘: (여기에 요청을 적으세요)`;
-	const first = byId.get(recipe.handoffs[0].from);
+	lines.push("- 확인하지 못한 것과 남은 문제");
+	return lines;
+}
+function taskLines(recipe) {
+	const lines = ["할 일: (여기에 요청을 적으세요)"];
+	if (recipe.sampleTask?.trim()) lines.push(`과제 예시: ${recipe.sampleTask.trim()}`);
+	return lines;
+}
+function starterPrompt(recipe) {
+	const steps = flowSteps(recipe, (from, to, what) => `${from.name}의 결과${what}를 ${to.name}에게 넘긴다`);
+	const wrapUp = wrapUpLines(recipe, "네가(메인)");
+	if (steps.length === 0) return [`${recipe.cards.map((card) => card.name).join(", ")} 에이전트를 써서 다음 일을 해 줘: (여기에 요청을 적으세요)`, ...[...recipe.sampleTask?.trim() ? [`과제 예시: ${recipe.sampleTask.trim()}`] : [], ...wrapUp]].join("\n");
+	const first = new Map(recipe.cards.map((card) => [card.id, card])).get(recipe.handoffs[0].from);
 	return [
 		"아래 순서대로 서브에이전트에게 일을 맡겨 줘.",
 		`1. ${first ? first.name : "첫 에이전트"}가 먼저 일한다.`,
 		...steps.map((step, index) => `${index + 2}. ${step}.`),
-		"할 일: (여기에 요청을 적으세요)"
+		...wrapUp,
+		...taskLines(recipe)
 	].join("\n");
 }
 function flowSteps(recipe, verb) {
@@ -16730,7 +17011,7 @@ function flowSteps(recipe, verb) {
 		const from = byId.get(handoff.from);
 		const to = byId.get(handoff.to);
 		if (!from || !to) continue;
-		steps.push(verb(from, to, handoff.label ? `(${handoff.label})` : ""));
+		steps.push(verb(from, to, handoffWhat(recipe, handoff)));
 	}
 	return steps;
 }
@@ -16749,7 +17030,9 @@ function teamPrompt(recipe) {
 		...recipe.cards.map((card) => `- ${card.name} 에이전트 유형으로 팀원 1명 — ${card.displayName || card.name}: ${cell(card.role)}`)
 	];
 	if (steps.length > 0) lines.push("", "일하는 순서:", ...steps.map((step, index) => `${index + 1}. ${step}.`));
-	lines.push("", "할 일: (여기에 요청을 적으세요)");
+	const wrapUp = wrapUpLines(recipe, "리더인 네가");
+	if (wrapUp.length > 0) lines.push("", ...wrapUp);
+	lines.push("", ...taskLines(recipe));
 	return lines.join("\n");
 }
 /** 토론형 프롬프트. 설정 파일 없이, 어느 AI 채팅에나 그대로 붙여 넣는다. */
@@ -16761,12 +17044,17 @@ function debatePrompt(recipe) {
 		`지금부터 너 혼자서 아래 ${recipe.cards.length}명의 역할을 번갈아 맡아 토론해 줘.`,
 		"",
 		"주제: (여기에 결정하고 싶은 것을 적으세요)",
+		...recipe.sampleTask?.trim() ? [`주제 예시: ${recipe.sampleTask.trim()}`] : [],
 		"",
 		"[역할]"
 	];
 	recipe.cards.forEach((card, index) => {
 		lines.push(`${index + 1}. ${card.displayName || card.name} — ${cell(card.role)}`);
 		for (const line of card.instructions.split(/\r?\n/)) if (line.trim()) lines.push(`   ${line.trim()}`);
+		if (card.requiredInputs?.length) lines.push(`   받는 것: ${card.requiredInputs.join(" / ")}`);
+		if (card.deliverables?.length) lines.push(`   내놓을 것: ${card.deliverables.map((item) => item.name).join(" / ")}`);
+		if (card.completionCriteria?.length) lines.push(`   끝나는 조건: ${card.completionCriteria.join(" / ")}`);
+		if (card.boundaries?.length) lines.push(`   하지 않을 일: ${card.boundaries.join(" / ")}`);
 	});
 	lines.push("", "[진행 순서]");
 	if (steps.length > 0) {
@@ -16774,6 +17062,10 @@ function debatePrompt(recipe) {
 		steps.forEach((step, index) => lines.push(`${index + 2}. ${step}.`));
 	} else lines.push(...names.map((name, index) => `${index + 1}. [${name}] 역할이 발언한다.`));
 	lines.push("", "[규칙]", "- 발언마다 맨 앞에 [역할 이름]을 붙인다.", "- 역할끼리 쉽게 동의하지 않는다. 앞선 발언의 약한 부분을 구체적으로 짚는다.", "- 확인한 사실, 추론, 확인하지 못한 것을 구분한다. 수치나 출처를 지어내지 않는다.", "- 위 순서를 두 바퀴 돈다. 둘째 바퀴에서는 첫째 바퀴에서 나온 반론에 답한다.", `- 마지막에 [${first}] 역할이 "결론 / 근거 / 남은 쟁점 / 다음에 할 일"을 정리한다.`);
+	if (recipe.successCriteria?.length) {
+		lines.push("- 정리할 때 아래 조건을 만족했는지 하나씩 확인한다.");
+		recipe.successCriteria.forEach((item, index) => lines.push(`  ${index + 1}) ${item}`));
+	}
 	return lines.join("\n");
 }
 /** RECIPE.md 내용을 만든다. plans를 주면 '내 플랜 기준 실행 경로'도 적는다. */
@@ -16790,27 +17082,71 @@ function buildRecipeMd(recipe, providers, plans) {
 	if (recipe.useCase) out.push(`- **쓰임새:** ${recipe.useCase}`);
 	if (recipe.author) out.push(`- **만든 사람:** ${recipe.author}`);
 	out.push(`- **조리법(협업 방식):** ${styleInfo.label}${styleInfo.experimental ? " (실험 기능)" : ""} — ${styleInfo.availability}`);
-	if (recipe.lastVerified) out.push(`- **확인한 날:** ${recipe.lastVerified} (이 날짜에 실제로 돌아가는지 확인함)`);
 	out.push(`- **필요한 플랜:** ${required.badges.length > 0 ? required.badges.join(" · ") : "없음"} (${providers.lastVerified} 확인)`);
 	for (const badge of required.details) for (const note of badge.notes) out.push(`  - ${note}`);
 	out.push("");
+	out.push("## 이 레시피로 익히는 것", "");
+	out.push(`- **학습 목표:** ${recipe.learningObjective?.trim() || "(적혀 있지 않아요)"}`);
+	if (recipe.sampleTask?.trim()) out.push(`- **입력 과제 예시:** ${cell(recipe.sampleTask)}`);
+	out.push("- **실습 성공 조건:**");
+	const success = recipe.successCriteria ?? [];
+	if (success.length === 0) out.push("  - (적혀 있지 않아요)");
+	success.forEach((item, index) => out.push(`  ${index + 1}. ${item}`));
+	out.push("");
+	out.push("## 준비", "");
+	for (const item of recipe.prerequisites ?? []) out.push(`- ${item}`);
+	out.push("- 도구가 설치돼 있고 로그인돼 있어야 합니다. teamcook 사이트는 이 PC의 설치·로그인 상태를 확인하지 않았습니다.", "");
 	out.push("## 팀 구성", "", "| 에이전트 | 하는 일 | 권장 도구 | 권한 |", "| --- | --- | --- | --- |");
 	for (const card of recipe.cards) {
 		const engine = style === "agent-team" ? providers.engines["claude-code"].name : style === "debate" ? "프롬프트 안의 역할" : providers.engines[card.preferredEngine]?.name ?? card.preferredEngine;
 		out.push(`| ${cell(cardLabel(card))} | ${cell(card.role)} | ${engine} | ${PERMISSION_LABELS[card.permission]} |`);
 	}
 	out.push("");
+	out.push("### 역할별 작업·산출물·완료 기준", "");
+	for (const card of recipe.cards) {
+		const support = permissionSupport(card, style);
+		out.push(`**${cardLabel(card)}**`, "");
+		out.push(`- 맡을 일: ${cell(card.role) || "(적혀 있지 않아요)"}`);
+		if (card.requiredInputs?.length) out.push(`- 받을 입력: ${card.requiredInputs.join(" / ")}`);
+		out.push(`- 필수 산출물: ${card.deliverables?.length ? card.deliverables.map((item) => item.description ? `${item.name} (${item.description})` : item.name).join(" / ") : "(적혀 있지 않아요)"}`);
+		out.push(`- 완료 기준: ${card.completionCriteria?.length ? card.completionCriteria.join(" / ") : "(적혀 있지 않아요)"}`);
+		if (card.boundaries?.length) out.push(`- 하지 않을 일: ${card.boundaries.join(" / ")}`);
+		out.push(`- 권한: ${PERMISSION_LABELS[card.permission]} — ${support.modes.map((mode) => ENFORCEMENT_LABELS[mode]).join(", ")}. ${support.text}`, "");
+	}
 	if (recipe.handoffs.length > 0) {
-		out.push("## 흐름 (누가 누구에게 무엇을 넘기나)", "");
+		out.push("## 전달 흐름 (누가 누구에게 무엇을 넘기나)", "");
 		recipe.handoffs.forEach((handoff, index) => {
 			const from = byId.get(handoff.from);
 			const to = byId.get(handoff.to);
 			if (!from || !to) return;
+			const { found, missing } = handoffDeliverables(recipe, handoff);
 			const label = handoff.label ? `: ${handoff.label}` : "";
 			out.push(`${index + 1}. ${cardLabel(from)} → ${cardLabel(to)}${label}`);
+			if (found.length > 0) out.push(`   - 넘기는 산출물: ${found.map((item) => item.name).join(", ")}`);
+			if (missing.length > 0) out.push("   - (지워진 산출물을 가리키고 있어요. 다시 골라야 합니다.)");
+			if (found.length === 0 && !handoff.label) out.push("   - (무엇을 넘기는지 적혀 있지 않아요.)");
 		});
-		out.push("");
+		out.push("", `> ${FLOW_NOTE}`, "");
 	}
+	out.push("## 실행 반영 범위 (설계한 내용이 어디에 들어가나)", "", "| 항목 | 반영되는 곳 | 알아 둘 점 |", "| --- | --- | --- |");
+	for (const row of reflectionScope(recipe, providers)) out.push(`| ${row.item} | ${cell(row.where)} | ${cell(row.note)} |`);
+	out.push("");
+	const outputs = deliverableSummary(recipe, true);
+	if (outputs || success.length > 0) {
+		out.push("## 예상 결과 형식", "", "첫 프롬프트는 마지막에 결과를 이렇게 정리하라고 요청합니다.", "");
+		if (outputs) out.push(`- 역할별 산출물: ${outputs}`);
+		if (success.length > 0) out.push("- 성공 조건을 하나씩 확인한 결과");
+		out.push("- 확인하지 못한 것과 남은 문제", "");
+	}
+	out.push("## 확인 기록", "");
+	const records = recipe.verification ?? [];
+	if (records.length === 0) out.push("- 확인 기록이 없습니다. 이 레시피는 실제 도구에서 실행해 확인된 적이 없습니다.");
+	for (const record of records) {
+		const detail = verificationDetail(record);
+		out.push(`- ${verificationLine(record)}${detail ? ` (${detail})` : ""}`);
+		out.push(`  - ${record.note ?? KIND_HINTS[record.kind]}`);
+	}
+	out.push("", "> \"문서 확인\"과 \"파일 생성 확인\"은 실제로 실행해 본 것이 아닙니다. 직접 돌려 본 뒤 결과를 teamcook 편집 화면의 확인 기록에 적어 두세요.", "");
 	if (plans && style !== "debate") {
 		const resolved = resolveRecipe(recipe, plans, providers);
 		out.push("## 내 플랜 기준 실행 경로 (내보낸 시점)", "", `${resolved.summary}`, "");
@@ -16823,7 +17159,7 @@ function buildRecipeMd(recipe, providers, plans) {
 			if (resolution.alternative) out.push(`  - ${resolution.alternative.reason}`);
 		}
 		if (resolved.styleLock) out.push("", `> 🔒 ${resolved.styleLock.reason} ${resolved.styleLock.suggestion}`);
-		out.push("", "> 다른 사람은 플랜이 달라 경로가 다를 수 있어요.", "");
+		out.push("", `> ${PLAN_FIT_NOTE} 다른 사람은 플랜이 달라 경로가 다를 수 있어요.`, "");
 	}
 	if (style === "agent-team") {
 		out.push(...agentTeamSections(recipe));
@@ -16833,7 +17169,7 @@ function buildRecipeMd(recipe, providers, plans) {
 		out.push(...debateSections(recipe));
 		return out.join("\n");
 	}
-	out.push("## 설치 (1분)", "", "1. 이 폴더 안의 `.codex` 폴더와 `.claude` 폴더를 **내 프로젝트 폴더 맨 위**에 복사합니다.", "   - 점(.)으로 시작하는 폴더는 숨김 폴더라 안 보일 수 있어요. (Windows 탐색기: 보기 → 숨긴 항목 / macOS Finder: Cmd+Shift+.)", "   - 이미 `.codex/config.toml`이 있다면 덮어쓰지 말고, 이 파일의 `[agents]` 부분만 옮겨 적으세요.", "2. 두 도구 모두에서 팀 전체를 쓸 수 있게, 모든 에이전트를 Codex 형식(`.codex/agents/*.toml`)과 Claude Code 형식(`.claude/agents/*.md`)으로 둘 다 넣어 두었습니다. 쓰지 않는 쪽 폴더는 지워도 됩니다.", ...engines.includes("antigravity-cli") ? ["3. Antigravity를 쓴다면 `.agents` 폴더도 같은 곳에 복사합니다. (`.agents/agents/*.md`, 실행: `agy`)"] : [], ...engines.includes("grok-build") ? ["3. Grok Build를 쓴다면 `.grok` 폴더도 같은 곳에 복사합니다. (`.grok/agents/*.md`, 실행: `grok`, 에이전트 목록: `/agents`)"] : [], "", "## 실행 방법", "", "### 터미널에서 Codex로", "", "```bash", "cd 내-프로젝트-폴더", hasReadOnly ? "codex            # 검토·조사만 할 때는: codex --sandbox read-only" : "codex", "```", "", `확인: \`${recipe.cards[0]?.name ?? "reviewer"} 에이전트에게 이 프로젝트를 한 줄로 요약하게 해 줘\` 라고 입력해 보세요. 실행 중인 에이전트는 \`/subagents\`로 볼 수 있습니다.`, "", "### 터미널에서 Claude Code로", "", "```bash", "cd 내-프로젝트-폴더", "claude", "```", "", `확인: \`어떤 서브에이전트가 있어?\` 라고 물어보세요. 특정 에이전트를 콕 집어 부르려면 \`@agent-${recipe.cards[0]?.name ?? "reviewer"}\` 처럼 씁니다.`, "(`.claude/agents` 폴더를 처음 만든 경우에는 Claude Code를 한 번 껐다 켜야 보입니다.)", "", "### T3 Code · 1Code에서", "", "두 도구는 내 PC에 설치된 Codex·Claude Code를 대신 실행해 주는 화면입니다. 위처럼 파일을 프로젝트 폴더에 넣은 뒤 그 폴더를 프로젝트로 열면 됩니다.", "채팅마다 별도의 git 작업 폴더(worktree)를 만드는 도구에서는, **`.codex`와 `.claude` 폴더를 git에 커밋해 두어야** 에이전트가 보입니다.", "", "### 첫 프롬프트 예시", "", "```text", starterPrompt(recipe), "```", "");
+	out.push("## 설치 (1분)", "", "1. 이 폴더 안의 `.codex` 폴더와 `.claude` 폴더를 **내 프로젝트 폴더 맨 위**에 복사합니다.", "   - 점(.)으로 시작하는 폴더는 숨김 폴더라 안 보일 수 있어요. (Windows 탐색기: 보기 → 숨긴 항목 / macOS Finder: Cmd+Shift+.)", "   - 이미 `.codex/config.toml`이 있다면 덮어쓰지 말고, 이 파일의 `[agents]` 부분만 옮겨 적으세요.", "2. 두 도구 모두에서 팀 전체를 쓸 수 있게, 모든 에이전트를 Codex 형식(`.codex/agents/*.toml`)과 Claude Code 형식(`.claude/agents/*.md`)으로 둘 다 넣어 두었습니다. 쓰지 않는 쪽 폴더는 지워도 됩니다.", ...engines.includes("antigravity-cli") ? ["3. Antigravity를 쓴다면 `.agents` 폴더도 같은 곳에 복사합니다. (`.agents/agents/*.md`, 실행: `agy`)"] : [], ...engines.includes("grok-build") ? ["3. Grok Build를 쓴다면 `.grok` 폴더도 같은 곳에 복사합니다. (`.grok/agents/*.md`, 실행: `grok`, 에이전트 목록: `/agents`)"] : [], "", "## 실행 방법", "", "### 터미널에서 Codex로", "", "```bash", "cd 내-프로젝트-폴더", hasReadOnly ? "codex            # 검토·조사만 할 때는: codex --sandbox read-only" : "codex", "```", "", `확인: \`${recipe.cards[0]?.name ?? "reviewer"} 에이전트에게 이 프로젝트를 한 줄로 요약하게 해 줘\` 라고 입력해 보세요. 실행 중인 에이전트는 \`/subagents\`로 볼 수 있습니다.`, "", "### 터미널에서 Claude Code로", "", "```bash", "cd 내-프로젝트-폴더", "claude", "```", "", `확인: \`어떤 서브에이전트가 있어?\` 라고 물어보세요. 특정 에이전트를 콕 집어 부르려면 \`@agent-${recipe.cards[0]?.name ?? "reviewer"}\` 처럼 씁니다.`, "(`.claude/agents` 폴더를 처음 만든 경우에는 Claude Code를 한 번 껐다 켜야 보입니다.)", "", "### 에이전트가 안 보일 때", "", "- `.codex`와 `.claude` 폴더가 프로젝트 폴더 **맨 위**에 있는지 확인합니다 (하위 폴더에 넣으면 안 보입니다).", "- 도구를 그 프로젝트 폴더에서 실행했는지 확인하고, 파일을 넣은 뒤 도구를 한 번 껐다 켭니다.", "- 파일 이름과 확장자(`.toml`, `.md`)가 바뀌지 않았는지 확인합니다.", "- 도구에 로그인돼 있는지 확인합니다.", "", "### T3 Code · 1Code에서", "", "두 도구는 내 PC에 설치된 Codex·Claude Code를 대신 실행해 주는 화면입니다. 위처럼 파일을 프로젝트 폴더에 넣은 뒤 그 폴더를 프로젝트로 열면 됩니다.", "채팅마다 별도의 git 작업 폴더(worktree)를 만드는 도구에서는, **`.codex`와 `.claude` 폴더를 git에 커밋해 두어야** 에이전트가 보입니다.", "", "### 첫 프롬프트 예시", "", "```text", starterPrompt(recipe), "```", "");
 	if (recipe.howToRun) out.push("만든 사람의 실행 팁:", "", `> ${recipe.howToRun.replace(/\r?\n/g, "\n> ")}`, "");
 	out.push("## 알아 둘 점", "", "- **Codex의 읽기 전용:** Codex는 에이전트 파일만으로는 읽기 전용을 강제할 수 없습니다(서브에이전트는 메인 세션의 권한을 물려받음). 그래서 읽기 전용 에이전트의 지시문 끝에 \"수정하지 마라\"는 문장을 넣어 두었습니다. 확실히 막으려면 `codex --sandbox read-only`로 실행하세요.", "- **Claude Code의 읽기 전용:** `tools` 목록을 읽기 도구(Read, Grep, Glob)로 제한해 두었습니다.", "- **검토 결과는 주장입니다:** 다른 모델의 지적도 틀릴 수 있습니다. 작성자가 확인한 뒤 맞는 것만 반영하세요.", "- **다시 고치려면:** `recipe.json`을 teamcook 사이트에서 불러오면 이 팀을 그대로 편집할 수 있습니다.", "");
 	return out.join("\n");
@@ -17407,6 +17743,27 @@ var COLLABORATIONS = [
 	"debate"
 ];
 var DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+var KINDS = [
+	"docs",
+	"file",
+	"run",
+	"unclassified"
+];
+var RESULTS = [
+	"success",
+	"failure",
+	"n/a"
+];
+var SOURCES = [
+	"user",
+	"auto",
+	"author",
+	"unknown"
+];
+/** 옛 형식(v1)의 확인 날짜를 옮긴 기록의 id. 고정이라 두 번 옮겨도 하나만 생긴다. */
+var LEGACY_VERIFICATION_ID = "legacy-date";
+var MAX_ITEMS = 30;
+var MAX_LINE = 1e3;
 var MAX_CARDS = 30;
 var MAX_HANDOFFS = 100;
 var MAX_SHORT = 300;
@@ -17421,6 +17778,64 @@ function stringList(value, maxItems) {
 	if (!Array.isArray(value)) return void 0;
 	const list = value.filter((item) => typeof item === "string").slice(0, maxItems).map((item) => item.slice(0, MAX_SHORT));
 	return list.length > 0 ? list : void 0;
+}
+/** 여러 줄 목록 (성공 조건, 완료 기준 등). 빈 줄은 버린다. */
+function lineList(value) {
+	if (!Array.isArray(value)) return void 0;
+	const list = value.filter((item) => typeof item === "string").map((item) => item.slice(0, MAX_LINE)).filter((item) => item.trim() !== "").slice(0, MAX_ITEMS);
+	return list.length > 0 ? list : void 0;
+}
+function parseDeliverables(value) {
+	if (!Array.isArray(value)) return void 0;
+	const used = /* @__PURE__ */ new Set();
+	const list = [];
+	for (const item of value.slice(0, MAX_ITEMS)) {
+		if (!isObject(item)) continue;
+		const name = text(item.name, MAX_SHORT);
+		if (name.trim() === "") continue;
+		let id = text(item.id, MAX_SHORT);
+		if (!id || used.has(id)) id = newId("out");
+		used.add(id);
+		const deliverable = {
+			id,
+			name
+		};
+		const description = text(item.description, MAX_LINE);
+		if (description) deliverable.description = description;
+		list.push(deliverable);
+	}
+	return list.length > 0 ? list : void 0;
+}
+function parseVerification(value) {
+	if (!Array.isArray(value)) return [];
+	const used = /* @__PURE__ */ new Set();
+	const list = [];
+	for (const item of value.slice(0, MAX_ITEMS)) {
+		if (!isObject(item)) continue;
+		if (typeof item.checkedAt !== "string" || !DATE_PATTERN.test(item.checkedAt)) continue;
+		let id = text(item.id, MAX_SHORT);
+		if (!id || used.has(id)) id = newId("check");
+		used.add(id);
+		const record = {
+			id,
+			kind: KINDS.includes(item.kind) ? item.kind : "unclassified",
+			checkedAt: item.checkedAt,
+			result: RESULTS.includes(item.result) ? item.result : "n/a",
+			source: SOURCES.includes(item.source) ? item.source : "unknown"
+		};
+		for (const key of [
+			"tool",
+			"toolVersion",
+			"environment"
+		]) {
+			const field = text(item[key], MAX_SHORT);
+			if (field) record[key] = field;
+		}
+		const note = text(item.note, MAX_LINE);
+		if (note) record.note = note;
+		list.push(record);
+	}
+	return list;
 }
 function wholeNumber(value, fallback, min, max) {
 	if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
@@ -17457,19 +17872,31 @@ function parseCard(value, usedIds) {
 	if (tools) card.tools = tools;
 	const tags = stringList(value.tags, 10);
 	if (tags) card.tags = tags;
+	const requiredInputs = lineList(value.requiredInputs);
+	if (requiredInputs) card.requiredInputs = requiredInputs;
+	const deliverables = parseDeliverables(value.deliverables);
+	if (deliverables) card.deliverables = deliverables;
+	const completionCriteria = lineList(value.completionCriteria);
+	if (completionCriteria) card.completionCriteria = completionCriteria;
+	const boundaries = lineList(value.boundaries);
+	if (boundaries) card.boundaries = boundaries;
 	const extra = parseExtra(value.extra);
 	if (extra) card.extra = extra;
 	return card;
 }
 /**
 * 알 수 없는 값을 Recipe로 바꾼다. 형식이 맞지 않으면 RecipeFormatError를 던진다.
-* 공유 링크 하위 호환: 새 schemaVersion을 만들면 여기에 "옛 버전 → 새 버전" 변환을 추가한다.
+*
+* 하위 호환 (옛 버전 → 지금 버전). 여러 번 적용해도 결과가 같다.
+* - v1 → v2: 확인 날짜(lastVerified)를 '확인 방식 미기록' 기록 하나로 옮긴다. 날짜는 그대로 두고,
+*   실제 실행에 성공했다는 기록으로 올리지 않는다. 새로 생긴 항목(학습 목표, 산출물 등)은 비워 둔다.
+* - 더 새로운 버전은 읽지 않고 거절한다 (모르는 항목을 조용히 버리지 않으려고).
 */
 function parseRecipe(raw) {
 	if (!isObject(raw)) throw new RecipeFormatError("레시피 데이터가 아니에요.");
 	const version = raw.schemaVersion;
 	if (typeof version !== "number") throw new RecipeFormatError("레시피 형식 버전(schemaVersion)이 없어요.");
-	if (version > 1) throw new RecipeFormatError("이 레시피는 더 새로운 버전에서 만들어졌어요. 페이지를 새로고침한 뒤 다시 열어 보세요.");
+	if (version > 2) throw new RecipeFormatError("이 레시피는 더 새로운 버전에서 만들어졌어요. 페이지를 새로고침한 뒤 다시 열어 보세요.");
 	if (version < 1) throw new RecipeFormatError("알 수 없는 레시피 형식 버전이에요.");
 	if (!Array.isArray(raw.cards)) throw new RecipeFormatError("레시피에 카드 목록이 없어요.");
 	const usedIds = /* @__PURE__ */ new Set();
@@ -17487,11 +17914,13 @@ function parseRecipe(raw) {
 		};
 		const label = text(item.label, MAX_SHORT);
 		if (label) handoff.label = label;
+		const deliverableIds = stringList(item.deliverableIds, MAX_ITEMS);
+		if (deliverableIds) handoff.deliverableIds = deliverableIds;
 		handoffs.push(handoff);
 	}
 	const settings = isObject(raw.settings) ? raw.settings : {};
 	const recipe = {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		id: text(raw.id, MAX_SHORT) || newId("recipe"),
 		title: text(raw.title, MAX_SHORT).trim() || "이름 없는 레시피",
 		summary: text(raw.summary, MAX_LONG),
@@ -17504,7 +17933,23 @@ function parseRecipe(raw) {
 		}
 	};
 	if (raw.collaboration !== void 0) recipe.collaboration = COLLABORATIONS.includes(raw.collaboration) ? raw.collaboration : "subagents";
-	if (typeof raw.lastVerified === "string" && DATE_PATTERN.test(raw.lastVerified)) recipe.lastVerified = raw.lastVerified;
+	const learningObjective = text(raw.learningObjective, MAX_LINE);
+	if (learningObjective) recipe.learningObjective = learningObjective;
+	const sampleTask = text(raw.sampleTask, MAX_LONG);
+	if (sampleTask) recipe.sampleTask = sampleTask;
+	const successCriteria = lineList(raw.successCriteria);
+	if (successCriteria) recipe.successCriteria = successCriteria;
+	const prerequisites = lineList(raw.prerequisites);
+	if (prerequisites) recipe.prerequisites = prerequisites;
+	const verification = parseVerification(raw.verification);
+	if (typeof raw.lastVerified === "string" && DATE_PATTERN.test(raw.lastVerified) && !verification.some((record) => record.id === "legacy-date")) verification.push({
+		id: LEGACY_VERIFICATION_ID,
+		kind: "unclassified",
+		checkedAt: raw.lastVerified,
+		result: "n/a",
+		source: "unknown"
+	});
+	if (verification.length > 0) recipe.verification = verification;
 	const author = text(raw.author, MAX_SHORT);
 	if (author) recipe.author = author;
 	const howToRun = text(raw.howToRun, MAX_LONG);

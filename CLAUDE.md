@@ -35,12 +35,13 @@ src/
 ├─ data/
 │  ├─ providers.json       # 요금제·무료 범위·엔진 정보 (여기만 고치면 됨, 확인 날짜·출처 필수)
 │  ├─ providers.ts         # providers.json을 타입과 함께 내보냄
-│  ├─ recipes.ts           # 기본 레시피 20종의 목록 (앞의 5종이 여기 있음. 순서 바꾸지 말 것, 새 것은 뒤에)
-│  ├─ moreRecipes.ts       # 추가 레시피 15종(짧게 적는 make 도우미)과 첫 화면의 상황별 묶음 SHELVES. 레시피를 더하면 SHELVES에도 넣는다
+│  ├─ recipes.ts           # 기본 레시피 21종의 목록 (앞의 5종이 여기 있음. 순서 바꾸지 말 것, 새 것은 뒤에)
+│  ├─ moreRecipes.ts       # 추가 레시피 16종(짧게 적는 make 도우미)과 첫 화면의 상황별 묶음 SHELVES. 레시피를 더하면 SHELVES에도 넣는다
+│  ├─ recipeDetails.ts     # 기본 레시피의 학습 목표·성공 조건·역할별 산출물·완료 기준·확인 기록 (레시피를 더하면 여기도 채운다)
 │  ├─ collaboration.ts     # 조리법(협업 방식: 서브에이전트·에이전트 팀·토론형) 문구, 공식 문서 확인 기록, 에이전트 팀 설정
 │  ├─ cardTemplates.ts     # 카드 추가용 역할별 틀
 │  └─ tips.ts              # 꿀팁과 카드 경고
-├─ converters/             # 형식 변환은 전부 여기에만 (codex.ts, claude.ts, markdownAgents.ts = Antigravity·Grok)
+├─ converters/             # 형식 변환은 전부 여기에만 (codex.ts, claude.ts, markdownAgents.ts = Antigravity·Grok, instructions.ts = 지시문에 산출물·완료 기준 덧붙이기)
 ├─ lib/
 │  ├─ resolvePath.ts       # 실행 경로 해석기 (①~④, 🔒, 대안)
 │  ├─ requiredPlans.ts     # '필요한 플랜' 배지, fitsMyPlans
@@ -49,6 +50,9 @@ src/
 │  ├─ router.ts            # hash 기반 화면 전환
 │  ├─ recipeMd.ts          # RECIPE.md 생성
 │  ├─ exportZip.ts         # zip 내보내기
+│  ├─ exportCheck.ts       # 내보내기 전 점검 (수정 필요·확인 필요·참고). 화면과 ZIP 생성이 함께 쓴다
+│  ├─ support.ts           # 도구·조리법이 실제로 해 주는 것: 권한을 지키는 수단, 실행 반영 범위 (설명은 여기에만 적는다)
+│  ├─ verification.ts      # 확인 기록 이름표 (문서 확인 / 파일 생성 확인 / 실제 실행 확인)
 │  ├─ optimize.ts          # 구독 최적화 제안
 │  └─ bridge.ts            # Claude Code → Codex 연결(codex exec)
 ├─ cli/                    # 설치 명령 (node teamcook.mjs add <링크>). 빌드 결과는 루트의 cli/teamcook.mjs — 사용자가 이 파일을 GitHub에서 직접 받아 쓰므로 반드시 다시 빌드해 커밋
@@ -70,9 +74,11 @@ design/                    # 디자인 시안 (브라우저로 여는 HTML)과 �
 - 요금제·설정 형식 사실은 공식 문서로 확인하고, `providers.json`에 확인 날짜와 URL을 적는다.
 - `~/.codex/auth.json`, `~/.claude` 안의 인증 파일은 읽지도 쓰지도 않는다.
 - 전역 설치나 시스템 설정 변경은 실행 전에 사용자에게 묻는다.
-- 공유 링크는 하위 호환을 지킨다 (`schemaVersion` 필수, 옛 버전 읽기 코드 유지).
+- 공유 링크는 하위 호환을 지킨다 (`schemaVersion` 필수, 옛 버전 읽기 코드 유지). 지금 버전은 2이고, 옛 형식을 바꾸는 규칙은 `lib/recipeSchema.ts`의 `parseRecipe`에만 둔다.
+- "설계한 것, 파일에 반영한 것, 실제로 실행해 확인한 것"을 섞지 않는다. 실행해 보지 않은 것을 "확인됨"이나 "지원"으로 적지 않는다. 확인 기록은 종류(문서·파일 생성·실제 실행)를 나눠 적는다.
 - 레시피의 조리법은 `recipe.collaboration`을 직접 읽지 말고 `collaborationOf(recipe)`로 읽는다 (없으면 서브에이전트).
 - 디자인은 "레시피 카드" 방향이다 (`HANDOFF.md`의 '디자인 방향'). 색·모서리·글꼴은 `src/index.css`에서만 고친다. 포인트 색은 토마토 빨강 하나, 보라색은 쓰지 않는다. 움직임은 절제한다(랜딩페이지식 화려한 효과 금지). 확인 날짜는 강조하지 않는다.
+- 화면은 사용자 친화적으로: 한 화면에 한 가지 일, 꼭 필요한 칸만 먼저 보이고 선택 항목은 접는다. 같은 안내를 되풀이하지 않는다. 내보내기를 막는 것은 파일이 깨지는 경우뿐이고, 나머지는 "채우면 더 좋아요"로만 알린다.
 - 단계가 끝날 때마다 `HANDOFF.md`를 갱신한다.
 
 ## 자주 쓰는 명령
@@ -89,4 +95,4 @@ npm run build:cli  # 설치 명령 묶음 (cli/teamcook.mjs). src/cli나 변환�
 
 ## 현재 단계
 
-(2026-11-16 기준) 0~5단계 완료(배포: https://teamcook-eta.vercel.app/, 저장소: fun5307/teamcook). 6·7단계 중 계정·API 키 없이 가능한 것(Antigravity·Grok 어댑터, 구독 최적화, 검색, Codex 연결 다리, 설치 명령)도 완료. 남은 것과 이유는 `HANDOFF.md`의 '6·7단계 현황'. 조리법(협업 방식)과 확인 날짜 표시도 추가 완료(`BRIEF_collaboration-styles.md`, `HANDOFF.md`의 '조리법 현황'). 에이전트 팀이 실제 Claude Code에서 시작되는지는 사용자 확인 대기.
+(2026-11-16 기준) 0~5단계 완료(배포: https://teamcook-eta.vercel.app/, 저장소: fun5307/teamcook). 6·7단계 중 계정·API 키 없이 가능한 것(Antigravity·Grok 어댑터, 구독 최적화, 검색, Codex 연결 다리, 설치 명령)도 완료. 남은 것과 이유는 `HANDOFF.md`의 '6·7단계 현황'. 조리법(협업 방식)과 확인 날짜 표시도 추가 완료(`BRIEF_collaboration-styles.md`, `HANDOFF.md`의 '조리법 현황'). 에이전트 팀이 실제 Claude Code에서 시작되는지는 사용자 확인 대기. 1차 개선(학습 목표·역할별 산출물·전달 정보·내보내기 점검·파일 미리보기, `teamcook-phase1-agent-prompt.md`)도 구현 완료이며 기록은 `HANDOFF.md`의 '1차 개선'에 있다.

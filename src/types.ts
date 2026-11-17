@@ -45,6 +45,13 @@ export interface CardExtra {
   [key: string]: unknown;
 }
 
+/** 역할이 끝날 때 내놓아야 하는 산출물. id는 이름을 바꿔도 그대로다 (넘겨주기가 id로 가리킨다). */
+export interface Deliverable {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 /** 에이전트 카드 */
 export interface AgentCard {
   id: string;
@@ -64,6 +71,14 @@ export interface AgentCard {
   tools?: string[];
   /** 'writer' | 'reviewer' | 'researcher' 등 (RoleTag 권장) */
   tags?: string[];
+  /** 이 역할이 일을 시작하려면 받아야 하는 것 */
+  requiredInputs?: string[];
+  /** 끝날 때 반드시 내놓는 것 (내보내려면 1개 이상) */
+  deliverables?: Deliverable[];
+  /** 끝났다고 볼 수 있는 조건 (내보내려면 1개 이상) */
+  completionCriteria?: string[];
+  /** 하지 않을 일, 고치지 않을 범위 */
+  boundaries?: string[];
   extra?: CardExtra;
 }
 
@@ -74,8 +89,34 @@ export interface Handoff {
   from: string;
   /** AgentCard.id */
   to: string;
-  /** 예: '초안 전달', '검토 결과' */
+  /** 추가 전달 설명. 예: '초안 전달', '검토 결과' */
   label?: string;
+  /** 넘기는 산출물 (보내는 카드의 Deliverable.id). 지워진 산출물을 가리키면 '재선택 필요'다. */
+  deliverableIds?: string[];
+}
+
+/**
+ * 확인 기록의 종류.
+ * - docs: 공식 문서로 확인 / file: 설정 파일이 만들어지는 것을 확인 / run: 실제 도구에서 실행해 확인
+ * - unclassified: 예전 형식의 날짜만 있어 무엇을 확인했는지 모름
+ */
+export type VerificationKind = 'docs' | 'file' | 'run' | 'unclassified';
+export type VerificationResult = 'success' | 'failure' | 'n/a';
+/** 기록 출처. user: 사용자가 적음 / auto: 자동 점검(테스트) / author: 레시피를 만든 쪽 / unknown: 모름 */
+export type VerificationSource = 'user' | 'auto' | 'author' | 'unknown';
+
+/** 확인 기록 한 건. 없는 정보는 비워 둔다 (짐작해서 채우지 않는다). */
+export interface VerificationRecord {
+  id: string;
+  kind: VerificationKind;
+  /** YYYY-MM-DD */
+  checkedAt: string;
+  result: VerificationResult;
+  source: VerificationSource;
+  tool?: string;
+  toolVersion?: string;
+  environment?: string;
+  note?: string;
 }
 
 /**
@@ -86,8 +127,12 @@ export interface Handoff {
  */
 export type Collaboration = 'subagents' | 'agent-team' | 'debate';
 
-/** 공유 링크 형식 버전. 구조를 바꾸면 올리고, 옛 버전을 읽는 코드는 남긴다. */
-export const RECIPE_SCHEMA_VERSION = 1 as const;
+/**
+ * 공유 링크·저장 형식 버전. 구조를 바꾸면 올리고, 옛 버전을 읽는 코드는 남긴다 (lib/recipeSchema.ts).
+ * - 1: 처음 형식. 확인 날짜를 lastVerified 하나로 적었다.
+ * - 2: 학습 목표·성공 조건·역할별 산출물·전달 정보 추가. lastVerified는 verification 기록으로 옮겼다.
+ */
+export const RECIPE_SCHEMA_VERSION = 2 as const;
 
 /** 레시피 = 공유 가능한 팀 (서비스의 중심 데이터) */
 export interface Recipe {
@@ -102,8 +147,16 @@ export interface Recipe {
   author?: string;
   /** 조리법(협업 방식). 없으면 'subagents'로 본다. 선택 필드라 schemaVersion은 1 그대로다. */
   collaboration?: Collaboration;
-  /** 이 레시피가 실제로 돌아가는 것을 마지막으로 확인한 날 (YYYY-MM-DD) */
-  lastVerified?: string;
+  /** 이 레시피로 무엇을 익히는지 (내보내려면 필수) */
+  learningObjective?: string;
+  /** 처음 넣어 볼 과제의 예 */
+  sampleTask?: string;
+  /** 실습이 성공했다고 볼 조건 (내보내려면 1개 이상) */
+  successCriteria?: string[];
+  /** 시작 전에 갖춰야 할 것 */
+  prerequisites?: string[];
+  /** 확인 기록. 문서 확인, 파일 생성 확인, 실제 실행 확인을 구분한다. */
+  verification?: VerificationRecord[];
   cards: AgentCard[];
   handoffs: Handoff[];
   settings: {

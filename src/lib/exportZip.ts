@@ -15,6 +15,7 @@ import { cardToAntigravityMd, cardToGrokMd } from '../converters/markdownAgents'
 import { AGENT_TEAMS_SETTINGS_JSON, collaborationOf } from '../data/collaboration';
 import { codexBridgeMd, needsCodexBridge } from './bridge';
 import type { ProviderData, Recipe, UserPlans } from '../types';
+import { type ExportIssue, checkRecipe, isBlocked } from './exportCheck';
 import { buildRecipeMd, debatePrompt, exportEngines } from './recipeMd';
 
 export interface ExportOptions {
@@ -101,17 +102,89 @@ export function buildRecipeFiles(
   return files;
 }
 
-/** 레시피 zip을 만든다. 브라우저에서는 new Blob([결과])로 내려받는다. */
+/** 내보낼 파일 하나: 경로, 이 파일이 하는 일, 내용 */
+export interface ExportFile {
+  /** zip 안의 경로에서 맨 앞 폴더(<레시피 이름>/)를 뗀 것. 예: '.claude/agents/writer.md' */
+  path: string;
+  /** 사용자에게 보여 줄 파일의 역할 */
+  purpose: string;
+  content: string;
+  /** 이미 같은 파일이 있으면 덮어쓰지 말고 합쳐야 하는 파일인지 */
+  mergeNeeded: boolean;
+}
+
+/** 점검 결과와 파일을 한 번에 만든 묶음. 미리보기와 ZIP이 같은 묶음을 쓴다. */
+export interface ExportBundle {
+  /** zip 안의 맨 앞 폴더 이름 */
+  root: string;
+  files: ExportFile[];
+  issues: ExportIssue[];
+  /** '수정 필요' 항목이 있어 다운로드를 막아야 하는지 */
+  blocked: boolean;
+}
+
+/** 파일 경로로 그 파일이 하는 일을 설명한다. */
+export function filePurpose(path: string, content = ''): string {
+  if (path === 'RECIPE.md') return '설명서: 준비, 적용 위치, 첫 실행, 확인 방법';
+  if (path === 'recipe.json') return '원본 레시피: teamcook에서 다시 불러와 고칠 때 씁니다';
+  if (path === 'debate-prompt.txt') return '붙여 넣을 토론 프롬프트';
+  if (path === '.codex/config.toml') return 'Codex 설정: 동시에 돌릴 에이전트 수 (이미 있으면 합치기)';
+  if (path === '.claude/settings.json') return 'Claude Code 설정: 에이전트 팀 켜기 (이미 있으면 합치기)';
+  if (path.startsWith('.codex/agents/')) return 'Codex용 역할 정의';
+  if (path.startsWith('.claude/agents/')) {
+    return content.includes('"bridge":"codex-exec"')
+      ? 'Claude Code용 역할 정의 (Codex에게 일을 넘기는 다리)'
+      : 'Claude Code용 역할 정의';
+  }
+  if (path.startsWith('.agents/agents/')) return 'Antigravity용 역할 정의';
+  if (path.startsWith('.grok/agents/')) return 'Grok Build용 역할 정의';
+  return '기타';
+}
+
+const MERGE_FILES = ['.codex/config.toml', '.claude/settings.json'];
+
+/** 점검과 파일 생성을 한 번에 한다. 화면의 미리보기와 ZIP 다운로드가 이 결과 하나를 함께 쓴다. */
+export function buildExportBundle(
+  recipe: Recipe,
+  providers: ProviderData,
+  options: ExportOptions = {},
+): ExportBundle {
+  const issues = checkRecipe(recipe, providers);
+  const root = safeName(recipe.title, 'recipe');
+  const files: ExportFile[] = Object.entries(buildRecipeFiles(recipe, providers, options)).map(
+    ([fullPath, content]) => {
+      const path = fullPath.slice(fullPath.indexOf('/') + 1);
+      return { path, purpose: filePurpose(path, content), content, mergeNeeded: MERGE_FILES.includes(path) };
+    },
+  );
+  return { root, files, issues, blocked: isBlocked(issues) };
+}
+
+/** '수정 필요' 항목이 남아 있어 ZIP을 만들 수 없을 때 던진다. */
+export class ExportBlockedError extends Error {
+  issues: ExportIssue[];
+  constructor(issues: ExportIssue[]) {
+    super('고쳐야 할 항목이 남아 있어서 내보낼 수 없어요.');
+    this.name = 'ExportBlockedError';
+    this.issues = issues.filter((issue) => issue.level === 'error');
+  }
+}
+
+/** 묶음을 zip으로 만든다. '수정 필요' 항목이 있으면 만들지 않고 ExportBlockedError를 던진다. */
+export async function zipBundle(bundle: ExportBundle): Promise<Uint8Array> {
+  if (bundle.blocked) throw new ExportBlockedError(bundle.issues);
+  const zip = new JSZip();
+  for (const file of bundle.files) zip.file(`${bundle.root}/${file.path}`, file.content);
+  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+}
+
+/** 레시피 zip을 만든다 (점검 → 파일 생성 → 압축). 브라우저에서는 new Blob([결과])로 내려받는다. */
 export async function buildRecipeZip(
   recipe: Recipe,
   providers: ProviderData,
   options: ExportOptions = {},
 ): Promise<Uint8Array> {
-  const zip = new JSZip();
-  for (const [path, content] of Object.entries(buildRecipeFiles(recipe, providers, options))) {
-    zip.file(path, content);
-  }
-  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+  return zipBundle(buildExportBundle(recipe, providers, options));
 }
 
 /** 내려받을 zip 파일 이름 */

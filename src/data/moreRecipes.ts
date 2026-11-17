@@ -1,6 +1,6 @@
-// 기본 레시피 추가분 15종과, 첫 화면의 '상황별 묶음'.
+// 기본 레시피 추가분 16종과, 첫 화면의 '상황별 묶음'.
 // 주의: 여기 레시피는 설정 형식만 맞춘 것이고 실제 도구에서 돌려 확인하지는 않았다.
-// 그래서 lastVerified(확인한 날)를 적지 않는다. 직접 확인한 뒤에 날짜를 넣는다.
+// 학습 목표·산출물·완료 기준·확인 기록은 recipeDetails.ts에서 입힌다.
 
 import type { AgentCard, EngineId, Permission, Recipe } from '../types';
 
@@ -48,7 +48,7 @@ function make(spec: Spec): Recipe {
     return card;
   });
   const recipe: Recipe = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: spec.id,
     title: spec.title,
     summary: spec.summary,
@@ -289,6 +289,21 @@ export const moreRecipes: Recipe[] = [
     flow: [['chair', 'simple_side', '결정할 것과 제약'], ['simple_side', 'future_side', '단순한 방안'], ['future_side', 'operator', '확장 방안'], ['operator', 'chair', '운영 부담']],
     howToRun: '"주제:" 줄에 만들려는 것과 고민되는 선택지를 적어 주세요. 팀 규모와 일정도 함께 적으면 결론이 현실적이 됩니다.',
   }),
+  make({
+    id: 'builtin-graphrag-feasibility',
+    title: 'GraphRAG 주제 3개 타당성 검토',
+    summary: '설계 예제입니다(실제로 실행해 보지 않았습니다). GraphRAG로 만들 주제 후보 3개를 놓고, 데이터를 구할 수 있는지와 쓸 사람이 있는지를 따로 조사한 뒤, 비판적 검토 담당이 근거가 약한 곳과 남은 문제를 짚습니다.',
+    useCase: '주제 선정 전 타당성 검토',
+    engine: 'claude-code',
+    web: ['data_scout', 'demand_scout'],
+    cards: [
+      ['data_scout', '데이터 조사', 'researcher', 'read-only', '주제별로 쓸 수 있는 데이터의 출처, 범위, 이용 조건, 확보 가능성을 조사할 때 사용.', ['너는 데이터 조사 담당이다.', '', '- 주제마다 데이터 출처를 찾고 범위와 이용 조건을 적는다.', '- "공개 데이터가 없다"와 "이번 검색에서 찾지 못했다"를 구분해서 쓴다.', `- ${HONEST}`, `- ${NO_EDIT}`]],
+      ['demand_scout', '수요 조사', 'researcher', 'read-only', '주제별로 누가 쓰는지, 어떤 문제를 푸는지, 이미 있는 서비스와 수요 근거를 조사할 때 사용.', ['너는 수요 조사 담당이다.', '', '- 주제마다 대상 사용자와 문제를 한 문장으로 적는다.', '- 이미 있는 서비스를 찾고, 수요의 근거를 출처와 함께 적는다.', '- 사실과 가설을 구분해서 쓴다.', `- ${NO_EDIT}`]],
+      ['critic', '비판적 검토', 'reviewer', 'read-only', '두 조사 결과에서 근거가 부족한 곳, 서로 충돌하는 결론, 더 확인할 것을 찾을 때 사용.', ['너는 비판적 검토 담당이다.', '', '- 데이터 조사와 수요 조사 결과를 모두 읽는다.', '- 근거가 부족한 주장, 두 조사의 결론이 충돌하는 곳을 짚는다.', '- 결론을 대신 내리지 않는다. 추가 확인 목록과 미해결 사항을 남긴다.', `- ${NO_EDIT}`]],
+    ],
+    flow: [['data_scout', 'critic', '데이터 조사 결과'], ['demand_scout', 'critic', '수요 조사 결과']],
+    howToRun: '첫 프롬프트의 "할 일"에 주제 후보 3개를 적어 주세요. 최종 정리는 메인 AI가 맡고, 주제별로 "확보 가능성 / 수요 근거 / 미해결 사항" 표로 정리하라고 프롬프트에 들어 있습니다. 어느 주제를 고를지는 사람이 정합니다.',
+  }),
 ];
 
 /** 첫 화면의 '상황별 묶음'. 한 레시피는 한 묶음에만 넣는다. */
@@ -324,7 +339,7 @@ export const SHELVES: Shelf[] = [
     id: 'research',
     label: '알아보기',
     hint: '자료 조사, 코드 파악, 데이터 분석',
-    recipeIds: ['builtin-research-team', 'builtin-codebase-tour', 'builtin-market-scan', 'builtin-data-check'],
+    recipeIds: ['builtin-research-team', 'builtin-graphrag-feasibility', 'builtin-codebase-tour', 'builtin-market-scan', 'builtin-data-check'],
   },
   {
     id: 'write',

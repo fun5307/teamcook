@@ -51,7 +51,7 @@ export function matchesQuery(recipe: Recipe, query: string): boolean {
 
 export function blankRecipe(cards: AgentCard[] = [], title = '새 레시피'): Recipe {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: newId('recipe'),
     title,
     summary: '',
@@ -74,10 +74,7 @@ export function plansSummary(plans: UserPlans): string {
   return parts.length > 0 ? parts.join(' · ') : '쓰는 AI가 없어요';
 }
 
-/** 카드에 보여 줄 '만드는 순서' 줄 수 */
-const MAX_STEPS = 3;
-
-/** 레시피 카드 한 장: 제목 → 재료(필요한 플랜) → 만드는 순서 */
+/** 레시피 카드 한 장: 고르는 데 필요한 것만 (제목, 설명, 필요한 플랜, 내 플랜으로 되는지). 나머지는 상세 화면에서 본다. */
 function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans; href: string }) {
   const required = requiredPlans(recipe, providerData);
   const fit = fitsMyPlans(recipe, plans, providerData);
@@ -91,19 +88,6 @@ function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans;
   const where = style === 'debate' ? '프롬프트만' : engines.map(engineName).join(' + ') || '카드 없음';
   const servings = style === 'debate' ? `${recipe.cards.length}역할` : `${recipe.cards.length}인분`;
 
-  // 만드는 순서: 넘겨주기 흐름이 있으면 그것을, 없으면 요리사 이름을 차례로 보여 준다
-  const byId = new Map(recipe.cards.map((card) => [card.id, card]));
-  const steps: { key: string; text: string; note?: string }[] = [];
-  for (const handoff of recipe.handoffs) {
-    const from = byId.get(handoff.from);
-    const to = byId.get(handoff.to);
-    if (!from || !to) continue;
-    steps.push({ key: handoff.id, text: `${from.displayName || from.name} → ${to.displayName || to.name}`, note: handoff.label });
-  }
-  if (steps.length === 0) {
-    for (const card of recipe.cards) steps.push({ key: card.id, text: card.displayName || card.name });
-  }
-  const moreSteps = steps.length - MAX_STEPS;
 
   return (
     <a
@@ -121,9 +105,10 @@ function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans;
           {recipe.title}
         </h3>
         <p className="line-clamp-3 text-sm text-pretty text-muted-foreground">
-          {recipe.summary || '설명이 아직 없어요.'}
+          {recipe.summary || recipe.learningObjective || '설명이 아직 없어요.'}
         </p>
       </div>
+
 
       <div>
         <h4 className="mb-1 text-xs font-bold text-primary">재료</h4>
@@ -143,26 +128,6 @@ function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans;
         )}
       </div>
 
-      {steps.length > 0 ? (
-        <div>
-          <h4 className="mb-1 text-xs font-bold text-primary">만드는 순서</h4>
-          <ol className="text-sm">
-            {steps.slice(0, MAX_STEPS).map((step, index) => (
-              <li key={step.key} className="grid grid-cols-[1.5rem_1fr] items-baseline py-0.5">
-                <span className="font-heading text-lg leading-tight font-extrabold text-primary tabular-nums">
-                  {index + 1}
-                </span>
-                <span>
-                  {step.text}
-                  {step.note ? <span className="text-muted-foreground"> · {step.note}</span> : null}
-                </span>
-              </li>
-            ))}
-          </ol>
-          {moreSteps > 0 ? <p className="mt-0.5 pl-6 text-xs text-muted-foreground">외 {moreSteps}단계</p> : null}
-        </div>
-      ) : null}
-
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3">
         <FitLabel fit={fit} />
         <span className="text-xs text-muted-foreground">{where}</span>
@@ -176,6 +141,7 @@ export function GalleryPage() {
   const plansConfirmed = useStore((state) => state.plansConfirmed);
   const myRecipes = useStore((state) => state.recipes);
   const saveRecipe = useStore((state) => state.saveRecipe);
+  const unreadable = useStore((state) => state.unreadable);
 
   const [filter, setFilter] = useState<Filter>('all');
   const [styleFilter, setStyleFilter] = useState<Collaboration | 'all'>('all');
@@ -235,7 +201,10 @@ export function GalleryPage() {
       const recipe = blankRecipe(cards, '불러온 팀');
       saveRecipe(recipe);
       lastRecipeId = recipe.id;
-      next.push({ tone: 'success', text: `에이전트 ${cards.length}개로 새 레시피를 만들었어요.` });
+      next.push({
+        tone: 'success',
+        text: `에이전트 ${cards.length}개로 새 레시피를 만들었어요. 지시문은 그대로 가져왔고, 파일에 없는 학습 목표·산출물·완료 기준은 비어 있으니 편집 화면에서 채워 주세요.`,
+      });
     }
     setMessages(next);
     if (fileInput.current) fileInput.current.value = '';
@@ -297,6 +266,13 @@ export function GalleryPage() {
             </Notice>
           ))}
         </div>
+      ) : null}
+
+      {unreadable.length > 0 ? (
+        <Notice tone="warn">
+          이 버전의 사이트가 읽지 못한 저장 레시피가 {unreadable.length}개 있어요. 더 새로운 형식일 수 있어서 지우지
+          않고 그대로 보관하고 있습니다. 페이지를 새로고침해 최신 버전으로 열면 다시 보일 수 있어요.
+        </Notice>
       ) : null}
 
       {myRecipes.length > 0 && !searching ? (

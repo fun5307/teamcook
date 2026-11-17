@@ -7,7 +7,8 @@ import { useMemo } from 'react';
 import { CopyPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Notice, PageHeader } from '@/components/common';
-import { ExportZipButton, ShareButton, cloneRecipe } from '@/components/RecipeActions';
+import { ExportPrepButton } from '@/components/ExportDialog';
+import { ShareButton, cloneRecipe } from '@/components/RecipeActions';
 import { RecipeOverview } from '@/components/RecipeOverview';
 import { builtinRecipes } from '@/data/recipes';
 import { navigate } from '@/lib/router';
@@ -58,7 +59,7 @@ export function BuiltinRecipePage({ id }: { id: string }) {
         actions={
           <>
             <ShareButton recipe={recipe} />
-            <ExportZipButton recipe={recipe} plans={plans} />
+            <ExportPrepButton recipe={recipe} plans={plans} />
             <ImportButton recipe={recipe} />
           </>
         }
@@ -91,7 +92,7 @@ export function SharedRecipePage({ encoded }: { encoded: string }) {
         description="공유받은 레시피 · 아직 내 레시피에 저장되지 않았어요."
         actions={
           <>
-            <ExportZipButton recipe={recipe} plans={plans} />
+            <ExportPrepButton recipe={recipe} plans={plans} />
             <ImportButton recipe={recipe} />
           </>
         }

@@ -28,7 +28,7 @@ export const COLLABORATIONS: Record<Collaboration, CollaborationInfo> = {
     label: '서브에이전트',
     chip: '서브에이전트',
     description:
-      '메인 AI가 일을 나눠 서브에이전트에게 맡기고, 결과만 돌려받습니다. 서브에이전트끼리는 서로 대화하지 않아요. 가장 무난하고 사용량도 적게 듭니다.',
+      '메인 AI가 일을 나눠 서브에이전트에게 맡기고, 결과를 돌려받습니다. 서브에이전트끼리 직접 소통할 수 있는지는 도구마다 다르고, 이 사이트는 그것을 설정하지 않아요. 가장 무난한 방식입니다.',
     availability: 'Codex, Claude Code 등 카드마다 고른 도구에서',
     experimental: false,
     notes: [],
@@ -56,7 +56,7 @@ export const COLLABORATIONS: Record<Collaboration, CollaborationInfo> = {
     label: '토론형',
     chip: '토론형',
     description:
-      '설정 파일 없이 프롬프트 하나로 돌립니다. AI 하나가 여러 역할을 번갈아 맡아 토론하고 결론을 냅니다. 무료 웹 채팅을 포함해 어느 AI에서나 붙여 넣으면 돼요.',
+      '설정 파일 없이 프롬프트 하나로 돌립니다. 한 AI가 여러 역할을 번갈아 맡아 토론하고 결론을 냅니다. 별도 세션끼리 주고받는 협업과는 다릅니다. 역할은 프롬프트 안에 들어가고, 무료 웹 채팅을 포함해 어느 AI에서나 붙여 넣으면 돼요.',
     availability: '어느 AI에서나 (무료 웹 채팅 포함)',
     experimental: false,
     notes: [

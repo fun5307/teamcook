@@ -1,4 +1,5 @@
-// 레시피 편집기: 제목·요약 + 카드 목록 + 카드 편집 폼 + 넘겨주기 흐름.
+// 레시피 편집기. 한 화면에 한 가지 일만 하도록 세 단계로 나눈다: ① 팀 소개 ② 역할 ③ 흐름과 시작.
+// 꼭 필요한 칸만 먼저 보이고, 선택 항목은 접어 둔다 (2026-11-17 사용자 요청: 길고 복잡한 화면 줄이기).
 // 고치는 즉시 스토어(→ localStorage)에 저장된다.
 
 import { useRef, useState } from 'react';
@@ -20,7 +21,14 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Field, NativeSelect, Notice, PageHeader } from '@/components/common';
 import { FlowSection } from '@/components/FlowSection';
-import { ExportZipButton, ShareButton, cloneRecipe } from '@/components/RecipeActions';
+import { ExportPrepButton } from '@/components/ExportDialog';
+import { ShareButton, cloneRecipe } from '@/components/RecipeActions';
+import {
+  DeliverableEditor,
+  LineListEditor,
+  PermissionNote,
+  VerificationEditor,
+} from '@/components/SpecEditors';
 import { RunPromptBox, roleLabel } from '@/components/RecipeOverview';
 import {
   CardRoute,
@@ -28,14 +36,15 @@ import {
   PathBadge,
   PlanBadges,
   RecipeRunSummary,
-  VerifiedBadge,
   engineName,
 } from '@/components/RouteInfo';
-import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf, today } from '@/data/collaboration';
+import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
 import { CARD_TEMPLATES, cardFromTemplate } from '@/data/cardTemplates';
 import { providerData } from '@/data/providers';
 import { TIPS, cardWarnings, recipeWarnings } from '@/data/tips';
 import { needsCodexBridge } from '@/lib/bridge';
+import { type ExportIssue, fieldDomId, handoffDeliverables, hasCycle } from '@/lib/exportCheck';
+import { FLOW_NOTE, PLAN_FIT_NOTE, previewInstructions } from '@/lib/support';
 import { newId } from '@/lib/id';
 import { applyOptimization, optimizeRecipe } from '@/lib/optimize';
 import { importFile } from '@/lib/importFiles';
@@ -70,6 +79,7 @@ function CardEditor({
   const key = card.id;
   const warnings = cardWarnings(card, recipe);
   const style = collaborationOf(recipe);
+  const count = (items: string[] | undefined) => (items ?? []).filter((item) => item.trim()).length;
   const showTools =
     style !== 'debate' &&
     (style === 'agent-team' || card.preferredEngine === 'claude-code' || (card.tools?.length ?? 0) > 0);
@@ -107,9 +117,9 @@ function CardEditor({
       </div>
 
       <Field
-        label="역할 설명 (언제 이 에이전트에게 맡길지)"
+        label="맡을 일"
         htmlFor={`${key}-role`}
-        hint='AI는 이 설명을 보고 일을 맡길지 정해요. "코드 검토"보다 "변경된 파일의 보안·버그를 검토할 때 사용"이 낫습니다.'
+        hint="AI는 이 설명을 보고 언제 이 역할에게 맡길지 정해요. 구체적일수록 좋아요."
       >
         <Textarea
           id={`${key}-role`}
@@ -202,33 +212,100 @@ function CardEditor({
       >
         <Textarea
           id={`${key}-instructions`}
-          rows={8}
+          rows={6}
           value={card.instructions}
           onChange={(event) => onChange({ instructions: event.target.value })}
         />
       </Field>
 
-      {showTools ? (
-        <Field
-          label="Claude 도구 목록 (선택, 고급)"
-          htmlFor={`${key}-tools`}
-          hint="쉼표로 구분. 비우면 권한에 맞는 기본 목록을 써요 (읽기 전용: Read, Grep, Glob / 편집: + Edit, Write, Bash)."
-        >
-          <Input
-            id={`${key}-tools`}
-            value={(card.tools ?? []).join(', ')}
-            onChange={(event) => {
-              const tools = event.target.value
-                .split(',')
-                .map((tool) => tool.trim())
-                .filter(Boolean);
-              onChange({ tools: tools.length > 0 ? tools : undefined });
-            }}
-            placeholder="예: Read, Grep, Glob, WebSearch"
-            spellCheck={false}
-          />
-        </Field>
-      ) : null}
+      <details className="rounded-lg border bg-card p-3">
+        <summary className="cursor-pointer text-sm font-medium">
+          산출물과 완료 기준{' '}
+          <span className="font-normal text-muted-foreground">
+            {count(card.deliverables?.map((item) => item.name)) + count(card.completionCriteria) > 0
+              ? `산출물 ${count(card.deliverables?.map((item) => item.name))}개, 완료 기준 ${count(card.completionCriteria)}개`
+              : '적어 두면 결과가 또렷해져요 (선택)'}
+          </span>
+        </summary>
+        <div className="mt-3 grid gap-4 lg:grid-cols-2">
+          <Field label="산출물 — 끝날 때 내놓는 것">
+            <DeliverableEditor
+              id={`${key}-deliverables`}
+              items={card.deliverables}
+              onChange={(deliverables) => onChange({ deliverables })}
+            />
+          </Field>
+          <Field label="완료 기준 — 언제 끝난 것인지">
+            <LineListEditor
+              id={`${key}-criteria`}
+              label="완료 기준"
+              items={card.completionCriteria}
+              onChange={(completionCriteria) => onChange({ completionCriteria })}
+              placeholder="예: 테스트를 실제로 실행했다"
+              addLabel="완료 기준 추가"
+            />
+          </Field>
+          <Field label="받을 입력 — 시작하려면 받아야 하는 것">
+            <LineListEditor
+              id={`${key}-inputs`}
+              label="받을 입력"
+              items={card.requiredInputs}
+              onChange={(requiredInputs) => onChange({ requiredInputs })}
+              placeholder="예: 구현할 기능 설명"
+              addLabel="입력 추가"
+            />
+          </Field>
+          <Field label="하지 않을 일">
+            <LineListEditor
+              id={`${key}-boundaries`}
+              label="하지 않을 일"
+              items={card.boundaries}
+              onChange={(boundaries) => onChange({ boundaries })}
+              placeholder="예: 관련 없는 파일은 고치지 않는다"
+              addLabel="항목 추가"
+            />
+          </Field>
+        </div>
+      </details>
+
+      <details className="rounded-lg border bg-card p-3">
+        <summary className="cursor-pointer text-sm font-medium">
+          자세히 <span className="font-normal text-muted-foreground">권한이 지켜지는 방식, 파일에 들어갈 지시문, 고급 설정</span>
+        </summary>
+        <div className="mt-3 flex flex-col gap-4">
+          {style !== 'debate' ? <PermissionNote card={card} style={style} id={`${key}-permission-note`} /> : null}
+          <div>
+            <p className="text-sm font-medium">파일에 들어갈 지시문</p>
+            <p className="text-xs text-muted-foreground">
+              내가 쓴 지시문은 그대로 두고, 산출물과 완료 기준을 뒤에 덧붙입니다.
+            </p>
+            <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-muted p-3 font-sans text-sm whitespace-pre-wrap">
+              {previewInstructions(card, style) || '(비어 있어요)'}
+            </pre>
+          </div>
+          {showTools ? (
+            <Field
+              label="Claude 도구 목록 (고급)"
+              htmlFor={`${key}-tools`}
+              hint="쉼표로 구분. 비우면 권한에 맞는 기본 목록을 써요."
+            >
+              <Input
+                id={`${key}-tools`}
+                value={(card.tools ?? []).join(', ')}
+                onChange={(event) => {
+                  const tools = event.target.value
+                    .split(',')
+                    .map((tool) => tool.trim())
+                    .filter(Boolean);
+                  onChange({ tools: tools.length > 0 ? tools : undefined });
+                }}
+                placeholder="예: Read, Grep, Glob, WebSearch"
+                spellCheck={false}
+              />
+            </Field>
+          ) : null}
+        </div>
+      </details>
     </div>
   );
 }
@@ -308,58 +385,118 @@ function HandoffEditor({
 }) {
   const { cards, handoffs } = recipe;
   const update = (id: string, patch: Partial<Handoff>) =>
-    onChange(handoffs.map((handoff) => (handoff.id === id ? { ...handoff, ...patch } : handoff)));
+    onChange(
+      handoffs.map((handoff) => {
+        if (handoff.id !== id) return handoff;
+        const next = { ...handoff, ...patch };
+        if (!next.label) delete next.label;
+        if (!next.deliverableIds || next.deliverableIds.length === 0) delete next.deliverableIds;
+        return next;
+      }),
+    );
 
   if (cards.length < 2) {
     return <p className="text-sm text-muted-foreground">카드가 2장 이상이면 흐름을 정할 수 있어요.</p>;
   }
   return (
-    <div className="flex flex-col gap-2">
-      {handoffs.map((handoff, index) => (
-        <div key={handoff.id} className="flex flex-wrap items-center gap-2">
-          <span className="w-5 text-right text-xs text-muted-foreground">{index + 1}.</span>
-          <NativeSelect
-            className="w-auto min-w-32 flex-1 sm:flex-none"
-            aria-label="넘겨주는 에이전트"
-            value={handoff.from}
-            onChange={(event) => update(handoff.id, { from: event.target.value })}
+    <div className="flex flex-col gap-3">
+      {handoffs.map((handoff, index) => {
+        const from = cards.find((card) => card.id === handoff.from);
+        const options = (from?.deliverables ?? []).filter((item) => item.name.trim());
+        const { found, missing } = handoffDeliverables(recipe, handoff);
+        const picked = new Set(handoff.deliverableIds ?? []);
+        const empty = found.length === 0 && !handoff.label?.trim();
+        return (
+          <div
+            key={handoff.id}
+            id={`handoff-${handoff.id}`}
+            tabIndex={-1}
+            className="flex flex-col gap-2 rounded-xl border bg-card p-3 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
           >
-            {cards.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.displayName || card.name}
-              </option>
-            ))}
-          </NativeSelect>
-          <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
-          <NativeSelect
-            className="w-auto min-w-32 flex-1 sm:flex-none"
-            aria-label="넘겨받는 에이전트"
-            value={handoff.to}
-            onChange={(event) => update(handoff.id, { to: event.target.value })}
-          >
-            {cards.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.displayName || card.name}
-              </option>
-            ))}
-          </NativeSelect>
-          <Input
-            className="min-w-40 flex-1"
-            aria-label="무엇을 넘기는지"
-            placeholder="무엇을 넘기나요? 예: 초안 전달"
-            value={handoff.label ?? ''}
-            onChange={(event) => update(handoff.id, { label: event.target.value || undefined })}
-          />
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label="이 넘겨주기 삭제"
-            onClick={() => onChange(handoffs.filter((item) => item.id !== handoff.id))}
-          >
-            <Trash2 />
-          </Button>
-        </div>
-      ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="w-5 text-right text-xs text-muted-foreground">{index + 1}.</span>
+              <NativeSelect
+                className="w-auto min-w-32 flex-1 sm:flex-none"
+                aria-label="보내는 담당자"
+                value={handoff.from}
+                // 보내는 쪽이 바뀌면 고른 산출물은 다른 역할의 것이므로 비운다
+                onChange={(event) => update(handoff.id, { from: event.target.value, deliverableIds: undefined })}
+              >
+                {cards.map((card) => (
+                  <option key={card.id} value={card.id}>
+                    {card.displayName || card.name}
+                  </option>
+                ))}
+              </NativeSelect>
+              <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
+              <NativeSelect
+                className="w-auto min-w-32 flex-1 sm:flex-none"
+                aria-label="받는 담당자"
+                value={handoff.to}
+                onChange={(event) => update(handoff.id, { to: event.target.value })}
+              >
+                {cards.map((card) => (
+                  <option key={card.id} value={card.id}>
+                    {card.displayName || card.name}
+                  </option>
+                ))}
+              </NativeSelect>
+              <Input
+                className="min-w-40 flex-1"
+                aria-label="추가 전달 설명"
+                placeholder="추가 전달 설명. 예: 변경 내용 전달"
+                value={handoff.label ?? ''}
+                onChange={(event) => update(handoff.id, { label: event.target.value || undefined })}
+              />
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label="이 넘겨주기 삭제"
+                onClick={() => onChange(handoffs.filter((item) => item.id !== handoff.id))}
+              >
+                <Trash2 />
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-7 text-sm" role="group" aria-label="넘기는 산출물">
+              <span className="text-xs text-muted-foreground">넘기는 산출물</span>
+              {options.length === 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  보내는 역할에 산출물이 없어요. 역할 카드에서 먼저 적어 주세요.
+                </span>
+              ) : null}
+              {options.map((item) => (
+                <label key={item.id} className="inline-flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    className="accent-primary"
+                    checked={picked.has(item.id)}
+                    onChange={(event) => {
+                      const ids = (handoff.deliverableIds ?? []).filter((id) => id !== item.id);
+                      update(handoff.id, { deliverableIds: event.target.checked ? [...ids, item.id] : ids });
+                    }}
+                  />
+                  {item.name}
+                </label>
+              ))}
+              {missing.length > 0 ? (
+                <span className="inline-flex items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
+                  재선택 필요: 지워진 산출물 {missing.length}개를 가리켜요
+                  <button
+                    type="button"
+                    className="underline underline-offset-2"
+                    onClick={() => update(handoff.id, { deliverableIds: found.map((item) => item.id) })}
+                  >
+                    지우기
+                  </button>
+                </span>
+              ) : null}
+              {empty && missing.length === 0 ? (
+                <span className="text-xs font-medium text-amber-800">무엇을 넘기는지 아직 적지 않았어요.</span>
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
       <div>
         <Button
           size="sm"
@@ -376,6 +513,8 @@ function HandoffEditor({
   );
 }
 
+type Step = 'basics' | 'cards' | 'flow';
+
 export function RecipeEditorPage({ id }: { id: string }) {
   const recipe = useStore((state) => state.recipes.find((item) => item.id === id));
   const plans = useStore((state) => state.plans);
@@ -384,6 +523,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
 
   const [openCard, setOpenCard] = useState<string | null>(null);
   const [codexBridge, setCodexBridge] = useState(false);
+  const [step, setStep] = useState<Step>('basics');
   const [messages, setMessages] = useState<{ tone: 'success' | 'error'; text: string }[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -410,7 +550,15 @@ export function RecipeEditorPage({ id }: { id: string }) {
         if (card.id !== cardId) return card;
         const next = { ...card, ...patch };
         // undefined로 지운 선택 항목은 키 자체를 없앤다 (공유 링크·recipe.json을 깔끔하게)
-        for (const field of ['model', 'tools', 'tags'] as const) {
+        for (const field of [
+          'model',
+          'tools',
+          'tags',
+          'requiredInputs',
+          'deliverables',
+          'completionCriteria',
+          'boundaries',
+        ] as const) {
           if (next[field] === undefined) delete next[field];
         }
         return next;
@@ -458,7 +606,10 @@ export function RecipeEditorPage({ id }: { id: string }) {
     }
     if (added.length > 0) {
       update({ cards: [...recipe.cards, ...added] });
-      next.push({ tone: 'success', text: `에이전트 카드 ${added.length}장을 불러왔어요.` });
+      next.push({
+        tone: 'success',
+        text: `에이전트 카드 ${added.length}장을 불러왔어요. 지시문은 그대로 두었고, 파일에 없는 산출물·완료 기준은 비어 있을 수 있으니 카드를 열어 채워 주세요.`,
+      });
     }
     setMessages(next);
     if (fileInput.current) fileInput.current.value = '';
@@ -483,9 +634,38 @@ export function RecipeEditorPage({ id }: { id: string }) {
     const { collaboration: _old, ...rest } = recipe;
     saveRecipe(next === 'subagents' ? rest : { ...rest, collaboration: next });
   };
-  const setVerified = (date: string) => {
-    const { lastVerified: _old, ...rest } = recipe;
-    saveRecipe(date ? { ...rest, lastVerified: date } : rest);
+  /** 비우면 키를 지우는 레시피 항목 고치기 (공유 링크·recipe.json을 깔끔하게) */
+  const setOptional = <K extends 'learningObjective' | 'sampleTask' | 'successCriteria' | 'prerequisites' | 'verification'>(
+    key: K,
+    value: Recipe[K],
+  ) => {
+    const next = { ...recipe, [key]: value };
+    if (value === undefined || value === '') delete next[key];
+    saveRecipe(next);
+  };
+  /** 내보내기 점검 항목이 가리키는 입력 칸으로 옮겨 가서 초점을 맞춘다 */
+  const gotoIssue = (issue: ExportIssue) => {
+    const { target } = issue;
+    // 그 입력 칸이 있는 단계로 먼저 옮긴다
+    if (target.kind === 'card') setStep('cards');
+    else if (target.kind === 'handoff' || target.field === 'flow') setStep('flow');
+    else setStep(target.field === 'cards' ? 'cards' : 'basics');
+    if (target.kind === 'card' && target.id) setOpenCard(target.id);
+    const domId = fieldDomId(target);
+    // 단계가 바뀌고 카드가 펼쳐진 다음에 찾는다
+    window.setTimeout(() => {
+      const element = document.getElementById(domId);
+      if (!element) return;
+      // 접어 둔 칸 안에 있으면 펼친다
+      for (let box = element.closest('details'); box; box = box.parentElement?.closest('details') ?? null) {
+        box.open = true;
+      }
+      element.scrollIntoView({ block: 'center' });
+      const focusable = element.matches('input, textarea, select, button, [tabindex]')
+        ? element
+        : element.querySelector<HTMLElement>('input, textarea, select, button');
+      (focusable ?? element).focus();
+    }, 80);
   };
   const resolved = resolveRecipe(recipe, plans, providerData);
   // 구독 최적화(도구 다시 배치)는 카드마다 도구를 고르는 서브에이전트 조리법에서만 뜻이 있다
@@ -497,15 +677,23 @@ export function RecipeEditorPage({ id }: { id: string }) {
   };
   const required = requiredPlans(recipe, providerData);
 
+  const steps: { id: Step; label: string; note: string }[] = [
+    { id: 'basics', label: '팀 소개', note: COLLABORATIONS[style].label },
+    { id: 'cards', label: '역할', note: `${recipe.cards.length}명` },
+    { id: 'flow', label: '흐름과 시작', note: `넘겨주기 ${recipe.handoffs.length}개` },
+  ];
+  const stepIndex = steps.findIndex((item) => item.id === step);
+  const next = steps[stepIndex + 1];
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
-        title="레시피 편집"
+        title={recipe.title || '이름 없는 레시피'}
         description="고치는 즉시 이 브라우저에 자동 저장돼요."
         actions={
           <>
             <ShareButton recipe={recipe} />
-            <ExportZipButton recipe={recipe} plans={plans} codexBridge={codexBridge} />
+            <ExportPrepButton recipe={recipe} plans={plans} codexBridge={codexBridge} onGoto={gotoIssue} />
             <Button variant="ghost" onClick={onDuplicate}>
               <Copy aria-hidden />
               복제
@@ -518,247 +706,249 @@ export function RecipeEditorPage({ id }: { id: string }) {
         }
       />
 
-      <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
-        <Field label="레시피 제목" htmlFor="recipe-title">
-          <Input
-            id="recipe-title"
-            className="h-10 text-lg font-semibold"
-            value={recipe.title}
-            onChange={(event) => update({ title: event.target.value })}
-            placeholder="예: Claude 작성 + Codex 교차 검토"
-          />
-        </Field>
-        <Field label="무엇을 하는 레시피인가요? (한두 줄)" htmlFor="recipe-summary">
-          <Textarea
-            id="recipe-summary"
-            rows={2}
-            value={recipe.summary}
-            onChange={(event) => update({ summary: event.target.value })}
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="쓰임새" htmlFor="recipe-usecase">
-            <Input
-              id="recipe-usecase"
-              value={recipe.useCase}
-              onChange={(event) => update({ useCase: event.target.value })}
-              placeholder="예: 기능 구현 후 검토"
-            />
-          </Field>
-          <Field label="만든 사람 (닉네임, 선택)" htmlFor="recipe-author">
-            <Input
-              id="recipe-author"
-              value={recipe.author ?? ''}
-              onChange={(event) => {
-                const { author: _old, ...rest } = recipe;
-                saveRecipe(event.target.value ? { ...rest, author: event.target.value } : rest);
-              }}
-            />
-          </Field>
-          <Field label="동시에 돌릴 에이전트 수" htmlFor="recipe-threads" hint="2~3개로 시작하세요.">
-            <Input
-              id="recipe-threads"
-              type="number"
-              min={1}
-              max={20}
-              value={recipe.settings.maxThreads}
-              onChange={(event) =>
-                update({
-                  settings: {
-                    ...recipe.settings,
-                    maxThreads: Math.min(20, Math.max(1, Number(event.target.value) || 1)),
-                  },
-                })
-              }
-            />
-          </Field>
-        </div>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-sm font-medium">조리법 — 이 팀은 어떤 방식으로 함께 일하나요?</legend>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {COLLABORATION_IDS.map((id) => {
-              const info = COLLABORATIONS[id];
-              const selected = style === id;
-              return (
-                <label
-                  key={id}
-                  className={cn(
-                    'flex cursor-pointer flex-col gap-1 rounded-lg border bg-card p-3 text-sm transition-colors',
-                    selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'hover:bg-muted/50',
-                  )}
-                >
-                  <span className="flex flex-wrap items-center gap-2 font-medium">
-                    <input
-                      type="radio"
-                      name="recipe-collaboration"
-                      className="accent-primary"
-                      checked={selected}
-                      onChange={() => setStyle(id)}
-                    />
-                    {info.label}
-                    {info.experimental ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-xs font-normal text-primary">
-                        <FlaskConical className="size-3" aria-hidden />
-                        실험 기능
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{info.description}</span>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    쓸 수 있는 곳: {info.availability}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
-        <Field
-          label="실제로 돌아가는지 확인한 날 (선택)"
-          htmlFor="recipe-verified"
-          hint="직접 돌려 보고 잘 되는 것을 확인한 날짜를 적어 주세요. 레시피에 '날짜 확인' 표시로 보여요. 도구가 자주 바뀌니, 다시 확인하면 날짜도 바꿔 주세요."
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              id="recipe-verified"
-              type="date"
-              className="w-auto"
-              value={recipe.lastVerified ?? ''}
-              max={today()}
-              onChange={(event) => setVerified(event.target.value)}
-            />
-            <Button size="sm" variant="outline" onClick={() => setVerified(today())}>
-              오늘 확인했어요
-            </Button>
-            {recipe.lastVerified ? (
-              <>
-                <VerifiedBadge date={recipe.lastVerified} />
-                <Button size="sm" variant="ghost" onClick={() => setVerified('')}>
-                  지우기
-                </Button>
-              </>
-            ) : (
-              <span className="text-xs text-muted-foreground">아직 확인 날짜가 없어요.</span>
+      <nav className="flex flex-wrap gap-x-1 border-b" aria-label="편집 단계">
+        {steps.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-current={item.id === step ? 'step' : undefined}
+            onClick={() => setStep(item.id)}
+            className={cn(
+              '-mb-px flex items-baseline gap-2 border-b-2 px-3 py-2.5 text-sm transition-colors',
+              item.id === step
+                ? 'border-primary font-semibold text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
-          </div>
-        </Field>
-        <Field
-          label="실행 팁 (선택)"
-          htmlFor="recipe-howto"
-          hint="이 팀을 어떻게 시작하면 좋은지 적어 두면, 공유받은 사람과 RECIPE.md에 그대로 보여요."
-        >
-          <Textarea
-            id="recipe-howto"
-            rows={2}
-            value={recipe.howToRun ?? ''}
-            onChange={(event) => {
-              const { howToRun: _old, ...rest } = recipe;
-              saveRecipe(event.target.value ? { ...rest, howToRun: event.target.value } : rest);
-            }}
-          />
-        </Field>
-      </section>
+          >
+            <span className="font-heading text-base font-extrabold tabular-nums">{index + 1}</span>
+            {item.label}
+            <span className="text-xs font-normal text-muted-foreground">{item.note}</span>
+          </button>
+        ))}
+      </nav>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">이 레시피에 필요한 플랜</span>
-          <PlanBadges required={required} showDate />
-          {required.details.length === 0 ? (
-            <span className="text-sm text-muted-foreground">카드를 추가하면 계산돼요.</span>
-          ) : null}
-        </div>
-        <RecipeRunSummary resolution={resolved} onSwitchStyle={setStyle} />
-        {optimized.changes.length > 0 ? (
-          <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3">
-            <p className="flex items-center gap-2 text-sm font-medium">
-              <Sparkles className="size-4 text-sky-700" aria-hidden />
-              구독 최적화 제안 — {optimized.summary}
-            </p>
-            <ul className="flex flex-col gap-1 text-sm">
-              {optimized.changes.map((change) => (
-                <li key={change.cardId}>
-                  <strong className="font-medium">{cardName(change.cardId)}</strong>: {engineName(change.from)} →{' '}
-                  {engineName(change.to)} <span className="text-muted-foreground">· {change.reason}</span>
-                </li>
-              ))}
-            </ul>
-            <div>
-              <Button size="sm" onClick={() => saveRecipe(applyOptimization(recipe, optimized))}>
-                이대로 다시 배치
-              </Button>
-            </div>
-          </div>
-        ) : null}
-        {style === 'subagents' && needsCodexBridge(recipe) ? (
-          <label className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
-            <Switch
-              checked={codexBridge}
-              onCheckedChange={setCodexBridge}
-              aria-label="Claude Code에서 Codex 자동 호출"
+      {step === 'basics' ? (
+        <section className="flex flex-col gap-5">
+          <Field label="레시피 제목" htmlFor="recipe-title">
+            <Input
+              id="recipe-title"
+              className="h-10 bg-card text-lg font-semibold"
+              value={recipe.title}
+              onChange={(event) => update({ title: event.target.value })}
+              placeholder="예: Claude 작성 + Codex 교차 검토"
             />
-            <span>
-              <span className="font-medium">내보낼 때 'Claude Code에서 Codex 자동 호출' 넣기 (실험적)</span>
-              <span className="block text-xs text-muted-foreground">
-                켜면 Codex 담당 카드의 Claude Code용 파일이, 직접 일하는 대신 <code>codex exec</code> 명령으로
-                Codex에게 일을 넘깁니다. Claude Code 하나만 열어 두어도 두 회사 모델이 함께 일해요. Codex CLI가
-                설치·로그인돼 있어야 하고, 부를 때마다 Codex 사용량이 듭니다.
-              </span>
-            </span>
-          </label>
-        ) : null}
-        {recipeWarnings(recipe).map((warning) => (
-          <Notice key={warning.message} tone="warn">
-            {warning.message}
-          </Notice>
-        ))}
-        <p className="text-xs text-muted-foreground">
-          실행 경로는 <a className="underline" href="#/plans">내 AI 현황</a>에 따라 바뀌어요.
-        </p>
-      </section>
+          </Field>
+          <Field label="어떤 팀인가요? (한두 줄)" htmlFor="recipe-summary">
+            <Textarea
+              id="recipe-summary"
+              className="bg-card"
+              rows={2}
+              value={recipe.summary}
+              onChange={(event) => update({ summary: event.target.value })}
+            />
+          </Field>
 
-      <section
-        className="flex flex-col gap-3"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          void onFiles(event.dataTransfer.files);
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xl font-bold">에이전트 카드</h2>
-          <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-            <FolderOpen aria-hidden />
-            .toml · .md 파일 불러오기
-          </Button>
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            accept=".toml,.md,.json"
-            className="hidden"
-            onChange={(event) => void onFiles(event.target.files)}
-          />
-        </div>
-        {messages.map((message) => (
-          <Notice key={message.text} tone={message.tone}>
-            {message.text}
-          </Notice>
-        ))}
-        {recipe.cards.map((card, index) => (
-          <CardRow
-            key={card.id}
-            card={card}
-            recipe={recipe}
-            resolution={resolved.perCard[card.id]}
-            open={openCard === card.id}
-            onToggle={() => setOpenCard(openCard === card.id ? null : card.id)}
-            onChange={(patch) => updateCard(card.id, patch)}
-            onRemove={() => removeCard(card.id)}
-            onMove={(direction) => moveCard(index, direction)}
-          />
-        ))}
-        <div className="flex flex-col gap-2 rounded-xl border border-dashed bg-card p-4">
-          <p className="text-sm font-medium">카드 추가 — 어떤 역할인가요?</p>
-          <div className="flex flex-wrap gap-2">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1.5 text-sm font-medium">조리법 — 어떤 방식으로 함께 일하나요?</legend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {COLLABORATION_IDS.map((id) => {
+                const info = COLLABORATIONS[id];
+                const selected = style === id;
+                return (
+                  <label
+                    key={id}
+                    className={cn(
+                      'flex cursor-pointer flex-col gap-0.5 rounded-lg border bg-card p-3 text-sm transition-colors',
+                      selected ? 'border-foreground ring-1 ring-foreground' : 'hover:bg-muted/60',
+                    )}
+                  >
+                    <span className="flex flex-wrap items-center gap-2 font-medium">
+                      <input
+                        type="radio"
+                        name="recipe-collaboration"
+                        className="accent-primary"
+                        checked={selected}
+                        onChange={() => setStyle(id)}
+                      />
+                      {info.label}
+                      {info.experimental ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-normal text-primary">
+                          <FlaskConical className="size-3" aria-hidden />
+                          실험 기능
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{info.availability}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-sm text-muted-foreground">{COLLABORATIONS[style].description}</p>
+          </fieldset>
+
+          <Field
+            label="이 레시피로 익히는 것 (학습 목표)"
+            htmlFor="recipe-objective"
+            hint="한두 문장이면 됩니다. 설명서 맨 위에 들어가요."
+          >
+            <Textarea
+              id="recipe-objective"
+              className="bg-card"
+              rows={2}
+              value={recipe.learningObjective ?? ''}
+              onChange={(event) => setOptional('learningObjective', event.target.value)}
+              placeholder="예: 만드는 모델과 검토하는 모델을 다르게 두면 무엇이 달라지는지 익힌다."
+            />
+          </Field>
+
+          <details className="rounded-xl border bg-card p-4">
+            <summary className="cursor-pointer text-sm font-medium">
+              더 적기{' '}
+              <span className="font-normal text-muted-foreground">
+                성공 조건, 과제 예시, 준비 조건, 실행 팁, 확인 기록 (모두 선택)
+              </span>
+            </summary>
+            <div className="mt-4 flex flex-col gap-5">
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Field label="성공 조건 — 무엇이 되면 성공인가요?" hint="적어 두면 AI가 마지막에 하나씩 확인해 줘요.">
+                  <LineListEditor
+                    id="recipe-success"
+                    label="성공 조건"
+                    items={recipe.successCriteria}
+                    onChange={(items) => setOptional('successCriteria', items)}
+                    placeholder="예: 검토자가 파일을 고치지 않고 지적만 했다"
+                    addLabel="성공 조건 추가"
+                  />
+                </Field>
+                <Field label="준비 조건 — 시작 전에 갖춰야 할 것">
+                  <LineListEditor
+                    id="recipe-prereq"
+                    label="준비 조건"
+                    items={recipe.prerequisites}
+                    onChange={(items) => setOptional('prerequisites', items)}
+                    placeholder="예: Claude Code 설치와 로그인"
+                    addLabel="준비 조건 추가"
+                  />
+                </Field>
+              </div>
+              <Field label="과제 예시 — 처음 넣어 볼 과제" htmlFor="recipe-sample">
+                <Textarea
+                  id="recipe-sample"
+                  rows={2}
+                  value={recipe.sampleTask ?? ''}
+                  onChange={(event) => setOptional('sampleTask', event.target.value)}
+                  placeholder='예: 할 일 목록 앱에 "완료한 항목 숨기기" 버튼을 추가해 줘.'
+                />
+              </Field>
+              <Field label="실행 팁 — 이 팀을 어떻게 시작하면 좋은지" htmlFor="recipe-howto">
+                <Textarea
+                  id="recipe-howto"
+                  rows={2}
+                  value={recipe.howToRun ?? ''}
+                  onChange={(event) => {
+                    const { howToRun: _old, ...rest } = recipe;
+                    saveRecipe(event.target.value ? { ...rest, howToRun: event.target.value } : rest);
+                  }}
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="쓰임새" htmlFor="recipe-usecase">
+                  <Input
+                    id="recipe-usecase"
+                    value={recipe.useCase}
+                    onChange={(event) => update({ useCase: event.target.value })}
+                    placeholder="예: 기능 구현 후 검토"
+                  />
+                </Field>
+                <Field label="만든 사람 (닉네임)" htmlFor="recipe-author">
+                  <Input
+                    id="recipe-author"
+                    value={recipe.author ?? ''}
+                    onChange={(event) => {
+                      const { author: _old, ...rest } = recipe;
+                      saveRecipe(event.target.value ? { ...rest, author: event.target.value } : rest);
+                    }}
+                  />
+                </Field>
+                <Field label="동시에 돌릴 에이전트 수" htmlFor="recipe-threads" hint="2~3개로 시작하세요.">
+                  <Input
+                    id="recipe-threads"
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={recipe.settings.maxThreads}
+                    onChange={(event) =>
+                      update({
+                        settings: {
+                          ...recipe.settings,
+                          maxThreads: Math.min(20, Math.max(1, Number(event.target.value) || 1)),
+                        },
+                      })
+                    }
+                  />
+                </Field>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">
+                  확인 기록 {recipe.verification?.length ?? 0}건{' '}
+                  <span className="font-normal text-muted-foreground">직접 돌려 본 결과를 적어 두는 곳</span>
+                </p>
+                <VerificationEditor
+                  records={recipe.verification}
+                  onChange={(records) => setOptional('verification', records)}
+                />
+              </div>
+            </div>
+          </details>
+        </section>
+      ) : null}
+
+      {step === 'cards' ? (
+        <section
+          className="flex flex-col gap-3"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            void onFiles(event.dataTransfer.files);
+          }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="recipe-cards" tabIndex={-1} className="text-xl font-bold focus-visible:outline-none">
+              역할 {recipe.cards.length}명
+            </h2>
+            <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+              <FolderOpen aria-hidden />
+              파일에서 불러오기
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              accept=".toml,.md,.json"
+              className="hidden"
+              onChange={(event) => void onFiles(event.target.files)}
+            />
+          </div>
+          {messages.map((message) => (
+            <Notice key={message.text} tone={message.tone}>
+              {message.text}
+            </Notice>
+          ))}
+          {recipe.cards.map((card, index) => (
+            <CardRow
+              key={card.id}
+              card={card}
+              recipe={recipe}
+              resolution={resolved.perCard[card.id]}
+              open={openCard === card.id}
+              onToggle={() => setOpenCard(openCard === card.id ? null : card.id)}
+              onChange={(patch) => updateCard(card.id, patch)}
+              onRemove={() => removeCard(card.id)}
+              onMove={(direction) => moveCard(index, direction)}
+            />
+          ))}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed bg-card p-4">
+            <p className="text-sm font-medium">역할 추가</p>
             {CARD_TEMPLATES.map((template) => (
               <Button key={template.tag} variant="outline" size="sm" onClick={() => addCard(template.tag)}>
                 <Plus aria-hidden />
@@ -766,47 +956,128 @@ export function RecipeEditorPage({ id }: { id: string }) {
               </Button>
             ))}
           </div>
-        </div>
-      </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-bold">흐름 — 누가 누구에게 무엇을 넘기나</h2>
-        <p className="text-sm text-muted-foreground">
-          {style === 'debate'
-            ? '토론형에서는 흐름이 발언 순서가 돼요. 아래 토론 프롬프트에 바로 반영됩니다.'
-            : "흐름은 설정 파일에는 담기지 않아요. 대신 아래 '첫 프롬프트'로 만들어져서, 실행할 때 AI에게 순서를 알려 줍니다. (RECIPE.md에도 들어가요.)"}
-        </p>
-        <FlowSection
-          recipe={recipe}
-          resolution={resolved}
-          onConnect={(from, to) =>
-            update({ handoffs: [...recipe.handoffs, { id: newId('handoff'), from, to }] })
-          }
-          onRemove={(handoffId) =>
-            update({ handoffs: recipe.handoffs.filter((handoff) => handoff.id !== handoffId) })
-          }
-        />
-        <HandoffEditor recipe={recipe} onChange={(handoffs) => update({ handoffs })} />
-      </section>
-
-      {recipe.cards.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-xl font-bold">이렇게 시작해요</h2>
-          <RunPromptBox recipe={recipe} />
+          {recipe.cards.length > 0 ? (
+            <div className="mt-3 flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground">필요한 플랜</span>
+                <PlanBadges required={required} showDate />
+              </div>
+              <RecipeRunSummary resolution={resolved} onSwitchStyle={setStyle} />
+              <p className="text-xs text-muted-foreground">
+                {PLAN_FIT_NOTE}{' '}
+                <a className="underline" href="#/plans">
+                  내 AI 현황 바꾸기
+                </a>
+              </p>
+              {optimized.changes.length > 0 ? (
+                <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3">
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    <Sparkles className="size-4 text-sky-700" aria-hidden />
+                    구독 최적화 제안 — {optimized.summary}
+                  </p>
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {optimized.changes.map((change) => (
+                      <li key={change.cardId}>
+                        <strong className="font-medium">{cardName(change.cardId)}</strong>: {engineName(change.from)} →{' '}
+                        {engineName(change.to)} <span className="text-muted-foreground">· {change.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div>
+                    <Button size="sm" onClick={() => saveRecipe(applyOptimization(recipe, optimized))}>
+                      이대로 다시 배치
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+              {style === 'subagents' && needsCodexBridge(recipe) ? (
+                <label className="flex items-start gap-3 rounded-xl border bg-card px-4 py-3 text-sm">
+                  <Switch
+                    checked={codexBridge}
+                    onCheckedChange={setCodexBridge}
+                    aria-label="Claude Code에서 Codex 자동 호출"
+                  />
+                  <span>
+                    <span className="font-medium">Claude Code에서 Codex 자동 호출 (실험적)</span>
+                    <span className="block text-xs text-muted-foreground">
+                      켜고 내보내면 Claude Code 하나만 열어도 Codex 담당 역할이 <code>codex exec</code>로 넘어갑니다.
+                      Codex CLI가 설치·로그인돼 있어야 해요.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
+              {recipeWarnings(recipe).map((warning) => (
+                <Notice key={warning.message} tone="warn">
+                  {warning.message}
+                </Notice>
+              ))}
+              <details className="rounded-xl border bg-card p-4 text-sm">
+                <summary className="cursor-pointer font-medium">역할을 잘 짜는 팁 {TIPS.length}가지</summary>
+                <ul className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                  {TIPS.map((tip) => (
+                    <li key={tip.id}>
+                      <p className="font-medium">{tip.title}</p>
+                      <p className="text-muted-foreground">{tip.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-xl font-bold">꿀팁</h2>
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {TIPS.map((tip) => (
-            <li key={tip.id} className="rounded-xl border bg-card p-3 text-sm">
-              <p className="font-medium">{tip.title}</p>
-              <p className="mt-1 text-muted-foreground">{tip.body}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {step === 'flow' ? (
+        <section id="recipe-flow" tabIndex={-1} className="flex flex-col gap-4 focus-visible:outline-none">
+          <div>
+            <h2 className="text-xl font-bold">누가 누구에게 무엇을 넘기나요?</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {FLOW_NOTE}
+              {hasCycle(recipe) ? ' 되돌아가는 흐름은 프롬프트에 한 번씩만 적혀요.' : ''}
+            </p>
+          </div>
+          <FlowSection
+            recipe={recipe}
+            resolution={resolved}
+            onConnect={(from, to) =>
+              update({ handoffs: [...recipe.handoffs, { id: newId('handoff'), from, to }] })
+            }
+            onRemove={(handoffId) =>
+              update({ handoffs: recipe.handoffs.filter((handoff) => handoff.id !== handoffId) })
+            }
+            onSelect={(handoffId) =>
+              gotoIssue({
+                level: 'info',
+                code: 'ORDER_PROMPT_ONLY',
+                message: '',
+                target: { kind: 'handoff', id: handoffId, field: 'handoff' },
+              })
+            }
+          />
+          <HandoffEditor recipe={recipe} onChange={(handoffs) => update({ handoffs })} />
+
+          {recipe.cards.length > 0 ? (
+            <div className="mt-2 flex flex-col gap-2">
+              <h2 className="text-xl font-bold">이렇게 시작해요</h2>
+              <RunPromptBox recipe={recipe} />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+        <p className="text-sm text-muted-foreground">
+          {next ? '칸을 다 채우지 않아도 다음으로 넘어갈 수 있어요.' : '다 됐으면 내보내기 준비를 눌러 파일을 받아 보세요.'}
+        </p>
+        {next ? (
+          <Button variant="outline" onClick={() => setStep(next.id)}>
+            다음: {next.label}
+          </Button>
+        ) : (
+          <ExportPrepButton recipe={recipe} plans={plans} codexBridge={codexBridge} onGoto={gotoIssue} />
+        )}
+      </div>
     </div>
   );
 }

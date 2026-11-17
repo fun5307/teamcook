@@ -12,6 +12,7 @@
 import { parse, stringify } from 'smol-toml';
 import type { AgentCard, Recipe } from '../types';
 import { newId } from '../lib/id';
+import { addSpecMeta, composeInstructions, restoreSpec } from './instructions';
 import { type CardMeta, ConvertError, metaLine, normalizeText, readMeta } from './meta';
 
 /** 읽기 전용 카드의 지시문 끝에 붙이는 문장. 불러올 때는 이 문장을 떼어 내고 권한으로 되돌린다. */
@@ -49,8 +50,9 @@ export function cardToCodexToml(card: AgentCard): string {
   if (!isNative) meta.engine = card.preferredEngine;
   if (card.model && !isNative) meta.model = card.model;
   if (card.tools && card.tools.length > 0) meta.tools = card.tools;
+  addSpecMeta(meta, card);
 
-  let instructions = normalizeText(card.instructions);
+  let instructions = composeInstructions(card);
   if (card.permission === 'read-only') {
     instructions = instructions ? `${instructions}\n\n${CODEX_READONLY_GUARD}` : CODEX_READONLY_GUARD;
   }
@@ -121,7 +123,7 @@ export function codexTomlToCard(text: string, options: { id?: string } = {}): Ag
   if (meta.tools) card.tools = meta.tools;
   if (meta.tags) card.tags = meta.tags;
   if (Object.keys(rest).length > 0) card.extra = { codex: rest };
-  return card;
+  return restoreSpec(card, meta);
 }
 
 /** 레시피 → 프로젝트 설정(.codex/config.toml) 내용 */

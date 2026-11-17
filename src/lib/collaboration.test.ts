@@ -29,9 +29,9 @@ function plans(overrides: Partial<UserPlans> = {}): UserPlans {
 const ALL_FREE = plans({ openai: 'free', anthropic: 'free', google: 'free', xai: 'free' });
 const CLAUDE_PRO = plans({ anthropic: 'pro' });
 
-/** 조리법 기능이 생기기 전의 레시피 모양 (collaboration·lastVerified 없음) */
+/** 조리법 기능이 생기기 전의 레시피 모양 (collaboration 없음) */
 function oldRecipe(): Recipe {
-  const { collaboration: _c, lastVerified: _v, ...rest } = crossReview;
+  const { collaboration: _c, ...rest } = crossReview;
   return rest;
 }
 
@@ -48,7 +48,7 @@ describe('옛 공유 링크 호환 (조리법 필드 없음)', () => {
     const result = decodeRecipe(encodeRecipe(old));
     expect(result).toEqual({ ok: true, recipe: old });
     if (!result.ok) return;
-    expect(result.recipe.schemaVersion).toBe(1);
+    expect(result.recipe.schemaVersion).toBe(2);
     expect(collaborationOf(result.recipe)).toBe('subagents');
   });
 
@@ -79,7 +79,7 @@ describe('옛 공유 링크 호환 (조리법 필드 없음)', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.recipe.collaboration).toBeUndefined();
-    expect(result.recipe.lastVerified).toBeUndefined();
+    expect(result.recipe.verification).toBeUndefined();
     // 옛 레시피는 예전과 똑같이 Codex·Claude 파일로 내보내진다
     expect(paths(buildRecipeFiles(result.recipe, providerData))).toEqual([
       '.claude/agents/reviewer.md',
@@ -104,10 +104,13 @@ describe('옛 공유 링크 호환 (조리법 필드 없음)', () => {
     expect(decisionDebate.collaboration).toBe('debate');
   });
 
-  it('날짜 모양이 아닌 확인 날짜는 버린다', () => {
-    expect(parseRecipe({ ...oldRecipe(), lastVerified: '어제쯤' }).lastVerified).toBeUndefined();
-    expect(parseRecipe({ ...oldRecipe(), lastVerified: '<b>2026</b>' }).lastVerified).toBeUndefined();
-    expect(parseRecipe({ ...oldRecipe(), lastVerified: '2026-11-16' }).lastVerified).toBe('2026-11-16');
+  it('날짜 모양이 아닌 옛 확인 날짜는 버리고, 날짜 모양이면 "확인 방식 미기록" 기록으로 옮긴다', () => {
+    const bare = { ...oldRecipe(), verification: undefined };
+    expect(parseRecipe({ ...bare, lastVerified: '어제쯤' }).verification).toBeUndefined();
+    expect(parseRecipe({ ...bare, lastVerified: '<b>2026</b>' }).verification).toBeUndefined();
+    expect(parseRecipe({ ...bare, lastVerified: '2026-11-16' }).verification).toEqual([
+      { id: 'legacy-date', kind: 'unclassified', checkedAt: '2026-11-16', result: 'n/a', source: 'unknown' },
+    ]);
   });
 });
 
@@ -124,9 +127,13 @@ describe('조리법 데이터', () => {
     expect(team.lastVerified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it('처음부터 있던 기본 레시피 5종은 확인 날짜가 있다 (추가분은 직접 확인한 뒤에 적는다)', () => {
-    for (const recipe of builtinRecipes.slice(0, 5)) {
-      expect(recipe.lastVerified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  it('기본 레시피는 모두 확인 기록이 있고, 기록마다 날짜와 종류가 있다', () => {
+    for (const recipe of builtinRecipes) {
+      expect(recipe.verification?.length).toBeGreaterThan(0);
+      for (const record of recipe.verification ?? []) {
+        expect(record.checkedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(['docs', 'file', 'run']).toContain(record.kind);
+      }
     }
   });
 
@@ -149,7 +156,8 @@ describe('조리법별 내보내기', () => {
     ]);
     const md = files[`${Object.keys(files)[0].split('/')[0]}/RECIPE.md`];
     expect(md).toContain('**조리법(협업 방식):** 서브에이전트');
-    expect(md).toContain('**확인한 날:** 2026-11-16');
+    expect(md).toContain('## 확인 기록');
+    expect(md).toContain('실제 실행 확인 · 2026-11-16 · 성공 · 사용자 기록');
     expect(md).toContain(starterPrompt(crossReview));
   });
 
@@ -192,7 +200,8 @@ describe('조리법별 내보내기', () => {
     for (const card of featureTeam.cards) {
       expect(prompt).toContain(`- ${card.name} 에이전트 유형으로 팀원 1명`);
     }
-    expect(prompt).toContain('implementer_a의 결과(변경 내용)를 team_reviewer에게 넘긴다');
+    expect(prompt).toContain('implementer_a의 결과(변경 내용: 변경 요약, 고친 파일 목록, 확인 결과 (테스트·빌드))를 team_reviewer에게 넘긴다');
+    expect(prompt).toContain('모든 단계가 끝나면 리더인 네가 결과를 하나로 모아');
     expect(runPrompt(featureTeam)).toBe(prompt);
   });
 
@@ -223,7 +232,9 @@ describe('조리법별 내보내기', () => {
     }
     expect(prompt).toContain('주제: (여기에 결정하고 싶은 것을 적으세요)');
     expect(prompt).toContain('1. [사회자] 역할이 먼저 주제와 판단 기준을 정리한다.');
-    expect(prompt).toContain('[조사] 역할의 발언(근거)을 [검증] 역할이 이어받는다');
+    expect(prompt).toContain('[조사] 역할의 발언(근거: 선택지별 장점·비용·전제 조건)을 [검증] 역할이 이어받는다');
+    expect(prompt).toContain('내놓을 것: 가장 큰 위험 2가지와 줄이는 방법');
+    expect(prompt).toContain('끝나는 조건: 출처 없는 주장을 표시했다');
     expect(prompt).toContain('마지막에 [사회자] 역할이');
     expect(runPrompt(decisionDebate)).toBe(prompt);
     // 어느 도구에서나 붙여 쓸 수 있게: 특정 도구 이름이나 파일 경로가 없어야 한다

@@ -60,16 +60,6 @@ export function StyleChip({ recipe }: { recipe: Pick<Recipe, 'collaboration'> })
   );
 }
 
-/** "2026-11-16 확인": 이 레시피가 실제로 돌아가는 것을 확인한 날. 눈에 띄지 않게 글자로만 적는다. */
-export function VerifiedBadge({ date }: { date?: string }) {
-  if (!date) return null;
-  return (
-    <span className="text-xs text-muted-foreground" title="이 날짜에 실제로 돌아가는지 확인한 레시피예요.">
-      {date} 확인
-    </span>
-  );
-}
-
 export function LockBadge() {
   return (
     <span className={cn(pill, 'border-rose-200 bg-rose-50 text-rose-800')}>

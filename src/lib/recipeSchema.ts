@@ -6,10 +6,15 @@ import {
   type AgentCard,
   type CardExtra,
   type Collaboration,
+  type Deliverable,
   type EngineId,
   type Handoff,
   type Permission,
   type Recipe,
+  type VerificationKind,
+  type VerificationRecord,
+  type VerificationResult,
+  type VerificationSource,
 } from '../types';
 import { newId } from './id';
 
@@ -31,6 +36,13 @@ const ENGINES: EngineId[] = [
 const PERMISSIONS: Permission[] = ['read-only', 'edit', 'full'];
 const COLLABORATIONS: Collaboration[] = ['subagents', 'agent-team', 'debate'];
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const KINDS: VerificationKind[] = ['docs', 'file', 'run', 'unclassified'];
+const RESULTS: VerificationResult[] = ['success', 'failure', 'n/a'];
+const SOURCES: VerificationSource[] = ['user', 'auto', 'author', 'unknown'];
+/** 옛 형식(v1)의 확인 날짜를 옮긴 기록의 id. 고정이라 두 번 옮겨도 하나만 생긴다. */
+export const LEGACY_VERIFICATION_ID = 'legacy-date';
+const MAX_ITEMS = 30;
+const MAX_LINE = 1000;
 
 const MAX_CARDS = 30;
 const MAX_HANDOFFS = 100;
@@ -52,6 +64,65 @@ function stringList(value: unknown, maxItems: number): string[] | undefined {
     .slice(0, maxItems)
     .map((item) => item.slice(0, MAX_SHORT));
   return list.length > 0 ? list : undefined;
+}
+
+/** 여러 줄 목록 (성공 조건, 완료 기준 등). 빈 줄은 버린다. */
+function lineList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const list = value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.slice(0, MAX_LINE))
+    .filter((item) => item.trim() !== '')
+    .slice(0, MAX_ITEMS);
+  return list.length > 0 ? list : undefined;
+}
+
+function parseDeliverables(value: unknown): Deliverable[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const used = new Set<string>();
+  const list: Deliverable[] = [];
+  for (const item of value.slice(0, MAX_ITEMS)) {
+    if (!isObject(item)) continue;
+    const name = text(item.name, MAX_SHORT);
+    if (name.trim() === '') continue;
+    let id = text(item.id, MAX_SHORT);
+    if (!id || used.has(id)) id = newId('out');
+    used.add(id);
+    const deliverable: Deliverable = { id, name };
+    const description = text(item.description, MAX_LINE);
+    if (description) deliverable.description = description;
+    list.push(deliverable);
+  }
+  return list.length > 0 ? list : undefined;
+}
+
+function parseVerification(value: unknown): VerificationRecord[] {
+  if (!Array.isArray(value)) return [];
+  const used = new Set<string>();
+  const list: VerificationRecord[] = [];
+  for (const item of value.slice(0, MAX_ITEMS)) {
+    if (!isObject(item)) continue;
+    // 날짜가 없는 기록은 버린다. 모르는 종류·결과·출처는 '모름' 쪽으로 낮춘다 (성공으로 올리지 않는다).
+    if (typeof item.checkedAt !== 'string' || !DATE_PATTERN.test(item.checkedAt)) continue;
+    let id = text(item.id, MAX_SHORT);
+    if (!id || used.has(id)) id = newId('check');
+    used.add(id);
+    const record: VerificationRecord = {
+      id,
+      kind: KINDS.includes(item.kind as VerificationKind) ? (item.kind as VerificationKind) : 'unclassified',
+      checkedAt: item.checkedAt,
+      result: RESULTS.includes(item.result as VerificationResult) ? (item.result as VerificationResult) : 'n/a',
+      source: SOURCES.includes(item.source as VerificationSource) ? (item.source as VerificationSource) : 'unknown',
+    };
+    for (const key of ['tool', 'toolVersion', 'environment'] as const) {
+      const field = text(item[key], MAX_SHORT);
+      if (field) record[key] = field;
+    }
+    const note = text(item.note, MAX_LINE);
+    if (note) record.note = note;
+    list.push(record);
+  }
+  return list;
 }
 
 function wholeNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -97,6 +168,14 @@ function parseCard(value: unknown, usedIds: Set<string>): AgentCard | null {
   if (tools) card.tools = tools;
   const tags = stringList(value.tags, 10);
   if (tags) card.tags = tags;
+  const requiredInputs = lineList(value.requiredInputs);
+  if (requiredInputs) card.requiredInputs = requiredInputs;
+  const deliverables = parseDeliverables(value.deliverables);
+  if (deliverables) card.deliverables = deliverables;
+  const completionCriteria = lineList(value.completionCriteria);
+  if (completionCriteria) card.completionCriteria = completionCriteria;
+  const boundaries = lineList(value.boundaries);
+  if (boundaries) card.boundaries = boundaries;
   const extra = parseExtra(value.extra);
   if (extra) card.extra = extra;
   return card;
@@ -104,7 +183,11 @@ function parseCard(value: unknown, usedIds: Set<string>): AgentCard | null {
 
 /**
  * 알 수 없는 값을 Recipe로 바꾼다. 형식이 맞지 않으면 RecipeFormatError를 던진다.
- * 공유 링크 하위 호환: 새 schemaVersion을 만들면 여기에 "옛 버전 → 새 버전" 변환을 추가한다.
+ *
+ * 하위 호환 (옛 버전 → 지금 버전). 여러 번 적용해도 결과가 같다.
+ * - v1 → v2: 확인 날짜(lastVerified)를 '확인 방식 미기록' 기록 하나로 옮긴다. 날짜는 그대로 두고,
+ *   실제 실행에 성공했다는 기록으로 올리지 않는다. 새로 생긴 항목(학습 목표, 산출물 등)은 비워 둔다.
+ * - 더 새로운 버전은 읽지 않고 거절한다 (모르는 항목을 조용히 버리지 않으려고).
  */
 export function parseRecipe(raw: unknown): Recipe {
   if (!isObject(raw)) {
@@ -143,6 +226,9 @@ export function parseRecipe(raw: unknown): Recipe {
       const handoff: Handoff = { id: text(item.id, MAX_SHORT) || newId('handoff'), from, to };
       const label = text(item.label, MAX_SHORT);
       if (label) handoff.label = label;
+      // 지워진 산출물을 가리키는 id도 그대로 둔다 (화면에서 '재선택 필요'로 알려 준다)
+      const deliverableIds = stringList(item.deliverableIds, MAX_ITEMS);
+      if (deliverableIds) handoff.deliverableIds = deliverableIds;
       handoffs.push(handoff);
     }
   }
@@ -167,9 +253,31 @@ export function parseRecipe(raw: unknown): Recipe {
       ? (raw.collaboration as Collaboration)
       : 'subagents';
   }
-  if (typeof raw.lastVerified === 'string' && DATE_PATTERN.test(raw.lastVerified)) {
-    recipe.lastVerified = raw.lastVerified;
+  const learningObjective = text(raw.learningObjective, MAX_LINE);
+  if (learningObjective) recipe.learningObjective = learningObjective;
+  const sampleTask = text(raw.sampleTask, MAX_LONG);
+  if (sampleTask) recipe.sampleTask = sampleTask;
+  const successCriteria = lineList(raw.successCriteria);
+  if (successCriteria) recipe.successCriteria = successCriteria;
+  const prerequisites = lineList(raw.prerequisites);
+  if (prerequisites) recipe.prerequisites = prerequisites;
+
+  const verification = parseVerification(raw.verification);
+  // v1의 확인 날짜: 무엇을 어떻게 확인했는지 모르므로 '미기록'으로 옮긴다
+  if (
+    typeof raw.lastVerified === 'string' &&
+    DATE_PATTERN.test(raw.lastVerified) &&
+    !verification.some((record) => record.id === LEGACY_VERIFICATION_ID)
+  ) {
+    verification.push({
+      id: LEGACY_VERIFICATION_ID,
+      kind: 'unclassified',
+      checkedAt: raw.lastVerified,
+      result: 'n/a',
+      source: 'unknown',
+    });
   }
+  if (verification.length > 0) recipe.verification = verification;
   const author = text(raw.author, MAX_SHORT);
   if (author) recipe.author = author;
   const howToRun = text(raw.howToRun, MAX_LONG);

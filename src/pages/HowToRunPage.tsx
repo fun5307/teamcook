@@ -56,7 +56,7 @@ export function HowToRunPage() {
 
       <Step number={1} title="zip을 풀어 프로젝트 폴더에 넣기">
         <p>
-          레시피 화면에서 <strong>zip으로 내보내기</strong>를 누르고 압축을 풉니다. 그 안의 <code>.codex</code>{' '}
+          레시피 화면에서 <strong>내보내기 준비</strong>를 눌러 점검 결과와 파일을 확인한 뒤 zip을 내려받아 압축을 풉니다. 그 안의 <code>.codex</code>{' '}
           폴더와 <code>.claude</code> 폴더를 <strong>내 프로젝트 폴더 맨 위</strong>에 복사하세요.
         </p>
         <Code>{`내-프로젝트/
