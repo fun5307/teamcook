@@ -7,6 +7,11 @@ import { type Route, useRoute } from '@/lib/router';
 import { GalleryPage } from '@/pages/GalleryPage';
 import { HowToRunPage } from '@/pages/HowToRunPage';
 import { MyPlansPage } from '@/pages/MyPlansPage';
+import { PracticePanelButton } from '@/components/practice/PracticePanel';
+import { ComparisonPage } from '@/pages/practice/ComparisonPage';
+import { PracticeListPage } from '@/pages/practice/PracticeListPage';
+import { PracticeNewPage } from '@/pages/practice/PracticeNewPage';
+import { PracticeRunPage } from '@/pages/practice/PracticeRunPage';
 import { RecipeEditorPage } from '@/pages/RecipeEditorPage';
 import { BuiltinRecipePage, SharedRecipePage } from '@/pages/RecipePreviewPage';
 
@@ -26,6 +31,14 @@ function Page({ route }: { route: Route }) {
       return <MyPlansPage />;
     case 'how':
       return <HowToRunPage />;
+    case 'runs':
+      return <PracticeListPage />;
+    case 'run-new':
+      return <PracticeNewPage key={`${route.recipeId}-${route.taskId}`} recipeId={route.recipeId} taskId={route.taskId} />;
+    case 'run':
+      return <PracticeRunPage key={route.id} id={route.id} />;
+    case 'compare':
+      return <ComparisonPage key={route.id} id={route.id} />;
     case 'shared':
       return <SharedRecipePage key={route.encoded} encoded={route.encoded} />;
     default:
@@ -59,6 +72,7 @@ export default function App() {
                 </a>
               );
             })}
+            <PracticePanelButton route={route} />
             <a
               href="#/how"
               aria-current={route.page === 'how' ? 'page' : undefined}
@@ -83,7 +97,7 @@ export default function App() {
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-1 px-4 py-6 text-xs text-muted-foreground">
           <p>teamcook — 실행은 어디서든, 팀 설계와 레시피는 여기서. 이 사이트는 에이전트를 직접 실행하지 않아요.</p>
           <p>
-            레시피와 내 AI 현황은 이 브라우저에만 저장됩니다. 로그인도, 서버 저장도, API 키 입력도 없어요. 요금제
+            레시피, 실습 기록, 내 AI 현황은 이 브라우저에만 저장됩니다. 로그인도, 서버 저장도, API 키 입력도 없어요. 요금제
             정보는 {providerData.lastVerified}에 확인했습니다.
           </p>
         </div>

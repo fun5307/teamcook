@@ -10,13 +10,30 @@ export type Route =
   | { page: 'edit'; id: string }
   | { page: 'plans' }
   | { page: 'how' }
-  | { page: 'shared'; encoded: string };
+  | { page: 'shared'; encoded: string }
+  | { page: 'runs' }
+  | { page: 'run-new'; recipeId?: string; taskId?: string }
+  | { page: 'run'; id: string }
+  | { page: 'compare'; id: string };
 
 export function parseRoute(hash: string): Route {
   const encoded = readShareHash(hash);
   if (encoded !== null) return { page: 'shared', encoded };
 
-  const [, first, second] = hash.replace(/^#/, '').split('/');
+  const [path, query = ''] = hash.replace(/^#/, '').split('?');
+  const [, first, second] = path.split('/');
+  if (first === 'runs' && second === 'new') {
+    const params = new URLSearchParams(query);
+    const route: Route = { page: 'run-new' };
+    const recipeId = params.get('recipe');
+    const taskId = params.get('task');
+    if (recipeId) route.recipeId = recipeId;
+    if (taskId) route.taskId = taskId;
+    return route;
+  }
+  if (first === 'runs') return { page: 'runs' };
+  if (first === 'run' && second) return { page: 'run', id: decodeURIComponent(second) };
+  if (first === 'compare' && second) return { page: 'compare', id: decodeURIComponent(second) };
   if (first === 'recipe' && second) return { page: 'preview', id: decodeURIComponent(second) };
   if (first === 'edit' && second) return { page: 'edit', id: decodeURIComponent(second) };
   if (first === 'plans') return { page: 'plans' };
