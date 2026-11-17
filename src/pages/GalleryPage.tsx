@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/common';
+import { SuggestBox } from '@/components/SuggestBox';
 import { FitLabel, STYLE_COLORS, engineName } from '@/components/RouteInfo';
 import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
@@ -229,9 +230,10 @@ export function GalleryPage() {
           AI 팀을 레시피로 요리하세요
         </h1>
         <p className="max-w-2xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
-          역할을 나눈 AI 팀을 레시피 한 장으로 짜고 링크 하나로 나눕니다. 아래에서 하려는 일을 고르면, 바로 쓸 수
-          있는 팀 {builtinRecipes.length}가지 중에서 맞는 것을 보여 드려요.
+          역할을 나눈 AI 팀을 레시피 한 장으로 짜고 링크 하나로 나눕니다. 하고 싶은 작업을 적으면, 바로 쓸 수 있는
+          팀 {builtinRecipes.length}가지 중에서 내 여건에 맞는 것을 권해 드려요.
         </p>
+        <SuggestBox myRecipes={myRecipes} />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Button size="lg" onClick={onCreate}>
             <FilePlus2 aria-hidden />새 레시피 만들기

@@ -10,6 +10,7 @@ export type Route =
   | { page: 'edit'; id: string }
   | { page: 'plans' }
   | { page: 'how' }
+  | { page: 'learn' }
   | { page: 'shared'; encoded: string }
   | { page: 'runs' }
   | { page: 'run-new'; recipeId?: string; taskId?: string }
@@ -38,6 +39,7 @@ export function parseRoute(hash: string): Route {
   if (first === 'edit' && second) return { page: 'edit', id: decodeURIComponent(second) };
   if (first === 'plans') return { page: 'plans' };
   if (first === 'how') return { page: 'how' };
+  if (first === 'learn') return { page: 'learn' };
   return { page: 'gallery' };
 }
 

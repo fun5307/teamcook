@@ -54,13 +54,15 @@ src/
 │  ├─ support.ts           # 도구·조리법이 실제로 해 주는 것: 권한을 지키는 수단, 실행 반영 범위 (설명은 여기에만 적는다)
 │  ├─ verification.ts      # 확인 기록 이름표 (문서 확인 / 파일 생성 확인 / 실제 실행 확인)
 │  ├─ practice/            # 실습 기록·비교 평가 (2차, 부가 기능. 진입은 components/practice/PracticePanel.tsx의 옆 패널). types, schema(읽기·버전), storage(저장 API, 화면과 분리), model(만들기·잠금·측정 검사), rubric, compare, report(Markdown), transfer(JSON), demo(GraphRAG 합성 데모)
+│  ├─ suggest.ts           # "~하고 싶다"는 말에 레시피 제안 (AI 호출 없음: 낱말 + 내 플랜 + 사용량 여유, 고른 이유를 함께 돌려줌)
+│  ├─ cost.ts              # 사용량 어림(가벼움·보통·무거움)과 내 여건에서 어디서 나가는지. 토큰·금액 숫자는 짐작하지 않는다
 │  ├─ optimize.ts          # 구독 최적화 제안
 │  └─ bridge.ts            # Claude Code → Codex 연결(codex exec)
 ├─ cli/                    # 설치 명령 (node teamcook.mjs add <링크>). 빌드 결과는 루트의 cli/teamcook.mjs — 사용자가 이 파일을 GitHub에서 직접 받아 쓰므로 반드시 다시 빌드해 커밋
 ├─ store/                  # zustand + localStorage. useStore = 레시피·플랜('agent-recipes'), usePractice = 실습 기록('teamcook-practice', 저장 성공 시에만 화면 반영)
 ├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등)
 │  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
-└─ pages/                  # Gallery, RecipeEditor, MyPlans, SharedRecipe, HowToRun, practice/(실습 기록 목록·만들기·상세·비교)
+└─ pages/                  # Gallery, RecipeEditor, MyPlans, SharedRecipe, HowToRun, Concepts(재료 사전 #/learn), practice/(실습 기록 목록·만들기·상세·비교)
 samples/codex/             # 사용자의 실제 Codex TOML (변환기 테스트용)
 design/                    # 디자인 시안 (브라우저로 여는 HTML)과 적용 뒤 화면(shots/). 채택: 3차 시안 2 "레시피 카드"
 ```
@@ -78,6 +80,7 @@ design/                    # 디자인 시안 (브라우저로 여는 HTML)과 �
 - 공유 링크는 하위 호환을 지킨다 (`schemaVersion` 필수, 옛 버전 읽기 코드 유지). 지금 버전은 2이고, 옛 형식을 바꾸는 규칙은 `lib/recipeSchema.ts`의 `parseRecipe`에만 둔다.
 - "설계한 것, 파일에 반영한 것, 실제로 실행해 확인한 것"을 섞지 않는다. 실행해 보지 않은 것을 "확인됨"이나 "지원"으로 적지 않는다. 확인 기록은 종류(문서·파일 생성·실제 실행)를 나눠 적는다.
 - 실습 기록은 레시피와 따로 저장하고 레시피 공유 링크에 넣지 않는다. 사이트는 AI를 실행하지 않으므로 기록의 출처를 '자동 관측'으로 만들지 않고, 미확인 값을 0으로 바꾸지 않으며, 점수를 합산하거나 승자를 정하지 않는다.
+- 개념 설명은 '재료' 비유(재료 = 에이전트, 조리법 = 협업 방식, 주방 = 실행 도구, 재료비 = 토큰)를 쓰되, 비유와 공식 문서로 확인한 사실을 나눠 적는다.
 - 레시피의 조리법은 `recipe.collaboration`을 직접 읽지 말고 `collaborationOf(recipe)`로 읽는다 (없으면 서브에이전트).
 - 디자인은 "레시피 카드" 방향이다 (`HANDOFF.md`의 '디자인 방향'). 색·모서리·글꼴은 `src/index.css`에서만 고친다. 포인트 색은 토마토 빨강 하나, 보라색은 쓰지 않는다. 움직임은 절제한다(랜딩페이지식 화려한 효과 금지). 확인 날짜는 강조하지 않는다.
 - 화면은 사용자 친화적으로: 한 화면에 한 가지 일, 꼭 필요한 칸만 먼저 보이고 선택 항목은 접는다. 같은 안내를 되풀이하지 않는다. 내보내기를 막는 것은 파일이 깨지는 경우뿐이고, 나머지는 "채우면 더 좋아요"로만 알린다.
@@ -97,4 +100,4 @@ npm run build:cli  # 설치 명령 묶음 (cli/teamcook.mjs). src/cli나 변환�
 
 ## 현재 단계
 
-(2026-11-16 기준) 0~5단계 완료(배포: https://teamcook-eta.vercel.app/, 저장소: fun5307/teamcook). 6·7단계 중 계정·API 키 없이 가능한 것(Antigravity·Grok 어댑터, 구독 최적화, 검색, Codex 연결 다리, 설치 명령)도 완료. 남은 것과 이유는 `HANDOFF.md`의 '6·7단계 현황'. 조리법(협업 방식)과 확인 날짜 표시도 추가 완료(`BRIEF_collaboration-styles.md`, `HANDOFF.md`의 '조리법 현황'). 에이전트 팀이 실제 Claude Code에서 시작되는지는 사용자 확인 대기. 1차 개선(학습 목표·역할별 산출물·전달 정보·내보내기 점검·파일 미리보기, `teamcook-phase1-agent-prompt.md`)도 구현 완료이며 기록은 `HANDOFF.md`의 '1차 개선'에 있다. 2차 개선(실습 기록·비교 평가, `지시서들/teamcook-phase2-agent-prompt.md`)도 배포했다. 실습 기록은 **부가 기능**이라 주 메뉴·레시피 화면에 넣지 않고 머리말의 "실습 기록" 옆 패널로만 들어간다. 1차 점검표와 기록은 `HANDOFF.md`의 '2차 개선'에 있다.
+(2026-11-16 기준) 0~5단계 완료(배포: https://teamcook-eta.vercel.app/, 저장소: fun5307/teamcook). 6·7단계 중 계정·API 키 없이 가능한 것(Antigravity·Grok 어댑터, 구독 최적화, 검색, Codex 연결 다리, 설치 명령)도 완료. 남은 것과 이유는 `HANDOFF.md`의 '6·7단계 현황'. 조리법(협업 방식)과 확인 날짜 표시도 추가 완료(`BRIEF_collaboration-styles.md`, `HANDOFF.md`의 '조리법 현황'). 에이전트 팀이 실제 Claude Code에서 시작되는지는 사용자 확인 대기. 1차 개선(학습 목표·역할별 산출물·전달 정보·내보내기 점검·파일 미리보기, `teamcook-phase1-agent-prompt.md`)도 구현 완료이며 기록은 `HANDOFF.md`의 '1차 개선'에 있다. 2차 개선(실습 기록·비교 평가, `지시서들/teamcook-phase2-agent-prompt.md`)도 배포했다. 실습 기록은 **부가 기능**이라 주 메뉴·레시피 화면에 넣지 않고 페이지 맨 아래(바닥글)의 "실습 기록" 옆 패널로만 들어간다. **3차 지시서(로컬 실행·A2A 실습)는 하지 않는다(사용자 결정).** 그 뒤 레시피 제안·사용량 어림·재료 사전을 추가했다(`HANDOFF.md`의 '레시피 제안·사용량 어림·재료 사전'). 1차 점검표와 기록은 `HANDOFF.md`의 '2차 개선'에 있다.

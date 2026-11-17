@@ -4,6 +4,7 @@ import { CircleHelp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { providerData } from '@/data/providers';
 import { type Route, useRoute } from '@/lib/router';
+import { ConceptsPage } from '@/pages/ConceptsPage';
 import { GalleryPage } from '@/pages/GalleryPage';
 import { HowToRunPage } from '@/pages/HowToRunPage';
 import { MyPlansPage } from '@/pages/MyPlansPage';
@@ -18,6 +19,7 @@ import { BuiltinRecipePage, SharedRecipePage } from '@/pages/RecipePreviewPage';
 const NAV: { href: string; label: string; pages: Route['page'][] }[] = [
   { href: '#/', label: '레시피', pages: ['gallery', 'preview', 'edit', 'shared'] },
   { href: '#/plans', label: '내 AI 현황', pages: ['plans'] },
+  { href: '#/learn', label: '재료 사전', pages: ['learn'] },
 ];
 
 function Page({ route }: { route: Route }) {
@@ -31,6 +33,8 @@ function Page({ route }: { route: Route }) {
       return <MyPlansPage />;
     case 'how':
       return <HowToRunPage />;
+    case 'learn':
+      return <ConceptsPage />;
     case 'runs':
       return <PracticeListPage />;
     case 'run-new':
@@ -72,7 +76,6 @@ export default function App() {
                 </a>
               );
             })}
-            <PracticePanelButton route={route} />
             <a
               href="#/how"
               aria-current={route.page === 'how' ? 'page' : undefined}
@@ -96,6 +99,11 @@ export default function App() {
       <footer className="border-t">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-1 px-4 py-6 text-xs text-muted-foreground">
           <p>teamcook — 실행은 어디서든, 팀 설계와 레시피는 여기서. 이 사이트는 에이전트를 직접 실행하지 않아요.</p>
+          <div className="flex flex-wrap items-center gap-x-2">
+            <span>부가 기능:</span>
+            <PracticePanelButton route={route} />
+            <span>밖에서 실습한 결과를 적고 비교해요.</span>
+          </div>
           <p>
             레시피, 실습 기록, 내 AI 현황은 이 브라우저에만 저장됩니다. 로그인도, 서버 저장도, API 키 입력도 없어요. 요금제
             정보는 {providerData.lastVerified}에 확인했습니다.

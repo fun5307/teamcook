@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { FlowSection } from '@/components/FlowSection';
 import { CardRoute, PlanBadges, RecipeRunSummary, StyleChip, engineName } from '@/components/RouteInfo';
 import { PermissionNote, VerificationList } from '@/components/SpecEditors';
+import { UsageNote } from '@/components/SuggestBox';
 import { COLLABORATIONS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
 import { copyText } from '@/lib/download';
@@ -172,6 +173,7 @@ export function RecipeOverview({
         </div>
         <RecipeRunSummary resolution={resolved} lead={runLead} />
         <p className="text-xs text-muted-foreground">{PLAN_FIT_NOTE}</p>
+        <UsageNote recipe={recipe} plans={plans} />
       </section>
 
       {/* 4. 팀 구성: 한 줄 요약을 먼저, 자세한 것은 접어 둔다 */}

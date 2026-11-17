@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Notice, PageHeader } from '@/components/common';
 import { LockBadge, PathBadge } from '@/components/RouteInfo';
 import { providerData } from '@/data/providers';
+import { BUDGETS, BUDGET_HINTS, BUDGET_LABELS } from '@/lib/cost';
 import { bestAccess } from '@/lib/resolvePath';
 import { useStore } from '@/store/useStore';
 import type { EngineId, ProviderId, UserPlans } from '@/types';
@@ -23,6 +24,8 @@ export function MyPlansPage() {
   const plans = useStore((state) => state.plans);
   const setPlan = useStore((state) => state.setPlan);
   const setApiKey = useStore((state) => state.setApiKey);
+  const budget = useStore((state) => state.budget);
+  const setBudget = useStore((state) => state.setBudget);
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,6 +134,33 @@ export function MyPlansPage() {
           );
         })}
       </div>
+
+      <section className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
+        <h2 className="text-lg font-bold">사용량 여유</h2>
+        <p className="text-sm text-muted-foreground">
+          역할을 나눌수록 토큰(재료비)이 더 들어요. 첫 화면에서 레시피를 권할 때 이 설정을 함께 따집니다.{' '}
+          <a className="underline underline-offset-2 hover:text-primary" href="#/learn">
+            재료비가 뭔가요?
+          </a>
+        </p>
+        <div className="flex flex-col gap-2" role="radiogroup" aria-label="사용량 여유">
+          {BUDGETS.map((item) => (
+            <label
+              key={item}
+              className={cn(
+                'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition-colors',
+                budget === item ? 'border-foreground' : 'hover:bg-muted',
+              )}
+            >
+              <input type="radio" name="budget" className="mt-1" checked={budget === item} onChange={() => setBudget(item)} />
+              <span>
+                <span className="font-medium">{BUDGET_LABELS[item]}</span>
+                <span className="block text-sm text-muted-foreground">{BUDGET_HINTS[item]}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
 
       <section className="flex flex-col gap-2 rounded-xl border bg-card p-5 text-sm">
         <h2 className="text-base font-semibold">실행 경로 사다리란?</h2>

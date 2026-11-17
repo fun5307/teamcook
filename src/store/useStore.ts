@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ProviderId, Recipe, UserPlans } from '../types';
+import { BUDGETS, type Budget } from '../lib/cost';
 import { parseRecipe } from '../lib/recipeSchema';
 
 /**
@@ -46,6 +47,8 @@ interface AppState {
   plans: UserPlans;
   /** 사용자가 '내 AI 현황'을 한 번이라도 직접 고쳤는지 */
   plansConfirmed: boolean;
+  /** 사용량 여유: 제안할 때 가벼운 레시피를 먼저 권할지 정한다 */
+  budget: Budget;
   /**
    * 이 버전이 읽지 못한 저장 데이터 (더 새로운 형식이거나 깨진 것). 지우거나 덮어쓰지 않고 그대로 보관한다.
    * 새 버전의 사이트에서 다시 열면 읽을 수 있다.
@@ -57,6 +60,7 @@ interface AppState {
   removeRecipe: (id: string) => void;
   setPlan: <P extends ProviderId>(provider: P, plan: UserPlans[P]) => void;
   setApiKey: (provider: ProviderId, has: boolean) => void;
+  setBudget: (budget: Budget) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -65,6 +69,7 @@ export const useStore = create<AppState>()(
       recipes: [],
       plans: DEFAULT_PLANS,
       plansConfirmed: false,
+      budget: 'normal',
       unreadable: [],
 
       saveRecipe: (recipe) =>
@@ -88,6 +93,8 @@ export const useStore = create<AppState>()(
           plans: { ...state.plans, apiKeys: { ...state.plans.apiKeys, [provider]: has } },
           plansConfirmed: true,
         })),
+
+      setBudget: (budget) => set({ budget }),
     }),
     {
       // 저장 이름은 옛 가칭 그대로 둔다. 바꾸면 이미 저장된 사용자 레시피가 사라진다.
@@ -103,6 +110,7 @@ export const useStore = create<AppState>()(
           unreadable,
           plans: { ...DEFAULT_PLANS, ...(saved.plans ?? {}), apiKeys: { ...(saved.plans?.apiKeys ?? {}) } },
           plansConfirmed: saved.plansConfirmed === true,
+          budget: BUDGETS.includes(saved.budget as Budget) ? (saved.budget as Budget) : 'normal',
         };
       },
     },
