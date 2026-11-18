@@ -10,7 +10,8 @@
     "test": "node scripts/vitest.mjs run",
     "test:watch": "node scripts/vitest.mjs",
     "typecheck": "tsc -b",
-    "build:cli": "vite build --config vite.cli.config.ts"
+    "build:cli": "vite build --config vite.cli.config.ts",
+    "open": "node cli/teamcook.mjs open"
   },
   "dependencies": {
     "@fontsource-variable/hahmlet": "^5.3.0",

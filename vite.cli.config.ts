@@ -4,9 +4,15 @@
 import path from 'node:path';
 import { defineConfig } from 'vite';
 
+// Windows 소문자 드라이브 문자 문제를 피한다 (vite.config.ts 참고)
+const root = import.meta.dirname.replace(/^[a-z]:/, (drive) => drive.toUpperCase());
+
 export default defineConfig({
+  root,
+  // public/ 폴더(사이트용 파일)를 cli/로 복사하지 않는다
+  publicDir: false,
   resolve: {
-    alias: { '@': path.resolve(import.meta.dirname, './src') },
+    alias: { '@': path.resolve(root, './src') },
   },
   // 필요한 라이브러리(lz-string, smol-toml, yaml, jszip)를 파일 안에 모두 넣는다
   ssr: { noExternal: true },

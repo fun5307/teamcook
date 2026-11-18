@@ -1,8 +1,10 @@
 // 사용자가 연 프로젝트 폴더와 기록 폴더. 폴더 손잡이는 브라우저(IndexedDB)에만 기억해 두고,
 // 다음에 올 때 "다시 열기"를 누르면 브라우저가 권한을 다시 묻는다. 서버로 가는 것은 없다.
 // 폴더 열기는 Chrome·Edge에서만 된다 (File System Access API).
+// 내 컴퓨터 도우미(teamcook open)가 띄운 화면이면 브라우저 대신 도우미가 폴더를 읽고 쓴다 (어느 브라우저든 된다).
 
 import { create } from 'zustand';
+import { closeProject, isLocal, localDir, selectProject } from '@/lib/local/client';
 import type { DirLike } from '@/lib/workspace/fs';
 import { applyChanges, planSave, scanTeam, type ApplyResult, type FileChange, type TeamSnapshot } from '@/lib/workspace/team';
 import type { AgentCard } from '@/types';
@@ -17,7 +19,7 @@ type PermissionHandle = DirLike & {
   requestPermission?: (options: { mode: 'read' | 'readwrite' }) => Promise<string>;
 };
 
-export const folderAccessSupported = () => typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+export const folderAccessSupported = () => isLocal() || (typeof window !== 'undefined' && 'showDirectoryPicker' in window);
 
 // ───────── 손잡이 기억하기 (IndexedDB) ─────────
 const DB = 'teamcook-handles';
@@ -138,7 +140,8 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => ({
   },
 
   close: () => {
-    void forgetFolder('project');
+    if (isLocal()) void closeProject().catch(() => {});
+    else void forgetFolder('project');
     set({ root: null, snapshot: null, cards: [], error: null });
   },
 
@@ -180,5 +183,17 @@ export async function reopenProject(): Promise<boolean> {
   const handle = await recallFolder('project', 'readwrite', true);
   if (!handle) return false;
   await useWorkspace.getState().openWith(handle);
+  return useWorkspace.getState().root !== null;
+}
+
+/** 내 컴퓨터 도우미로 프로젝트를 연다 (전체 경로). 성공하면 true. */
+export async function openLocalProject(path: string): Promise<boolean> {
+  try {
+    const project = await selectProject(path);
+    await useWorkspace.getState().openWith(localDir('project', project.name));
+  } catch (error) {
+    useWorkspace.setState({ error: (error as Error).message });
+    return false;
+  }
   return useWorkspace.getState().root !== null;
 }

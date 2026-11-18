@@ -3,7 +3,7 @@
 // projects / sessions 폴더 안으로만 들어가고, 인증 파일이나 설정 파일은 열지 않는다.
 
 import { getDir, listDirs, listFiles, type DirLike, type FileData, type FileLike } from '../workspace/fs';
-import { ClaudeSessionBuilder, parseClaudeAgentSteps } from './claude';
+import { claudeProjectSlug, ClaudeSessionBuilder, parseClaudeAgentSteps } from './claude';
 import { buildCodexSessions, CodexRolloutBuilder, type CodexRollout } from './codex';
 import type { AgentStep, JournalSession } from './types';
 
@@ -44,13 +44,19 @@ export interface SessionFile {
  * - 고른 폴더에 .jsonl이 바로 있으면 그 폴더가 기록 폴더다.
  * - ~/.claude 또는 ~/.claude/projects를 골랐으면, 이름이 프로젝트 폴더 이름으로 끝나는 폴더를 찾는다
  *   (Claude Code는 경로의 글자·숫자가 아닌 것을 '-'로 바꿔 폴더 이름을 만든다).
+ * - 전체 경로(projectPath)를 알면(내 컴퓨터 도우미) 그 경로로 만든 이름과 정확히 같은 폴더만 고른다.
  */
-export async function findClaudeProjectDirs(picked: DirLike, projectName: string): Promise<DirLike[]> {
+export async function findClaudeProjectDirs(picked: DirLike, projectName: string, projectPath?: string): Promise<DirLike[]> {
   // ~/.claude처럼 projects 폴더를 품은 폴더를 골랐으면 그 안으로 들어간다
   const base = (await getDir(picked, 'projects')) ?? picked;
-  if ((await listFiles(base)).some((file) => file.name.endsWith('.jsonl'))) return [base];
+  if (!projectPath && (await listFiles(base)).some((file) => file.name.endsWith('.jsonl'))) return [base];
+  const dirs = await listDirs(base);
+  if (projectPath) {
+    const exact = claudeProjectSlug(projectPath.replace(/[\\/]+$/, '')).toLowerCase();
+    return dirs.filter((dir) => dir.name.toLowerCase() === exact);
+  }
   const slug = projectName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-  return (await listDirs(base)).filter((dir) => {
+  return dirs.filter((dir) => {
     const name = dir.name.toLowerCase();
     return name === slug || name.endsWith(`-${slug}`);
   });
@@ -119,9 +125,16 @@ export async function readCodexJournal(picked: DirLike, limit = 80): Promise<Cod
   return { sessions: buildCodexSessions(rollouts), read: recent.length, compressed: counter.compressed };
 }
 
-/** 기록에 적힌 작업 폴더가 이 프로젝트인지 (폴더 이름으로 견준다. 브라우저는 전체 경로를 알려 주지 않는다) */
-export function sameProject(cwd: string | undefined, projectName: string): boolean {
+/**
+ * 기록에 적힌 작업 폴더가 이 프로젝트인지. 브라우저는 전체 경로를 알려 주지 않아 폴더 이름으로 견주고,
+ * 내 컴퓨터 도우미로 열었으면 전체 경로(projectPath)로 정확히 견준다.
+ */
+export function sameProject(cwd: string | undefined, projectName: string, projectPath?: string): boolean {
   if (!cwd) return false;
+  if (projectPath) {
+    const norm = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+    return norm(cwd) === norm(projectPath);
+  }
   const last = cwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? '';
   return last.toLowerCase() === projectName.toLowerCase();
 }

@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { createReadStream, existsSync, mkdirSync, statSync, watch, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
+import http from "node:http";
+import { createInterface } from "node:readline";
+import * as zlib from "node:zlib";
 var __commonJSMin = (cb, mod) => () => (mod || (cb((mod = { exports: {} }).exports, mod, mod.exports), cb = null), mod.exports);
 var __require = /* #__PURE__ */ (() => createRequire(import.meta.url))();
 // src/data/collaboration.ts
@@ -18056,13 +18064,591 @@ function planInstall(link, options = {}) {
 		files
 	};
 }
+// src/cli/local/discover.ts
+/** 이 Node에 압축 풀기(zstd)가 들어 있는가 (Node 22.15·23.8부터) */
+var zstdSupported = () => typeof zlib.createZstdDecompress === "function";
+function openLogStream(file) {
+	const raw = createReadStream(file);
+	if (!file.endsWith(".zst")) return raw;
+	const unzip = zlib.createZstdDecompress();
+	raw.on("error", (error) => unzip.destroy(error));
+	return raw.pipe(unzip);
+}
+/** 앞에서부터 줄을 읽다가 pick이 값을 돌려주면 멈춘다 */
+async function firstMatch(file, maxLines, pick) {
+	let stream;
+	try {
+		stream = openLogStream(file);
+	} catch {
+		return;
+	}
+	const lines = createInterface({
+		input: stream,
+		crlfDelay: Infinity
+	});
+	let count = 0;
+	try {
+		for await (const line of lines) {
+			count += 1;
+			if (count > maxLines) break;
+			try {
+				const found = pick(JSON.parse(line));
+				if (found !== void 0) return found;
+			} catch {}
+		}
+	} catch {
+		return;
+	} finally {
+		lines.close();
+		stream.destroy();
+	}
+}
+var keyOf = (dir) => path.resolve(dir).replace(/[\\/]+$/, "").toLowerCase();
+async function safeDirents(dir) {
+	try {
+		return await readdir(dir, { withFileTypes: true });
+	} catch {
+		return [];
+	}
+}
+async function claudeHits(projectsDir) {
+	const hits = [];
+	for (const entry of await safeDirents(projectsDir)) {
+		if (!entry.isDirectory()) continue;
+		const dir = path.join(projectsDir, entry.name);
+		const files = [];
+		for (const child of await safeDirents(dir)) {
+			if (!child.isFile() || !child.name.endsWith(".jsonl")) continue;
+			try {
+				files.push({
+					file: path.join(dir, child.name),
+					mtime: (await stat(path.join(dir, child.name))).mtimeMs
+				});
+			} catch {}
+		}
+		files.sort((a, b) => b.mtime - a.mtime);
+		let cwd;
+		for (const item of files.slice(0, 3)) {
+			cwd = await firstMatch(item.file, 60, (line) => typeof line.cwd === "string" ? line.cwd : void 0);
+			if (cwd) break;
+		}
+		if (!cwd) continue;
+		for (const item of files) hits.push({
+			cwd,
+			mtime: item.mtime,
+			tool: "claude"
+		});
+	}
+	return hits;
+}
+async function codexFiles(dir, depth, out) {
+	for (const entry of await safeDirents(dir)) {
+		const full = path.join(dir, entry.name);
+		if (entry.isFile() && (entry.name.endsWith(".jsonl") || entry.name.endsWith(".jsonl.zst") && zstdSupported())) out.push(full);
+		else if (entry.isDirectory() && depth > 0) await codexFiles(full, depth - 1, out);
+	}
+}
+async function codexHits(sessionsDir, limit) {
+	const files = [];
+	await codexFiles(sessionsDir, 3, files);
+	files.sort((a, b) => path.basename(b).localeCompare(path.basename(a)));
+	const hits = [];
+	for (const file of files.slice(0, limit)) {
+		const meta = await firstMatch(file, 3, (line) => {
+			if (line.type !== "session_meta") return void 0;
+			const payload = line.payload ?? {};
+			return {
+				cwd: typeof payload.cwd === "string" ? payload.cwd : "",
+				child: Boolean(payload.parent_thread_id)
+			};
+		});
+		if (!meta?.cwd || meta.child) continue;
+		try {
+			hits.push({
+				cwd: meta.cwd,
+				mtime: statSync(file).mtimeMs,
+				tool: "codex"
+			});
+		} catch {}
+	}
+	return hits;
+}
+/** 두 도구의 기록을 합쳐 최근 프로젝트 목록을 만든다 */
+async function discoverProjects(claudeProjects, codexSessions, options = {}) {
+	const hits = [...await claudeHits(claudeProjects), ...await codexHits(codexSessions, options.codexFiles ?? 400)];
+	const byPath = /* @__PURE__ */ new Map();
+	for (const hit of hits) {
+		const key = keyOf(hit.cwd);
+		let item = byPath.get(key);
+		if (!item) {
+			const resolved = path.resolve(hit.cwd);
+			item = {
+				path: resolved,
+				name: path.basename(resolved) || resolved,
+				lastUsed: 0,
+				claudeSessions: 0,
+				codexSessions: 0,
+				exists: false
+			};
+			byPath.set(key, item);
+		}
+		item.lastUsed = Math.max(item.lastUsed, hit.mtime);
+		if (hit.tool === "claude") item.claudeSessions += 1;
+		else item.codexSessions += 1;
+	}
+	const list = [...byPath.values()].sort((a, b) => b.lastUsed - a.lastUsed).slice(0, options.limit ?? 30);
+	for (const item of list) try {
+		item.exists = existsSync(item.path) && statSync(item.path).isDirectory();
+	} catch {
+		item.exists = false;
+	}
+	return list;
+}
+// src/cli/local/policy.ts
+var ROOT_IDS = [
+	"project",
+	"claude-logs",
+	"codex-logs"
+];
+var AGENT_DIRS = [[".claude", "agents"], [".codex", "agents"]];
+var DOCS_DIR = [".teamcook"];
+/** 읽기만 하는 설정 파일 (없을 때 새로 만드는 것만 허락) */
+var CONFIG_FILES = [[".codex", "config.toml"], [".claude", "settings.json"]];
+/** 'a/b/c'를 조각으로. 위로 올라가기(..)·드라이브·역슬래시 같은 수상한 경로는 null. */
+function splitPath(rel) {
+	if (rel.length > 1024) return null;
+	const parts = rel.split("/").filter((part) => part !== "");
+	for (const part of parts) if (part === "." || part === ".." || /[\\:\0]/.test(part)) return null;
+	return parts;
+}
+var startsWith = (parts, prefix) => prefix.every((name, index) => parts[index] === name);
+var equals = (parts, other) => parts.length === other.length && startsWith(parts, other);
+/** 로그 파일 이름 (Codex는 오래된 기록을 .zst로 압축한다) */
+var isLogFile = (root, name) => root === "codex-logs" ? name.endsWith(".jsonl") || name.endsWith(".jsonl.zst") : root === "claude-logs" && name.endsWith(".jsonl");
+/** 폴더로서 들어가거나 목록을 볼 수 있는가 */
+function canOpenDir(root, parts) {
+	if (root !== "project") return true;
+	if (parts.length === 0) return true;
+	if (parts.length === 1 && (parts[0] === ".claude" || parts[0] === ".codex")) return true;
+	return [...AGENT_DIRS, DOCS_DIR].some((prefix) => startsWith(parts, prefix));
+}
+/** 파일을 읽을 수 있는가 */
+function canReadFile(root, parts) {
+	if (parts.length === 0) return false;
+	const name = parts[parts.length - 1];
+	if (root !== "project") return isLogFile(root, name);
+	if (CONFIG_FILES.some((file) => equals(parts, file))) return true;
+	if (AGENT_DIRS.some((prefix) => startsWith(parts, prefix))) return parts.length === 3;
+	return startsWith(parts, DOCS_DIR) && parts.length >= 2;
+}
+/** 목록에 보여 줄 항목인가 (보이지 않는 것은 이름도 알려 주지 않는다) */
+function canSee(root, parent, name, kind) {
+	const parts = [...parent, name];
+	if (kind === "directory") {
+		if (root !== "project") return true;
+		return [...AGENT_DIRS, DOCS_DIR].some((prefix) => startsWith(parts, prefix) || startsWith(prefix, parts));
+	}
+	return canReadFile(root, parts);
+}
+/** 파일을 쓸 수 있는가. 설정 파일은 아직 없을 때만 (새로 만들기). */
+function canWrite(root, parts, exists) {
+	if (root !== "project" || parts.length < 2) return false;
+	if (CONFIG_FILES.some((file) => equals(parts, file))) return !exists;
+	if (AGENT_DIRS.some((prefix) => startsWith(parts, prefix))) return parts.length === 3;
+	return startsWith(parts, DOCS_DIR);
+}
+/** 파일을 지울 수 있는가. 역할 파일만 (팀에서 빼기). */
+function canRemove(root, parts) {
+	return root === "project" && parts.length === 3 && AGENT_DIRS.some((prefix) => startsWith(parts, prefix));
+}
+// src/cli/local/server.ts
+var MAX_WRITE = 2097152;
+var TYPES = {
+	".html": "text/html; charset=utf-8",
+	".js": "text/javascript; charset=utf-8",
+	".css": "text/css; charset=utf-8",
+	".json": "application/json; charset=utf-8",
+	".svg": "image/svg+xml",
+	".png": "image/png",
+	".ico": "image/x-icon",
+	".woff2": "font/woff2",
+	".woff": "font/woff",
+	".txt": "text/plain; charset=utf-8"
+};
+var HttpError = class extends Error {
+	status;
+	constructor(status, message) {
+		super(message);
+		this.status = status;
+	}
+};
+function send(res, status, body) {
+	res.writeHead(status, {
+		"content-type": "application/json; charset=utf-8",
+		"cache-control": "no-store",
+		"x-content-type-options": "nosniff"
+	});
+	res.end(JSON.stringify(body));
+}
+async function readBody(req, limit = MAX_WRITE) {
+	const chunks = [];
+	let size = 0;
+	for await (const chunk of req) {
+		size += chunk.length;
+		if (size > limit) throw new HttpError(413, "파일이 너무 커요 (2MB까지).");
+		chunks.push(chunk);
+	}
+	return Buffer.concat(chunks).toString("utf8");
+}
+function sameKey(given, key) {
+	if (!given) return false;
+	const a = Buffer.from(given);
+	const b = Buffer.from(key);
+	return a.length === b.length && timingSafeEqual(a, b);
+}
+/** 심볼릭 링크 등으로 기준 폴더 밖을 가리키면 거절한다 */
+async function staysInside(base, full) {
+	let probe = full;
+	while (!existsSync(probe)) {
+		const parent = path.dirname(probe);
+		if (parent === probe) return false;
+		probe = parent;
+	}
+	try {
+		const [real, realBase] = await Promise.all([realpath(probe), realpath(base)]);
+		return real === realBase || real.startsWith(realBase + path.sep);
+	} catch {
+		return false;
+	}
+}
+async function startLocalServer(options) {
+	const key = options.key ?? randomBytes(24).toString("hex");
+	let project = null;
+	let port = options.port;
+	let recentCache = null;
+	const zstd = zstdSupported();
+	const baseOf = (root) => {
+		if (root === "claude-logs") return options.claudeProjects;
+		if (root === "codex-logs") return options.codexSessions;
+		if (!project) throw new HttpError(409, "아직 연 프로젝트가 없어요.");
+		return project.path;
+	};
+	const target = async (url) => {
+		const root = url.searchParams.get("root");
+		if (!ROOT_IDS.includes(root)) throw new HttpError(400, "알 수 없는 폴더예요.");
+		const parts = splitPath(url.searchParams.get("path") ?? "");
+		if (!parts) throw new HttpError(400, "이상한 경로예요.");
+		const base = baseOf(root);
+		const full = path.join(base, ...parts);
+		if (!await staysInside(base, full)) throw new HttpError(403, "이 폴더 밖은 열지 않아요.");
+		return {
+			root,
+			parts,
+			base,
+			full
+		};
+	};
+	/** Codex의 압축 기록은 .zst를 뗀 이름으로 보여 주고, 읽을 때 풀어 준다 */
+	const logFileOf = (root, full) => {
+		if (root === "codex-logs" && zstd && !existsSync(full) && existsSync(`${full}.zst`)) return `${full}.zst`;
+		return full;
+	};
+	const statOf = async (root, parts, full) => {
+		const real = logFileOf(root, full);
+		let info;
+		try {
+			info = await stat(real);
+		} catch {
+			throw new HttpError(404, "없어요.");
+		}
+		if (info.isDirectory()) {
+			if (!canOpenDir(root, parts)) throw new HttpError(403, "이 폴더는 열지 않아요.");
+			return {
+				kind: "directory",
+				size: 0,
+				mtime: info.mtimeMs
+			};
+		}
+		if (!info.isFile() || !canReadFile(root, parts)) throw new HttpError(403, "이 파일은 읽지 않아요.");
+		return {
+			kind: "file",
+			size: info.size,
+			mtime: info.mtimeMs
+		};
+	};
+	/** 역할 파일들의 이름·수정 시각·크기. 이게 바뀌면 밖에서 고친 것이다. */
+	let signature = null;
+	const agentSignature = async (dir) => {
+		const parts = [dir];
+		for (const rel of [".claude/agents", ".codex/agents"]) try {
+			for (const entry of await readdir(path.join(dir, rel), { withFileTypes: true })) {
+				if (!entry.isFile()) continue;
+				const info = await stat(path.join(dir, rel, entry.name));
+				parts.push(`${rel}/${entry.name}:${info.mtimeMs}:${info.size}`);
+			}
+		} catch {}
+		return parts.join("|");
+	};
+	const listeners = /* @__PURE__ */ new Set();
+	const pending = /* @__PURE__ */ new Map();
+	let flushTimer = null;
+	const queue = (root, rel) => {
+		if (!pending.has(root)) pending.set(root, /* @__PURE__ */ new Set());
+		pending.get(root).add(rel);
+		flushTimer ??= setTimeout(() => {
+			flushTimer = null;
+			for (const [id, files] of pending) {
+				const data = `data: ${JSON.stringify({
+					root: id,
+					files: [...files].slice(0, 50)
+				})}\n\n`;
+				for (const res of listeners) res.write(data);
+			}
+			pending.clear();
+		}, 400);
+	};
+	const watchers = [];
+	const timers = [];
+	if (options.watch !== false) {
+		for (const root of ["claude-logs", "codex-logs"]) {
+			const dir = baseOf(root);
+			if (!existsSync(dir)) continue;
+			try {
+				watchers.push(watch(dir, { recursive: true }, (_event, filename) => {
+					if (!filename) return;
+					const rel = filename.toString().split(path.sep).join("/");
+					const name = rel.split("/").pop() ?? "";
+					if (isLogFile(root, name)) queue(root, rel.replace(/\.zst$/, ""));
+				}));
+			} catch {}
+		}
+		timers.push(setInterval(async () => {
+			if (!project) return;
+			const next = await agentSignature(project.path);
+			if (project && signature !== null && next !== signature) queue("project", "agents");
+			signature = next;
+		}, 1500));
+		timers.push(setInterval(() => listeners.forEach((res) => res.write(": still here\n\n")), 25e3));
+	}
+	const api = async (req, res, url) => {
+		const route = `${req.method} ${url.pathname}`;
+		if (route === "GET /api/events") {
+			res.writeHead(200, {
+				"content-type": "text/event-stream; charset=utf-8",
+				"cache-control": "no-store",
+				connection: "keep-alive"
+			});
+			res.write(": hello\n\n");
+			listeners.add(res);
+			req.on("close", () => listeners.delete(res));
+			return;
+		}
+		if (route === "GET /api/hello") return send(res, 200, {
+			version: 1,
+			claude: {
+				path: options.claudeProjects,
+				exists: existsSync(options.claudeProjects)
+			},
+			codex: {
+				path: options.codexSessions,
+				exists: existsSync(options.codexSessions)
+			},
+			project,
+			zstd
+		});
+		if (route === "GET /api/projects") {
+			if (!recentCache || Date.now() - recentCache.at > 1e4 || url.searchParams.has("fresh")) recentCache = {
+				at: Date.now(),
+				list: await discoverProjects(options.claudeProjects, options.codexSessions)
+			};
+			return send(res, 200, recentCache.list);
+		}
+		if (route === "POST /api/project") {
+			let wanted;
+			try {
+				wanted = JSON.parse(await readBody(req, 8192)).path;
+			} catch {
+				throw new HttpError(400, "경로를 읽지 못했어요.");
+			}
+			if (typeof wanted !== "string" || !path.isAbsolute(wanted)) throw new HttpError(400, "폴더의 전체 경로를 넣어 주세요. 예: C:\\work\\my-app");
+			const resolved = path.resolve(wanted);
+			let info;
+			try {
+				info = await stat(resolved);
+			} catch {
+				throw new HttpError(404, `폴더가 없어요: ${resolved}`);
+			}
+			if (!info.isDirectory()) throw new HttpError(400, "폴더가 아니에요.");
+			project = {
+				path: resolved,
+				name: path.basename(resolved) || resolved
+			};
+			signature = await agentSignature(resolved);
+			return send(res, 200, project);
+		}
+		if (route === "DELETE /api/project") {
+			project = null;
+			signature = null;
+			return send(res, 200, { ok: true });
+		}
+		if (route === "GET /api/fs/stat") {
+			const { root, parts, full } = await target(url);
+			try {
+				return send(res, 200, await statOf(root, parts, full));
+			} catch (error) {
+				if (error instanceof HttpError && error.status === 404) return send(res, 200, {
+					kind: "none",
+					size: 0,
+					mtime: 0
+				});
+				throw error;
+			}
+		}
+		if (route === "GET /api/fs/list") {
+			const { root, parts, full } = await target(url);
+			if (!canOpenDir(root, parts)) throw new HttpError(403, "이 폴더는 열지 않아요.");
+			let entries;
+			try {
+				entries = await readdir(full, { withFileTypes: true });
+			} catch {
+				throw new HttpError(404, "없어요.");
+			}
+			const names = new Set(entries.map((entry) => entry.name));
+			const out = [];
+			for (const entry of entries) {
+				const kind = entry.isDirectory() ? "directory" : entry.isFile() ? "file" : null;
+				if (!kind) continue;
+				let name = entry.name;
+				if (root === "codex-logs" && kind === "file" && name.endsWith(".jsonl.zst") && zstd) {
+					name = name.slice(0, -4);
+					if (names.has(name)) continue;
+				}
+				if (!canSee(root, parts, name, kind)) continue;
+				try {
+					const info = await stat(path.join(full, entry.name));
+					out.push({
+						name,
+						kind,
+						size: info.size,
+						mtime: info.mtimeMs
+					});
+				} catch {}
+			}
+			return send(res, 200, out);
+		}
+		if (route === "GET /api/fs/read") {
+			const { root, parts, full } = await target(url);
+			if ((await statOf(root, parts, full)).kind !== "file") throw new HttpError(400, "파일이 아니에요.");
+			const real = logFileOf(root, full);
+			res.writeHead(200, {
+				"content-type": "text/plain; charset=utf-8",
+				"cache-control": "no-store",
+				"x-content-type-options": "nosniff"
+			});
+			const stream = root === "project" ? createReadStream(real) : openLogStream(real);
+			stream.on("error", () => res.destroy());
+			stream.pipe(res);
+			return;
+		}
+		if (route === "PUT /api/fs/write") {
+			const { root, parts, base, full } = await target(url);
+			if (!canWrite(root, parts, existsSync(full))) throw new HttpError(403, "이 파일은 쓰지 않아요. 역할 파일과 .teamcook/ 아래만 써요.");
+			const text = await readBody(req);
+			await mkdir(path.dirname(full), { recursive: true });
+			if (!await staysInside(base, full)) throw new HttpError(403, "이 폴더 밖은 쓰지 않아요.");
+			await writeFile(full, text, "utf8");
+			return send(res, 200, { ok: true });
+		}
+		if (route === "DELETE /api/fs/remove") {
+			const { root, parts, full } = await target(url);
+			if (!canRemove(root, parts)) throw new HttpError(403, "역할 파일만 지울 수 있어요.");
+			if (!existsSync(full)) throw new HttpError(404, "없어요.");
+			await rm(full);
+			return send(res, 200, { ok: true });
+		}
+		throw new HttpError(404, "없는 주소예요.");
+	};
+	const serveUi = async (res, url) => {
+		if (!options.uiDir) return send(res, 404, { error: "화면 파일이 없어요." });
+		const parts = splitPath(decodeURIComponent(url.pathname));
+		if (!parts) return send(res, 400, { error: "이상한 경로예요." });
+		let file = path.join(options.uiDir, ...parts);
+		try {
+			if ((await stat(file)).isDirectory()) file = path.join(file, "index.html");
+		} catch {
+			file = path.join(options.uiDir, "index.html");
+		}
+		try {
+			const body = await readFile(file);
+			res.writeHead(200, {
+				"content-type": TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream",
+				"cache-control": "no-cache",
+				"x-content-type-options": "nosniff"
+			});
+			res.end(body);
+		} catch {
+			send(res, 404, { error: "없어요." });
+		}
+	};
+	const server = http.createServer(async (req, res) => {
+		try {
+			const host = req.headers.host ?? "";
+			if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return send(res, 403, { error: "이 컴퓨터 안에서만 열 수 있어요." });
+			const url = new URL(req.url ?? "/", `http://${host}`);
+			if (!url.pathname.startsWith("/api/")) {
+				if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "허용하지 않는 요청이에요." });
+				return await serveUi(res, url);
+			}
+			const origin = req.headers.origin;
+			if (origin && origin !== `http://127.0.0.1:${port}` && origin !== `http://localhost:${port}`) return send(res, 403, { error: "다른 사이트에서 온 요청은 받지 않아요." });
+			if (!sameKey(url.pathname === "/api/events" ? url.searchParams.get("key") : req.headers["x-teamcook-key"], key)) return send(res, 401, { error: "열쇠가 맞지 않아요. 터미널에 나온 주소로 다시 열어 주세요." });
+			await api(req, res, url);
+		} catch (error) {
+			if (res.headersSent) return res.destroy();
+			if (error instanceof HttpError) send(res, error.status, { error: error.message });
+			else send(res, 500, { error: `도우미가 처리하지 못했어요: ${error.message}` });
+		}
+	});
+	for (let attempt = 0;; attempt += 1) try {
+		await new Promise((resolve, reject) => {
+			server.once("error", reject);
+			server.listen(port, "127.0.0.1", () => {
+				server.off("error", reject);
+				resolve();
+			});
+		});
+		break;
+	} catch (error) {
+		if (error.code !== "EADDRINUSE" || attempt >= 10 || options.port === 0) throw error;
+		port += 1;
+	}
+	port = server.address().port;
+	return {
+		url: `http://127.0.0.1:${port}/`,
+		key,
+		port,
+		close: async () => {
+			watchers.forEach((item) => item.close());
+			timers.forEach((item) => clearInterval(item));
+			if (flushTimer) clearTimeout(flushTimer);
+			listeners.forEach((res) => res.end());
+			await new Promise((resolve) => server.close(() => resolve()));
+		}
+	};
+}
 // src/cli/main.ts
 var HELP = `teamcook — AI 팀을 레시피로 요리하세요
 
 사용법:
-  node teamcook.mjs add "<공유 링크>" [옵션]
+  node teamcook.mjs open                 내 컴퓨터 도우미를 켜고 브라우저로 teamcook을 연다
+  node teamcook.mjs add "<공유 링크>" [옵션]   레시피를 지금 폴더에 설치한다
 
-옵션:
+open 옵션:
+  --port <번호>     도우미가 쓸 포트 (기본: 4417, 쓰이고 있으면 다음 번호)
+  --no-browser      브라우저를 저절로 열지 않는다
+  --ui <폴더>       화면 파일 폴더 (기본: 이 파일 옆의 ../dist)
+
+add 옵션:
   --dir <폴더>      설치할 프로젝트 폴더 (기본: 지금 폴더)
   --force           같은 이름의 에이전트 파일이 있으면 덮어쓴다
   --codex-bridge    Claude Code에서 Codex 담당 에이전트를 codex exec로 부르게 설치한다 (실험적)
@@ -18070,12 +18656,63 @@ var HELP = `teamcook — AI 팀을 레시피로 요리하세요
 
 링크에는 #이 들어 있으니 꼭 따옴표로 감싸 주세요.
 `;
-function main(argv) {
+function openBrowser(url) {
+	const [command, args] = process.platform === "win32" ? ["rundll32", ["url.dll,FileProtocolHandler", url]] : process.platform === "darwin" ? ["open", [url]] : ["xdg-open", [url]];
+	try {
+		spawn(command, args, {
+			stdio: "ignore",
+			detached: true
+		}).unref();
+	} catch {}
+}
+async function open(rest) {
+	let port = 4417;
+	let browser = true;
+	let uiDir = fileURLToPath(new URL("../dist/", import.meta.url));
+	for (let i = 0; i < rest.length; i += 1) if (rest[i] === "--port") port = Number(rest[i += 1]) || port;
+	else if (rest[i] === "--no-browser") browser = false;
+	else if (rest[i] === "--ui") uiDir = path.resolve(rest[i += 1] ?? ".");
+	if (!existsSync(path.join(uiDir, "index.html"))) {
+		console.error(`화면 파일을 찾지 못했어요: ${uiDir}
+저장소에서 먼저 npm run build 를 실행해 주세요.`);
+		return 1;
+	}
+	const claudeHome = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
+	const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+	const server = await startLocalServer({
+		uiDir,
+		port,
+		claudeProjects: path.join(claudeHome, "projects"),
+		codexSessions: path.join(codexHome, "sessions")
+	});
+	const url = `${server.url}?key=${server.key}#/team`;
+	console.log(`teamcook 도우미가 켜졌어요.
+
+  주소: ${url}
+
+읽는 곳 (대화 기록 파일 .jsonl·.jsonl.zst만, 읽기만):
+  - ${path.join(claudeHome, "projects")}
+  - ${path.join(codexHome, "sessions")}
+쓰는 곳: 화면에서 고른 프로젝트의 .claude/agents, .codex/agents, .teamcook/ 뿐이에요.
+인증·설정 파일은 열지 않고, AI를 실행하지 않고, 아무것도 바깥으로 보내지 않아요.
+
+끝내려면 이 창에서 Ctrl+C를 누르세요.`);
+	if (browser) openBrowser(url);
+	await new Promise((resolve) => {
+		process.once("SIGINT", resolve);
+		process.once("SIGTERM", resolve);
+	});
+	await server.close();
+	console.log("\n도우미를 껐어요.");
+	return 0;
+}
+async function main(argv) {
 	const [command, ...rest] = argv;
 	if (!command || command === "--help" || command === "-h" || command === "help") {
 		console.log(HELP);
 		return 0;
 	}
+	if (command === "open") return open(rest);
 	if (command !== "add") {
 		console.error(`알 수 없는 명령이에요: ${command}\n`);
 		console.log(HELP);
@@ -18130,5 +18767,11 @@ function main(argv) {
 	console.log("\n다음 단계: 실행 방법과 첫 프롬프트는 .teamcook/ 안의 RECIPE.md에 있어요.");
 	return 0;
 }
-process.exitCode = main(process.argv.slice(2));
+main(process.argv.slice(2)).then((code) => {
+	process.exitCode = code;
+	if (code === 0) process.exit(0);
+}, (error) => {
+	console.error(`도우미를 켜지 못했어요: ${error.message}`);
+	process.exitCode = 1;
+});
 export {};

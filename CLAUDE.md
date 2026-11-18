@@ -27,7 +27,7 @@
 - 복사·붙여넣기 '릴레이 모드'를 중심 기능으로 만들기 (마지막 대안일 뿐)
 - 회원가입, 로그인, 서버 DB (공유는 URL만으로)
 - **API 키 값을 받거나 저장하기** ('보유 여부' 체크만 한다)
-- 사용자가 고르지 않은 폴더를 읽기. 기록 폴더에서는 대화 기록 파일(`.jsonl`)만 읽고, 인증·설정 파일은 열지 않는다. 설정 파일(`.codex/config.toml`, `.claude/settings.json`)은 자동으로 고치지 않는다.
+- 사용자가 고르지 않은 폴더를 읽기. 예외는 사용자가 직접 `teamcook open`(내 컴퓨터 도우미)을 실행했을 때뿐이고, 그때도 `~/.claude/projects`와 `~/.codex/sessions`의 대화 기록 파일(`.jsonl`, `.jsonl.zst`)만 읽으며 처음 화면에 읽는 곳을 보여 준다. 기록 폴더에서는 대화 기록 파일만 읽고, 인증·설정 파일은 열지 않는다. 설정 파일(`.codex/config.toml`, `.claude/settings.json`)은 자동으로 고치지 않는다.
 
 ## 폴더 구조
 
@@ -58,12 +58,13 @@ src/
 │  ├─ order/               # 주문(작업 설계): types, draft(규칙 기반 초안), ops(작업 편집·참조 영향·범위), team(역할 제안), toRecipe(레시피 변환·점검·연결 상태), schema(저장·JSON), materials(자료 읽기), snapshot(실습 기록용 복사본)
 │  ├─ workspace/           # 내 프로젝트 폴더: fs(폴더 읽기·쓰기, 테스트용 메모리 폴더), team(팀 읽기 scanTeam, 고친 것만 쓰기 planSave·applyChanges, 레시피 들이기 planHire)
 │  ├─ journal/             # 업무 일지: claude·codex(대화 기록 해석, 형식은 문서에 없어 실제 기록에서 본 모양), read(기록 폴더 읽기)
+│  ├─ local/               # 내 컴퓨터 도우미(teamcook open)와 이야기하는 쪽: 도우미가 띄운 화면인지 알아보기, 도우미 너머의 폴더를 DirLike로 쓰기, 실시간 알림
 │  ├─ practice/            # 실습 기록·비교 평가 (2차, 부가 기능. 진입은 components/practice/PracticePanel.tsx의 옆 패널). types, schema(읽기·버전), storage(저장 API, 화면과 분리), model(만들기·잠금·측정 검사), rubric, compare, report(Markdown), transfer(JSON), demo(GraphRAG 합성 데모)
 │  ├─ suggest.ts           # "~하고 싶다"는 말에 레시피 제안 (AI 호출 없음: 낱말 + 내 플랜 + 사용량 여유, 고른 이유를 함께 돌려줌)
 │  ├─ cost.ts              # 사용량 어림(가벼움·보통·무거움)과 내 여건에서 어디서 나가는지. 토큰·금액 숫자는 짐작하지 않는다
 │  ├─ optimize.ts          # 구독 최적화 제안
 │  └─ bridge.ts            # Claude Code → Codex 연결(codex exec)
-├─ cli/                    # 설치 명령 (node teamcook.mjs add <링크>). 빌드 결과는 루트의 cli/teamcook.mjs — 사용자가 이 파일을 GitHub에서 직접 받아 쓰므로 반드시 다시 빌드해 커밋
+├─ cli/                    # 설치 명령 (node teamcook.mjs add <링크>)과 내 컴퓨터 도우미 (node teamcook.mjs open, local/: 읽고 쓸 수 있는 곳 규칙 policy, 최근 프로젝트 찾기 discover, 이 컴퓨터 안에서만 열리는 server). 빌드 결과는 루트의 cli/teamcook.mjs — 사용자가 이 파일을 GitHub에서 직접 받아 쓰므로 반드시 다시 빌드해 커밋
 ├─ store/                  # zustand + localStorage. useOrders = 주문('teamcook-orders', 저장 성공 시에만 화면 반영). useWorkspace = 연 폴더(손잡이는 IndexedDB에만 기억). useStore = 레시피·플랜('agent-recipes'), usePractice = 실습 기록('teamcook-practice', 저장 성공 시에만 화면 반영)
 ├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등)
 │  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
@@ -100,6 +101,7 @@ npm test           # 단위 테스트 (Vitest)
 npm run typecheck  # 타입 검사
 npm run build      # 배포용 빌드 (dist/)
 npm run build:cli  # 설치 명령 묶음 (cli/teamcook.mjs). src/cli나 변환기를 고치면 다시 빌드해서 함께 커밋
+npm run open       # 내 컴퓨터 도우미 (먼저 npm run build). 최근 프로젝트·실시간 업무 일지
 ```
 
 > Windows 주의: `npm test`는 `scripts/vitest.mjs`를 거쳐 실행한다. 드라이브 문자가 소문자(`c:\...`)인 터미널에서 Vitest 5가 실패하는 문제를 피하기 위해서다. `npx vitest`를 직접 실행하지 말 것.

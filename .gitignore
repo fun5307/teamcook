@@ -21,3 +21,7 @@ dist/
 
 # 원본 TOML 폴더 (사본은 samples/codex/ 에 있음)
 기존_toml_파일들/
+
+# 사용자 개인 파일 (스킬 모음). 커밋하지 않는다
+.agents/
+skills-lock.json

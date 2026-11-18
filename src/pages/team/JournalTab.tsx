@@ -1,8 +1,9 @@
 // '업무 일지' 탭: Claude Code·Codex가 남긴 대화 기록에서 "누구에게 무엇을 시켰고 무엇을 돌려받았는지"를 보여 준다.
 // 읽기 전용이다. 기록 폴더는 사용자가 직접 골라야 열리고, 그 안의 대화 기록(.jsonl)만 읽는다.
+// 내 컴퓨터 도우미(teamcook open)로 열었으면 고르지 않아도 정해진 기록 폴더를 읽고, 기록이 늘어나면 저절로 다시 읽는다.
 // 기록 형식은 공식 문서에 없어서 도구가 바뀌면 못 읽을 수 있다. 그때는 "못 읽음"을 그대로 보여 준다.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import {
 } from '@/lib/journal/read';
 import { summarizeRoles, type AgentStep, type Delegation, type JournalSession, type JournalTool } from '@/lib/journal/types';
 import type { DirLike } from '@/lib/workspace/fs';
+import { isLocal, localDir, localInfo, subscribeLocal } from '@/lib/local/client';
 import { pickFolder, recallFolder, recalledName } from '@/store/useWorkspace';
 import type { AgentCard } from '@/types';
 
@@ -35,6 +37,8 @@ const fmtTokens = (value?: number | null) => (value === undefined || value === n
 
 interface Loaded {
   tool: JournalTool;
+  /** 읽은 기록 폴더 (다시 읽을 때 쓴다) */
+  root?: DirLike;
   /** Claude Code: 세션 파일 목록 (열 때 하나씩 읽는다) */
   claudeDir?: DirLike;
   claudeFiles?: SessionFile[];
@@ -188,52 +192,117 @@ function SessionView({ session, cards, claudeDir }: { session: JournalSession; c
   );
 }
 
-export function JournalTab({ projectName, cards }: { projectName: string; cards: AgentCard[] }) {
+export function JournalTab({ projectName, projectPath, cards }: { projectName: string; projectPath?: string; cards: AgentCard[] }) {
+  const local = isLocal();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<JournalSession | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [remembered, setRemembered] = useState<Record<JournalTool, string | null>>({ 'claude-code': null, 'codex-cli': null });
+  // 실시간 알림 처리에서 지금 보고 있는 것을 알려고 둔다
+  const current = useRef<{ loaded: Loaded | null; selected: JournalSession | null; claudeDirNames: string[] }>({ loaded: null, selected: null, claudeDirNames: [] });
+  current.current.loaded = loaded;
+  current.current.selected = selected;
 
   useEffect(() => {
+    if (local) return;
     void Promise.all([recalledName('claude-logs'), recalledName('codex-logs')]).then(([claude, codex]) =>
       setRemembered({ 'claude-code': claude, 'codex-cli': codex }),
     );
-  }, []);
+  }, [local]);
 
-  const load = async (tool: JournalTool, again: boolean) => {
-    setError('');
-    setSelected(null);
-    const key = tool === 'claude-code' ? 'claude-logs' : 'codex-logs';
-    const dir = again ? await recallFolder(key, 'read', true) : await pickFolder(key, 'read');
-    if (!dir) return;
-    setBusy(true);
+  /** 기록 폴더에서 대화 목록을 읽는다. quiet면 실시간 갱신이라 보고 있던 대화를 닫지 않는다. */
+  const loadFrom = async (tool: JournalTool, dir: DirLike, quiet = false) => {
+    if (!quiet) {
+      setError('');
+      setSelected(null);
+      setBusy(true);
+    }
     try {
+      let next: Loaded | null = null;
       if (tool === 'claude-code') {
-        const dirs = await findClaudeProjectDirs(dir, projectName);
+        const dirs = await findClaudeProjectDirs(dir, projectName, projectPath);
+        current.current.claudeDirNames = dirs.map((item) => item.name);
         if (dirs.length === 0) {
-          setError(`고른 폴더에서 "${projectName}"의 Claude Code 기록을 찾지 못했어요. 사용자 폴더의 .claude/projects를 골라 주세요.`);
+          if (!quiet) {
+            setError(
+              local
+                ? `"${projectName}"에서 한 Claude Code 대화 기록이 아직 없어요.`
+                : `고른 폴더에서 "${projectName}"의 Claude Code 기록을 찾지 못했어요. 사용자 폴더의 .claude/projects를 골라 주세요.`,
+            );
+          }
         } else {
           const files = (await Promise.all(dirs.map(listClaudeSessions))).flat().sort((a, b) => b.lastModified - a.lastModified);
-          setLoaded({ tool, claudeDir: dirs[0], claudeFiles: files.slice(0, 40) });
+          next = { tool, root: dir, claudeDir: dirs[0], claudeFiles: files.slice(0, 40) };
         }
       } else {
         const journal = await readCodexJournal(dir);
-        const mine = journal.sessions.filter((session) => sameProject(session.cwd, projectName));
-        setLoaded({
+        const mine = journal.sessions.filter((session) => sameProject(session.cwd, projectName, projectPath));
+        next = {
           tool,
+          root: dir,
           codex: mine,
           note: `최근 기록 ${journal.read}개 가운데 이 폴더("${projectName}")에서 한 대화 ${mine.length}개${
             journal.compressed > 0 ? ` · 압축된 옛 기록 ${journal.compressed}개는 브라우저에서 읽지 못해요` : ''
           }`,
-        });
+        };
+      }
+      if (next) {
+        setLoaded(next);
+        setUpdatedAt(Date.now());
+        // 보고 있던 대화가 있으면 새 내용으로 바꿔 끼운다
+        const open = current.current.selected;
+        if (quiet && open) {
+          if (next.tool === 'claude-code') {
+            const file = next.claudeFiles?.find((item) => item.id === open.id);
+            if (file) setSelected(await readClaudeSession(file));
+          } else {
+            const session = next.codex?.find((item) => item.id === open.id);
+            if (session) setSelected(session);
+          }
+        }
       }
     } catch (caught) {
-      setError(`기록을 읽지 못했어요: ${(caught as Error).message}`);
+      if (!quiet) setError(`기록을 읽지 못했어요: ${(caught as Error).message}`);
     } finally {
-      setBusy(false);
+      if (!quiet) setBusy(false);
     }
   };
+
+  const load = async (tool: JournalTool, again: boolean) => {
+    if (local) {
+      await loadFrom(tool, localDir(tool === 'claude-code' ? 'claude-logs' : 'codex-logs'));
+      return;
+    }
+    const key = tool === 'claude-code' ? 'claude-logs' : 'codex-logs';
+    const dir = again ? await recallFolder(key, 'read', true) : await pickFolder(key, 'read');
+    if (dir) await loadFrom(tool, dir);
+  };
+
+  // 도우미로 열었으면: 처음에 기록을 바로 읽고, 기록 파일이 늘어나면 저절로 다시 읽는다
+  useEffect(() => {
+    if (!local) return;
+    const info = localInfo();
+    void load(info?.claude.exists || !info?.codex.exists ? 'claude-code' : 'codex-cli', false);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const stop = subscribeLocal((event) => {
+      const now = current.current.loaded;
+      if (!now?.root) return;
+      const mine =
+        now.tool === 'claude-code'
+          ? event.root === 'claude-logs' && event.files.some((file) => current.current.claudeDirNames.includes(file.split('/')[0]))
+          : event.root === 'codex-logs';
+      if (!mine) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void loadFrom(now.tool, now.root!, true), 1200);
+    });
+    return () => {
+      stop();
+      if (timer) clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [local, projectPath]);
 
   const openClaude = async (file: SessionFile) => {
     setBusy(true);
@@ -246,42 +315,67 @@ export function JournalTab({ projectName, cards }: { projectName: string; cards:
     }
   };
 
+  const info = localInfo();
+  const hasLogs = (tool: JournalTool) => (tool === 'claude-code' ? info?.claude.exists : info?.codex.exists) ?? false;
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 md:grid-cols-2">
         {(['claude-code', 'codex-cli'] as const).map((tool) => (
           <div key={tool} className={cn('flex flex-col gap-2 rounded-xl border bg-card p-4', loaded?.tool === tool && 'border-foreground')}>
-            <p className="font-heading text-lg font-extrabold">{TOOL_LABEL[tool]} 기록</p>
-            <p className="text-xs text-muted-foreground">
-              {tool === 'claude-code' ? (
-                <>
-                  사용자 폴더의 <code>.claude/projects</code>를 골라 주세요.
-                </>
+            <p className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-heading text-lg font-extrabold">{TOOL_LABEL[tool]} 기록</span>
+              {local && loaded?.tool === tool ? (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+                  <span className="size-2 rounded-full bg-emerald-600" aria-hidden />
+                  지켜보는 중{updatedAt ? ` · ${new Date(updatedAt).toLocaleTimeString('ko-KR')} 갱신` : ''}
+                </span>
+              ) : null}
+            </p>
+            {local ? (
+              <p className="text-xs break-all text-muted-foreground">
+                <code>{tool === 'claude-code' ? info?.claude.path : info?.codex.path}</code>
+                {hasLogs(tool) ? '' : ' (이 컴퓨터에 없어요)'}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {tool === 'claude-code' ? (
+                  <>
+                    사용자 폴더의 <code>.claude/projects</code>를 골라 주세요.
+                  </>
+                ) : (
+                  <>
+                    사용자 폴더의 <code>.codex/sessions</code>를 골라 주세요.
+                  </>
+                )}{' '}
+                숨김 폴더가 안 보이면 고르기 창의 주소 칸에 <code>%USERPROFILE%\{tool === 'claude-code' ? '.claude\\projects' : '.codex\\sessions'}</code>를
+                붙여 넣으세요.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {local ? (
+                <Button size="sm" variant={loaded?.tool === tool ? 'secondary' : 'outline'} disabled={busy || !hasLogs(tool)} onClick={() => void load(tool, false)}>
+                  {loaded?.tool === tool ? '보는 중' : '이 기록 보기'}
+                </Button>
               ) : (
                 <>
-                  사용자 폴더의 <code>.codex/sessions</code>를 골라 주세요.
+                  <Button size="sm" variant="outline" disabled={busy} onClick={() => void load(tool, false)}>
+                    <FolderOpen aria-hidden />
+                    기록 폴더 고르기
+                  </Button>
+                  {remembered[tool] ? (
+                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => void load(tool, true)}>
+                      다시 열기: {remembered[tool]}
+                    </Button>
+                  ) : null}
                 </>
-              )}{' '}
-              숨김 폴더가 안 보이면 고르기 창의 주소 칸에 <code>%USERPROFILE%\{tool === 'claude-code' ? '.claude\\projects' : '.codex\\sessions'}</code>를
-              붙여 넣으세요.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => void load(tool, false)}>
-                <FolderOpen aria-hidden />
-                기록 폴더 고르기
-              </Button>
-              {remembered[tool] ? (
-                <Button size="sm" variant="ghost" disabled={busy} onClick={() => void load(tool, true)}>
-                  다시 열기: {remembered[tool]}
-                </Button>
-              ) : null}
+              )}
             </div>
           </div>
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        읽기만 해요. 대화 기록 파일(.jsonl)만 열고, 인증·설정 파일은 열지 않아요. 내용은 이 화면에만 보이고 저장하거나 보내지 않아요. 기록
-        형식은 공식 문서에 없어서 도구가 바뀌면 못 읽을 수 있어요.
+        읽기만 해요. 대화 기록 파일(.jsonl)만 열고, 인증·설정 파일은 열지 않아요. 내용은 이 화면에만 보이고 저장하거나 보내지 않아요.
+        {local ? ' AI가 일하는 동안 기록이 늘어나면 저절로 다시 읽어요.' : ''} 기록 형식은 공식 문서에 없어서 도구가 바뀌면 못 읽을 수 있어요.
       </p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       {busy ? <p className="text-sm text-muted-foreground" role="status">기록을 읽는 중이에요…</p> : null}

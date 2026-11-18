@@ -17,6 +17,8 @@ import { ROLE_LABELS } from '@/lib/roles';
 import { applyChanges, planHire, TEAM_DIRS, type FileChange, type HirePlan, type Member } from '@/lib/workspace/team';
 import { CardEditor } from '@/pages/RecipeEditorPage';
 import { JournalTab } from '@/pages/team/JournalTab';
+import { LocalProjects } from '@/pages/team/LocalProjects';
+import { isLocal, localInfo, subscribeLocal } from '@/lib/local/client';
 import { useStore } from '@/store/useStore';
 import { folderAccessSupported, openProject, recalledName, reopenProject, useWorkspace } from '@/store/useWorkspace';
 import type { AgentCard, Recipe, RoleTag } from '@/types';
@@ -41,6 +43,15 @@ export function OpenProjectPanel({ compact = false }: { compact?: boolean }) {
     if (await action()) window.location.hash = '/team';
     else if (!useWorkspace.getState().error) setFailed('');
   };
+
+  if (isLocal()) {
+    return (
+      <div className="flex flex-col gap-3">
+        <LocalProjects compact={compact} />
+        {error ? <Notice tone="error">{error}</Notice> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -257,6 +268,19 @@ export function TeamPage() {
   const [tab, setTab] = useState<Tab>('members');
   const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'warn'; text: string } | null>(null);
+  const [outside, setOutside] = useState(false);
+
+  // 내 컴퓨터 도우미: 역할 파일이 밖에서(Claude Code·사람) 바뀌면 바로 다시 읽는다.
+  // 화면에서 고치던 것이 있으면 덮어쓰지 않고 알리기만 한다.
+  useEffect(() => {
+    if (!root) return;
+    return subscribeLocal((event) => {
+      if (event.root !== 'project') return;
+      const state = useWorkspace.getState();
+      if (state.changes().changes.length === 0) void state.rescan();
+      else setOutside(true);
+    });
+  }, [root]);
 
   if (!root || !snapshot) {
     return (
@@ -292,6 +316,7 @@ export function TeamPage() {
   };
   const onSave = async () => {
     setNotice(null);
+    setOutside(false);
     const result = await save();
     if (!result) return;
     setOpenId(null);
@@ -309,7 +334,9 @@ export function TeamPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground">내 프로젝트 폴더</p>
+          <p className="text-sm text-muted-foreground">
+            내 프로젝트 폴더{isLocal() ? <> · <code className="text-xs">{localInfo()?.project?.path}</code></> : null}
+          </p>
           <h1 className="text-4xl font-extrabold sm:text-5xl">{snapshot.folderName}의 팀</h1>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -317,7 +344,7 @@ export function TeamPage() {
             <RefreshCw aria-hidden />
             폴더 다시 읽기
           </Button>
-          <Button variant="ghost" onClick={() => void openProject()}>
+          <Button variant="ghost" onClick={() => (isLocal() ? useWorkspace.getState().close() : void openProject())}>
             <FolderOpen aria-hidden />
             다른 폴더
           </Button>
@@ -325,6 +352,14 @@ export function TeamPage() {
       </div>
       {error ? <Notice tone="error">{error}</Notice> : null}
       {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
+      {outside ? (
+        <Notice tone="warn" className="flex flex-wrap items-center justify-between gap-2">
+          <span>고치는 동안 폴더의 역할 파일이 밖에서 바뀌었어요. 저장하면 바뀐 파일은 덮어쓰지 않고 건너뛰어요.</span>
+          <Button size="sm" variant="outline" onClick={() => { setOutside(false); void rescan(); }}>
+            고친 것 버리고 다시 읽기
+          </Button>
+        </Notice>
+      ) : null}
 
       <SectionTabs
         label="내 팀 보기"
@@ -336,7 +371,7 @@ export function TeamPage() {
         ]}
       />
 
-      {tab === 'journal' ? <JournalTab projectName={snapshot.folderName} cards={cards} /> : null}
+      {tab === 'journal' ? <JournalTab projectName={snapshot.folderName} projectPath={localInfo()?.project?.path} cards={cards} /> : null}
 
       {tab === 'members' ? (
         <>
