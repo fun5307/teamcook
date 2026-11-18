@@ -11,6 +11,7 @@ import { isZonedIso, nowIso } from './time';
 import {
   PRACTICE_DATA_VERSION,
   type Measure,
+  type OrderSnapshot,
   type PracticeRun,
   type PracticeTask,
   type Rubric,
@@ -35,6 +36,7 @@ export function createTask(fields: {
   materials: string;
   rubric?: Rubric;
   successCriteria?: string[];
+  order?: OrderSnapshot;
 }): PracticeTask {
   return {
     id: newId('task'),
@@ -43,6 +45,7 @@ export function createTask(fields: {
     materials: fields.materials,
     rubric: structuredClone(fields.rubric ?? defaultRubric()),
     successCriteria: [...(fields.successCriteria ?? [])],
+    ...(fields.order ? { order: structuredClone(fields.order) } : {}),
     createdAt: nowIso(),
   };
 }
@@ -96,6 +99,10 @@ export function createRun(options: {
     measures: [],
     corrections: [],
   };
+  if (task.order) {
+    run.order = structuredClone(task.order);
+    run.result.workResults = task.order.work.map((item) => ({ workId: item.id, state: 'unknown', note: '' }));
+  }
   if (recipe) {
     run.snapshot = {
       sourceId: recipe.id,
@@ -128,6 +135,7 @@ export function deriveRun(source: PracticeRun): PracticeRun {
       body: '',
       sources: [],
       checks: source.result.checks.map((check) => ({ ...check, id: newId('check'), state: 'unknown', evidence: '' })),
+      ...(source.result.workResults ? { workResults: source.result.workResults.map((item) => ({ ...item, state: 'unknown' as const, note: '' })) } : {}),
       deviations: '',
       unresolved: '',
     },

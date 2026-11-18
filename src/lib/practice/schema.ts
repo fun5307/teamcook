@@ -17,6 +17,7 @@ import {
   type EvidenceKind,
   type Measure,
   type MetricKind,
+  type OrderSnapshot,
   type Origin,
   type PracticeData,
   type PracticeRun,
@@ -140,6 +141,27 @@ function parseSources(value: unknown): SourceRef[] {
   return result;
 }
 
+/** 주문 복사본. 모양만 확인하고 글자로만 다룬다. */
+export function parseOrderSnapshot(value: unknown): OrderSnapshot | undefined {
+  if (!isObject(value)) return undefined;
+  const orderId = text(value.orderId, SHORT);
+  if (!orderId) return undefined;
+  const items = (raw: unknown) => list(raw).filter(isObject);
+  const strs = (raw: unknown) => list(raw).filter((item): item is string => typeof item === 'string').map((item) => item.slice(0, MEDIUM));
+  return {
+    orderId,
+    revision: typeof value.revision === 'number' && Number.isFinite(value.revision) ? value.revision : 1,
+    title: text(value.title, SHORT),
+    requestText: text(value.requestText, LONG),
+    materials: items(value.materials).map((item) => ({ name: text(item.name, SHORT), kind: text(item.kind, 40), status: text(item.status, 40) })),
+    requirements: items(value.requirements).map((item) => ({ kind: text(item.kind, 40), text: text(item.text, MEDIUM) })).filter((item) => item.text),
+    work: items(value.work)
+      .map((item) => ({ id: text(item.id, SHORT), title: text(item.title, SHORT), outputs: strs(item.outputs), criteria: strs(item.criteria) }))
+      .filter((item) => item.id),
+    open: strs(value.open),
+  };
+}
+
 function parseResult(value: unknown): RunResult {
   const raw = isObject(value) ? value : {};
   const used = new Set<string>();
@@ -163,6 +185,12 @@ function parseResult(value: unknown): RunResult {
     deviations: text(raw.deviations, MEDIUM),
     unresolved: text(raw.unresolved, MEDIUM),
   };
+  if (Array.isArray(raw.workResults)) {
+    result.workResults = list(raw.workResults)
+      .filter(isObject)
+      .map((item) => ({ workId: text(item.workId, SHORT), state: pick(item.state, CHECKS, 'unknown'), note: text(item.note, MEDIUM) }))
+      .filter((item) => item.workId);
+  }
   if (Array.isArray(raw.participants)) {
     result.participants = raw.participants.filter((item): item is string => typeof item === 'string').slice(0, 50);
   }
@@ -307,6 +335,8 @@ export function parseRun(raw: unknown, mode: ParseMode = 'storage'): PracticeRun
   };
   const taskId = text(raw.taskId, SHORT);
   if (taskId) run.taskId = taskId;
+  const order = parseOrderSnapshot(raw.order);
+  if (order) run.order = order;
   const derivedFrom = text(raw.derivedFrom, SHORT);
   if (derivedFrom) run.derivedFrom = derivedFrom;
   if (raw.demo === true) run.demo = true;
@@ -345,6 +375,7 @@ export function parseTask(raw: unknown): PracticeTask {
     input: text(raw.input, LONG),
     materials: text(raw.materials, MEDIUM),
     rubric: parseRubric(raw.rubric),
+    ...(parseOrderSnapshot(raw.order) ? { order: parseOrderSnapshot(raw.order) } : {}),
     successCriteria: list(raw.successCriteria)
       .filter((item): item is string => typeof item === 'string' && item.trim() !== '')
       .map((item) => item.slice(0, MEDIUM)),

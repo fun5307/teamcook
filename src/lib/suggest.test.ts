@@ -94,5 +94,9 @@ describe('레시피 제안', () => {
 
   it('재료 사전 주소', () => {
     expect(parseRoute('#/learn')).toEqual({ page: 'learn' });
+    // 첫 화면은 주문서, 전체 목록은 레시피 책
+    expect(parseRoute('')).toEqual({ page: 'home' });
+    expect(parseRoute('#/')).toEqual({ page: 'home' });
+    expect(parseRoute('#/recipes')).toEqual({ page: 'gallery' });
   });
 });

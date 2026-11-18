@@ -430,6 +430,37 @@ function ResultTab({ run, gate, editable, save }: TabProps) {
         <p className="text-xs text-muted-foreground">"확인 불가"는 "미충족"이 아니에요. 확인할 방법이 없었을 때 고르세요.</p>
       </SectionCard>
 
+      {run.order && draft.workResults ? (
+        <SectionCard title="주문의 작업별 결과">
+          <p className="text-xs text-muted-foreground">주문 "{run.order.title}"(수정 {run.order.revision})의 작업이에요. 기록을 만들 때 복사해 둔 것이라 주문을 고쳐도 바뀌지 않아요.</p>
+          <ul className="flex flex-col gap-3">
+            {run.order.work.map((work, index) => {
+              const entry = draft.workResults?.find((item) => item.workId === work.id) ?? { workId: work.id, state: 'unknown' as CheckState, note: '' };
+              const setEntry = (patch: Partial<typeof entry>) =>
+                set({ workResults: [...(draft.workResults ?? []).filter((item) => item.workId !== work.id), { ...entry, ...patch }] });
+              return (
+                <li key={work.id} className="flex flex-col gap-1.5">
+                  <p className="text-sm font-medium">
+                    {index + 1}. {work.title}
+                    {work.criteria.length > 0 ? <span className="font-normal text-muted-foreground"> · 완료 기준: {work.criteria.join(' / ')}</span> : null}
+                  </p>
+                  <div className="grid gap-1.5 sm:grid-cols-[10rem_1fr]">
+                    <NativeSelect aria-label={`${work.title} 결과`} disabled={!editable} value={entry.state} onChange={(event) => setEntry({ state: event.target.value as CheckState })}>
+                      {(Object.keys(CHECK_LABELS) as CheckState[]).map((state) => (
+                        <option key={state} value={state}>
+                          {CHECK_LABELS[state]}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                    <Input className="bg-card" aria-label={`${work.title} 메모`} placeholder="무엇이 됐고 무엇이 안 됐는지" readOnly={!editable} value={entry.note} onChange={(event) => setEntry({ note: event.target.value })} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="실제 진행">
         {cards.length > 0 ? (
           <fieldset className="flex flex-col gap-1.5">

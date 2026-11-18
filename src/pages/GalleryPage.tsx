@@ -1,12 +1,13 @@
-// 첫 화면: "무엇을 하려고 하나요?"로 상황을 먼저 고르고, 그 상황의 레시피를 본다.
+// 레시피 책(#/recipes): "무엇을 하려고 하나요?"로 상황을 먼저 고르고, 그 상황의 레시피를 본다. (첫 화면은 HomePage.tsx)
 // 검색과 조건(내 플랜, 조리법)은 접어 두고, 쓰면 상황 묶음 대신 결과 목록이 나온다.
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import { ArrowLeft, FilePlus2, FolderOpen, Search, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/common';
+import { Reveal } from '@/components/Reveal';
 import { SuggestBox } from '@/components/SuggestBox';
 import { FitLabel, STYLE_COLORS, engineName } from '@/components/RouteInfo';
 import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
@@ -93,7 +94,7 @@ function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans;
   return (
     <a
       href={href}
-      className="recipe-card group flex flex-col gap-4 rounded-xl border bg-card p-5 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+      className="recipe-card group flex w-full flex-col gap-4 rounded-xl border bg-card p-5 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
     >
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
         <span aria-hidden className="size-2 rounded-full" style={{ background: STYLE_COLORS[style] }} />
@@ -217,47 +218,49 @@ export function GalleryPage() {
   const grid = 'grid gap-5 sm:grid-cols-2 lg:grid-cols-3';
 
   return (
-    <div className="flex flex-col gap-14">
+    <div className="flex flex-col gap-10">
       <section
-        className="flex flex-col gap-5 pt-6 sm:pt-10"
+        className="pt-2 sm:pt-4"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
           void onFiles(event.dataTransfer.files);
         }}
       >
-        <h1 className="max-w-3xl text-4xl leading-[1.2] font-extrabold text-balance sm:text-[3.4rem] sm:leading-[1.18]">
-          AI 팀을 레시피로 요리하세요
-        </h1>
-        <p className="max-w-2xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
-          역할을 나눈 AI 팀을 레시피 한 장으로 짜고 링크 하나로 나눕니다. 하고 싶은 작업을 적으면, 바로 쓸 수 있는
-          팀 {builtinRecipes.length}가지 중에서 내 여건에 맞는 것을 권해 드려요.
-        </p>
-        <SuggestBox myRecipes={myRecipes} />
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Button size="lg" onClick={onCreate}>
-            <FilePlus2 aria-hidden />새 레시피 만들기
-          </Button>
-          <Button size="lg" variant="outline" onClick={() => fileInput.current?.click()}>
-            <FolderOpen aria-hidden />
-            파일에서 불러오기
-          </Button>
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            accept=".toml,.md,.json"
-            className="hidden"
-            onChange={(event) => void onFiles(event.target.files)}
-          />
+        <SuggestBox myRecipes={myRecipes}>
+        <div className="flex flex-col gap-5">
+          <div>
+            <h1 className="text-4xl font-extrabold sm:text-5xl">레시피 책</h1>
+            <p className="mt-3 max-w-md text-base leading-relaxed text-pretty">
+              검증된 팀 구성을 골라 내 프로젝트에 들이세요. 하고 싶은 작업을 주문서에 적으면 내 여건에 맞는 팀을 권해 드려요.
+            </p>
+            <p className="mt-2 text-base text-muted-foreground">
+              바로 쓸 수 있는 팀 {builtinRecipes.length}가지와 내가 만든 레시피. 내 AI 현황은{' '}
+              <a className="underline underline-offset-2 hover:text-primary" href="#/plans">
+                {plansSummary(plans)}
+              </a>
+              {!plansConfirmed ? ' (무료 계정으로 가정)' : ''}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={onCreate}>
+              <FilePlus2 aria-hidden />새 레시피 만들기
+            </Button>
+            <Button variant="outline" onClick={() => fileInput.current?.click()}>
+              <FolderOpen aria-hidden />
+              파일에서 불러오기
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              accept=".toml,.md,.json"
+              className="hidden"
+              onChange={(event) => void onFiles(event.target.files)}
+            />
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          내 AI 현황: <span className="font-medium text-foreground">{plansSummary(plans)}</span>
-          {!plansConfirmed ? ' (아직 알려 주지 않아 무료 계정으로 가정했어요)' : ''}{' '}
-          <a className="underline underline-offset-2 hover:text-primary" href="#/plans">
-            바꾸기
-          </a>
-        </p>
+        </SuggestBox>
       </section>
 
       {messages.length > 0 ? (
@@ -437,8 +440,9 @@ export function GalleryPage() {
           const recipes = shelfRecipes(shelf.recipeIds);
           const more = recipes.length - 3;
           return (
-            <section key={shelf.id} className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2 border-t pt-6">
+            <Reveal key={shelf.id} className="flex flex-col gap-4" role="region" aria-label={shelf.label}>
+              <div className="rule h-px bg-foreground/70" aria-hidden />
+              <div className="flex flex-wrap items-baseline justify-between gap-2 pt-2">
                 <h2 className="text-2xl font-extrabold">
                   {shelf.label} <span className="text-base font-normal text-muted-foreground">{shelf.hint}</span>
                 </h2>
@@ -449,11 +453,13 @@ export function GalleryPage() {
                 ) : null}
               </div>
               <div className={grid}>
-                {recipes.slice(0, 3).map((recipe) => (
-                  <RecipeTile key={recipe.id} recipe={recipe} plans={plans} href={hrefOf(recipe)} />
+                {recipes.slice(0, 3).map((recipe, index) => (
+                  <div key={recipe.id} className="rise flex" style={{ '--i': index } as CSSProperties}>
+                    <RecipeTile recipe={recipe} plans={plans} href={hrefOf(recipe)} />
+                  </div>
                 ))}
               </div>
-            </section>
+            </Reveal>
           );
         })
       )}

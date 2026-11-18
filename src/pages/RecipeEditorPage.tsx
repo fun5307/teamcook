@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field, NativeSelect, Notice, PageHeader } from '@/components/common';
 import { FlowSection } from '@/components/FlowSection';
 import { ExportPrepButton } from '@/components/ExportDialog';
+import { StartOrderButton } from '@/pages/order/OrdersPage';
 import { ShareButton, cloneRecipe } from '@/components/RecipeActions';
 import {
   DeliverableEditor,
@@ -67,7 +68,7 @@ const MODEL_HINTS: Partial<Record<EngineId, string>> = {
   'antigravity-cli': '예: inherit, flash, pro',
 };
 
-function CardEditor({
+export function CardEditor({
   card,
   recipe,
   onChange,
@@ -536,7 +537,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
         </Notice>
         <div>
           <Button asChild variant="outline">
-            <a href="#/">갤러리로 돌아가기</a>
+            <a href="#/recipes">레시피 책으로 돌아가기</a>
           </Button>
         </div>
       </div>
@@ -618,7 +619,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
   const onDelete = () => {
     if (window.confirm(`"${recipe.title}" 레시피를 삭제할까요? 되돌릴 수 없어요.`)) {
       removeRecipe(recipe.id);
-      navigate('/');
+      navigate('/recipes');
     }
   };
 
@@ -694,6 +695,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
           <>
             <ShareButton recipe={recipe} />
             <ExportPrepButton recipe={recipe} plans={plans} codexBridge={codexBridge} onGoto={gotoIssue} />
+            <StartOrderButton recipe={recipe} />
             <Button variant="ghost" onClick={onDuplicate}>
               <Copy aria-hidden />
               복제

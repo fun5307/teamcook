@@ -6,6 +6,10 @@ import { providerData } from '@/data/providers';
 import { type Route, useRoute } from '@/lib/router';
 import { ConceptsPage } from '@/pages/ConceptsPage';
 import { GalleryPage } from '@/pages/GalleryPage';
+import { HomePage } from '@/pages/HomePage';
+import { TeamPage } from '@/pages/team/TeamPage';
+import { OrderPage } from '@/pages/order/OrderPage';
+import { OrdersPage } from '@/pages/order/OrdersPage';
 import { HowToRunPage } from '@/pages/HowToRunPage';
 import { MyPlansPage } from '@/pages/MyPlansPage';
 import { PracticePanelButton } from '@/components/practice/PracticePanel';
@@ -17,9 +21,10 @@ import { RecipeEditorPage } from '@/pages/RecipeEditorPage';
 import { BuiltinRecipePage, SharedRecipePage } from '@/pages/RecipePreviewPage';
 
 const NAV: { href: string; label: string; pages: Route['page'][] }[] = [
-  { href: '#/', label: '레시피', pages: ['gallery', 'preview', 'edit', 'shared'] },
-  { href: '#/plans', label: '내 AI 현황', pages: ['plans'] },
+  { href: '#/team', label: '내 팀', pages: ['team'] },
+  { href: '#/recipes', label: '레시피 책', pages: ['gallery', 'preview', 'edit', 'shared'] },
   { href: '#/learn', label: '재료 사전', pages: ['learn'] },
+  { href: '#/plans', label: '내 AI 현황', pages: ['plans'] },
 ];
 
 function Page({ route }: { route: Route }) {
@@ -38,15 +43,23 @@ function Page({ route }: { route: Route }) {
     case 'runs':
       return <PracticeListPage />;
     case 'run-new':
-      return <PracticeNewPage key={`${route.recipeId}-${route.taskId}`} recipeId={route.recipeId} taskId={route.taskId} />;
+      return <PracticeNewPage key={`${route.recipeId}-${route.taskId}-${route.orderId}`} recipeId={route.recipeId} taskId={route.taskId} orderId={route.orderId} />;
     case 'run':
       return <PracticeRunPage key={route.id} id={route.id} />;
     case 'compare':
       return <ComparisonPage key={route.id} id={route.id} />;
     case 'shared':
       return <SharedRecipePage key={route.encoded} encoded={route.encoded} />;
-    default:
+    case 'gallery':
       return <GalleryPage />;
+    case 'team':
+      return <TeamPage />;
+    case 'order':
+      return <OrderPage key={route.id} id={route.id} />;
+    case 'orders':
+      return <OrdersPage />;
+    default:
+      return <HomePage />;
   }
 }
 

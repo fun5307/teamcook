@@ -5,6 +5,10 @@ import { useEffect, useState } from 'react';
 import { readShareHash } from './share';
 
 export type Route =
+  | { page: 'home' }
+  | { page: 'team' }
+  | { page: 'order'; id: string }
+  | { page: 'orders' }
   | { page: 'gallery' }
   | { page: 'preview'; id: string }
   | { page: 'edit'; id: string }
@@ -13,7 +17,7 @@ export type Route =
   | { page: 'learn' }
   | { page: 'shared'; encoded: string }
   | { page: 'runs' }
-  | { page: 'run-new'; recipeId?: string; taskId?: string }
+  | { page: 'run-new'; recipeId?: string; taskId?: string; orderId?: string }
   | { page: 'run'; id: string }
   | { page: 'compare'; id: string };
 
@@ -30,6 +34,8 @@ export function parseRoute(hash: string): Route {
     const taskId = params.get('task');
     if (recipeId) route.recipeId = recipeId;
     if (taskId) route.taskId = taskId;
+    const orderId = params.get('order');
+    if (orderId) route.orderId = orderId;
     return route;
   }
   if (first === 'runs') return { page: 'runs' };
@@ -40,7 +46,11 @@ export function parseRoute(hash: string): Route {
   if (first === 'plans') return { page: 'plans' };
   if (first === 'how') return { page: 'how' };
   if (first === 'learn') return { page: 'learn' };
-  return { page: 'gallery' };
+  if (first === 'recipes') return { page: 'gallery' };
+  if (first === 'team') return { page: 'team' };
+  if (first === 'order' && second) return { page: 'order', id: decodeURIComponent(second) };
+  if (first === 'orders') return { page: 'orders' };
+  return { page: 'home' };
 }
 
 /** 화면을 바꾼다. 예: navigate('/edit/recipe-1234') */

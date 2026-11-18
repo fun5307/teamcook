@@ -203,3 +203,121 @@
     scale: none;
   }
 }
+
+/* ───────── 스크롤하면 선이 그어지는 효과 (메뉴 밑줄과 같은 결) ─────────
+ * Reveal 부품이 화면에 들어온 요소에 .is-in 을 붙인다. 한 번만 움직인다. */
+.reveal .rule {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 700ms cubic-bezier(0.2, 0, 0, 1);
+}
+.reveal.is-in .rule {
+  transform: scaleX(1);
+}
+/* 차례로 올라오는 묶음: 자식에 --i (0,1,2…)를 준다 */
+.reveal .rise {
+  opacity: 0;
+  translate: 0 10px;
+  transition:
+    opacity 450ms cubic-bezier(0.2, 0, 0, 1),
+    translate 450ms cubic-bezier(0.2, 0, 0, 1);
+  transition-delay: calc(var(--i, 0) * 70ms + 120ms);
+}
+.reveal.is-in .rise {
+  opacity: 1;
+  translate: 0 0;
+}
+/* 도해의 선: pathLength=1 인 선이 그어진다 */
+.reveal .draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 800ms cubic-bezier(0.2, 0, 0, 1);
+  transition-delay: calc(var(--i, 0) * 120ms + 150ms);
+}
+.reveal.is-in .draw {
+  stroke-dashoffset: 0;
+}
+/* 도해의 점·글자: 선보다 조금 늦게 나타난다 */
+.reveal .pop {
+  opacity: 0;
+  transition: opacity 400ms ease-out;
+  transition-delay: calc(var(--i, 0) * 120ms + 100ms);
+}
+.reveal.is-in .pop {
+  opacity: 1;
+}
+/* 막대 도표: 왼쪽에서 자란다 */
+.reveal .bar-grow {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 900ms cubic-bezier(0.2, 0, 0, 1);
+  transition-delay: calc(var(--i, 0) * 110ms + 150ms);
+}
+.reveal.is-in .bar-grow {
+  transform: scaleX(1);
+}
+
+/* 주문서: 위아래가 톱니로 잘린 종이 전표 */
+.ticket {
+  position: relative;
+  background: var(--card);
+  box-shadow:
+    0 1px 0 rgb(31 27 22 / 0.04),
+    0 18px 36px -22px rgb(31 27 22 / 0.4);
+  --tooth: 10px;
+  mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--tooth) 51% repeat-x,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--tooth) 51% repeat-x;
+}
+/* 주문서에 손으로 적는 줄 */
+.ticket-line {
+  width: 100%;
+  border: 0;
+  border-bottom: 2px solid var(--foreground);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35rem 0;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  outline: none;
+}
+.ticket-line::placeholder {
+  color: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+  font-weight: 500;
+}
+.ticket-line:focus-visible {
+  border-bottom-color: var(--primary);
+}
+/* 차림표의 점선: 이름 ······ 값 */
+.leader {
+  flex: 1;
+  min-width: 1.5rem;
+  border-bottom: 2px dotted var(--input);
+  translate: 0 -0.3em;
+}
+/* 성분표: 굵은 줄로 나눈 라벨 */
+.facts {
+  border: 2px solid var(--foreground);
+  background: var(--card);
+}
+.facts > * + * {
+  border-top: 1px solid var(--foreground);
+}
+.facts .thick {
+  border-top-width: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal .rule,
+  .reveal .rise,
+  .reveal .draw,
+  .reveal .pop,
+  .reveal .bar-grow {
+    transition: none;
+    transform: none;
+    opacity: 1;
+    translate: none;
+    stroke-dashoffset: 0;
+  }
+}

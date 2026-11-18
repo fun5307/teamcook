@@ -107,6 +107,24 @@ export function comparisonMarkdown(comparison: Comparison): string {
   }
   out.push(...conditionTable(runs, report), '');
 
+  const ordered = runs.filter((run) => run.order);
+  if (ordered.length > 0) {
+    out.push('### 주문 (기록을 만들 때의 복사본)', '');
+    const seenOrders = new Set<string>();
+    for (const run of ordered) {
+      const order = run.order!;
+      const key = `${order.orderId}:${order.revision}`;
+      if (seenOrders.has(key)) continue;
+      seenOrders.add(key);
+      out.push(`#### ${inline(order.title || '이름 없는 주문')} (수정 ${order.revision})`, '');
+      for (const item of order.requirements) out.push(`- ${inline(item.kind)}: ${inline(item.text)}`);
+      out.push('', '작업:', ...order.work.map((work, index) => `${index + 1}. ${inline(work.title)}${work.outputs.length > 0 ? ` — 산출물: ${inline(work.outputs.join(', '))}` : ''}`));
+      if (order.open.length > 0) out.push('', `그때 정하지 않은 것: ${order.open.map(inline).join(' / ')}`);
+      out.push('', `자료: ${order.materials.length === 0 ? '없음' : order.materials.map((item) => inline(`${item.name}(${item.status})`)).join(', ')}`, '');
+    }
+    if (seenOrders.size > 1 || ordered.length < runs.length) out.push('> 기록마다 주문(또는 주문 수정 번호)이 달라요. 같은 조건의 비교가 아닙니다.', '');
+  }
+
   out.push('## 2. 기록별 방식·입력·환경', '');
   runs.forEach((run, index) => {
     out.push(`### ${runName(run, index)}: ${inline(run.title)}`, '');
@@ -132,6 +150,12 @@ export function comparisonMarkdown(comparison: Comparison): string {
     }
     if (run.result.deviations.trim()) out.push(`예정과 달랐던 점: ${inline(run.result.deviations)}`, '');
     if (run.result.unresolved.trim()) out.push(`미해결 사항: ${inline(run.result.unresolved)}`, '');
+    if (run.order && run.result.workResults?.length) {
+      out.push('작업별 결과:', ...run.order.work.map((work) => {
+        const entry = run.result.workResults?.find((item) => item.workId === work.id);
+        return `- ${inline(work.title)}: ${CHECK_LABELS[entry?.state ?? 'unknown']}${entry?.note ? ` — ${inline(entry.note)}` : ''}`;
+      }), '');
+    }
   });
 
   out.push('### 항목별 평가', '');

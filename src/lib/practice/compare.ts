@@ -7,6 +7,7 @@ import { rubricSignature } from './rubric';
 import type { Comparison, Measure, MetricKind, PracticeRun } from './types';
 
 export type ConditionKey =
+  | 'order'
   | 'input'
   | 'materials'
   | 'rubric'
@@ -19,11 +20,12 @@ export type ConditionKey =
   | 'environment';
 
 /** 같아야 '동일 조건'이 되는 조건. 실험 변수로 고를 수 없다. */
-export const CORE_CONDITIONS: ConditionKey[] = ['input', 'materials', 'rubric', 'checks'];
+export const CORE_CONDITIONS: ConditionKey[] = ['order', 'input', 'materials', 'rubric', 'checks'];
 /** 일부러 바꾼 '실험 변수'로 고를 수 있는 조건 */
 export const VARIABLE_CONDITIONS: ConditionKey[] = ['style', 'recipe', 'tool', 'model', 'toolVersion', 'environment'];
 
 export const CONDITION_LABELS: Record<ConditionKey, string> = {
+  order: '주문 범위',
   input: '입력 원문',
   materials: '자료 조건',
   rubric: '평가 기준',
@@ -39,6 +41,8 @@ export const CONDITION_LABELS: Record<ConditionKey, string> = {
 /** 화면에 보일 값. 빈 값은 '' (확인 불가로 표시). */
 export function conditionValue(run: PracticeRun, key: ConditionKey): string {
   switch (key) {
+    case 'order':
+      return run.order ? `${run.order.title} (수정 ${run.order.revision}) · 작업 ${run.order.work.length}개` : '주문 없음';
     case 'input':
       return run.input.text.trim();
     case 'materials':
@@ -61,6 +65,8 @@ function compareKey(run: PracticeRun, key: ConditionKey): string {
   if (key === 'rubric') return rubricSignature(run.rubric);
   if (key === 'recipe') return run.snapshot ? JSON.stringify(run.snapshot.recipe) : '';
   if (key === 'checks') return JSON.stringify(run.result.checks.map((check) => check.text.trim()));
+  // 같은 주문 id만으로 같다고 보지 않는다: 확정 내용·작업·자료 범위까지 견준다
+  if (key === 'order') return run.order ? JSON.stringify([run.order.requirements, run.order.work, run.order.materials]) : '';
   return conditionValue(run, key);
 }
 
@@ -90,7 +96,7 @@ export function compareConditions(runs: PracticeRun[], variables: string[] = [])
     const values = runs.map((run) => conditionValue(run, key));
     const keys = runs.map((run) => compareKey(run, key));
     // 레시피는 단일 AI 기록에 없는 게 정상이라 '확인 불가'로 보지 않는다
-    const unknown = key !== 'recipe' && key !== 'checks' && values.some((value) => value === '');
+    const unknown = key !== 'recipe' && key !== 'checks' && key !== 'order' && values.some((value) => value === '');
     const state: ConditionState = unknown ? 'unknown' : new Set(keys).size === 1 ? 'same' : 'different';
     const variable = VARIABLE_CONDITIONS.includes(key) && variables.includes(key);
     return { key, label: CONDITION_LABELS[key], values, state, variable };

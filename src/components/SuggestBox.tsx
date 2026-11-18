@@ -1,11 +1,9 @@
-// 첫 화면의 "하고 싶은 작업을 말하면 레시피를 권하는" 상자와, 사용량 어림 표시.
+// 첫 화면의 '주문서': 하고 싶은 작업을 적으면 레시피를 권한다. 결과는 차림표처럼 보여 준다.
 // AI가 고르는 게 아니라 낱말·내 플랜·사용량 여유로 고른다. 그래서 고른 이유를 항상 함께 보여 준다.
 
-import { useState } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { FitLabel } from '@/components/RouteInfo';
 import { COLLABORATIONS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
@@ -55,9 +53,12 @@ export function UsageNote({ recipe, plans }: { recipe: Recipe; plans: UserPlans 
   );
 }
 
-const EXAMPLES = ['로그인 버그 원인을 찾고 싶어', '새 기능을 만들고 검토받고 싶어', '시장 조사 보고서를 쓰고 싶어', '두 설계안 중에 고르고 싶어'];
+const EXAMPLES = ['로그인 버그 원인 찾기', '새 기능 만들고 검토받기', '시장 조사 보고서 쓰기', '두 설계안 중에 고르기'];
 
-export function SuggestBox({ myRecipes }: { myRecipes: Recipe[] }) {
+/**
+ * 첫 화면 머리: 왼쪽에 소개(children), 오른쪽에 주문서. 주문을 넣으면 아래에 차림표가 펼쳐진다.
+ */
+export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; children: ReactNode }) {
   const plans = useStore((state) => state.plans);
   const budget = useStore((state) => state.budget);
   const setBudget = useStore((state) => state.setBudget);
@@ -70,106 +71,132 @@ export function SuggestBox({ myRecipes }: { myRecipes: Recipe[] }) {
     myRecipes.includes(recipe) ? `#/edit/${encodeURIComponent(recipe.id)}` : `#/recipe/${encodeURIComponent(recipe.id)}`;
 
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5 sm:p-6" aria-label="레시피 제안">
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setAsked(text.trim());
-        }}
-      >
-        <label htmlFor="suggest-input" className="font-heading text-xl font-extrabold sm:text-2xl">
-          어떤 작업을 하고 싶으세요?
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <Input
-            id="suggest-input"
-            className="h-11 min-w-0 flex-1 basis-64 bg-background text-base"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            placeholder={`예: ${EXAMPLES[0]}`}
-          />
-          <Button type="submit" size="lg" disabled={!text.trim()}>
-            <Sparkles aria-hidden />
+    <div className="flex flex-col gap-10">
+      <div className="grid items-start gap-x-14 gap-y-10 lg:grid-cols-[minmax(0,1fr)_23rem]">
+        <div className="flex flex-col gap-5">{children}</div>
+
+        <form
+          aria-label="레시피 제안"
+          className="ticket flex flex-col gap-5 px-6 pt-8 pb-9 lg:rotate-[1.2deg]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setAsked(text.trim());
+          }}
+        >
+          <div className="flex items-baseline justify-between border-b-2 border-foreground pb-2">
+            <span className="font-heading text-2xl font-extrabold">주문서</span>
+            <span className="text-xs text-muted-foreground">레시피 {builtinRecipes.length + myRecipes.length}가지 중에서</span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="suggest-input" className="text-sm text-muted-foreground">
+              오늘 하고 싶은 작업
+            </label>
+            <input
+              id="suggest-input"
+              className="ticket-line"
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              placeholder={EXAMPLES[0]}
+              autoComplete="off"
+            />
+          </div>
+
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 text-sm text-muted-foreground">사용량 여유</legend>
+            <div className="grid grid-cols-3 border-2 border-foreground" role="radiogroup" aria-label="사용량 여유">
+              {BUDGETS.map((item) => (
+                <label
+                  key={item}
+                  className={cn(
+                    'cursor-pointer border-foreground px-1 py-2 text-center text-sm transition-colors not-first:border-l-2 has-focus-visible:ring-3 has-focus-visible:ring-ring/40',
+                    budget === item ? 'bg-foreground font-medium text-background' : 'hover:bg-muted',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="suggest-budget"
+                    className="sr-only"
+                    checked={budget === item}
+                    onChange={() => setBudget(item)}
+                  />
+                  {BUDGET_LABELS[item]}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-pretty text-muted-foreground">{BUDGET_HINTS[budget]}</p>
+          </fieldset>
+
+          <Button type="submit" size="lg" className="h-11 text-base" disabled={!text.trim()}>
             레시피 추천받기
           </Button>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5" role="group" aria-label="사용량 여유">
-          <span className="text-sm text-muted-foreground">사용량 여유</span>
-          {BUDGETS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              aria-pressed={budget === item}
-              onClick={() => setBudget(item)}
-              className={cn(
-                'rounded-full border px-3 py-1 text-sm transition-colors',
-                budget === item ? 'border-foreground bg-foreground text-background' : 'bg-card hover:bg-muted',
-              )}
-            >
-              {BUDGET_LABELS[item]}
-            </button>
-          ))}
-          <span className="text-xs text-muted-foreground">{BUDGET_HINTS[budget]}</span>
-        </div>
-      </form>
 
-      {!asked ? (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          이렇게 적어 보세요:
-          {EXAMPLES.slice(1).map((example) => (
-            <button
-              key={example}
-              type="button"
-              className="underline underline-offset-2 hover:text-primary"
-              onClick={() => {
-                setText(example);
-                setAsked(example);
-              }}
-            >
-              {example}
-            </button>
-          ))}
-        </p>
-      ) : results.length === 0 ? (
-        <p className="text-sm" role="status">
-          맞는 레시피를 찾지 못했어요. 낱말을 바꿔 보거나, 아래 "무엇을 하려고 하나요?"에서 상황을 골라 보세요.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-2" role="status">
-          <ol className="flex flex-col gap-2">
-            {results.map((item, index) => (
-              <li key={item.recipe.id}>
-                <a
-                  href={hrefOf(item.recipe)}
-                  className="group flex flex-col gap-1.5 rounded-xl border bg-background px-4 py-3 transition-colors hover:border-foreground/40"
-                >
-                  <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                    <span className="font-heading text-lg font-extrabold group-hover:text-primary">
-                      {index === 0 ? <span className="mr-2 text-xs font-bold text-primary">첫 번째 추천</span> : null}
-                      {item.recipe.title}
-                    </span>
-                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="text-xs text-muted-foreground">
-                        {COLLABORATIONS[collaborationOf(item.recipe)].label} · 재료 {item.recipe.cards.length}
-                      </span>
-                      <UsageMeter level={item.cost.usage.level} />
-                      <FitLabel fit={item.fit} />
-                    </span>
-                  </span>
-                  <span className="text-sm text-muted-foreground">{item.reasons.join(' · ')}</span>
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary">
-                    레시피 보기 <ArrowRight className="size-3" aria-hidden />
-                  </span>
-                </a>
-              </li>
+          <div className="flex flex-col gap-1 border-t border-dashed border-input pt-3 text-sm">
+            <span className="text-xs text-muted-foreground">자주 들어오는 주문</span>
+            {EXAMPLES.slice(1).map((example) => (
+              <button
+                key={example}
+                type="button"
+                className="w-fit text-left underline decoration-input underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
+                onClick={() => {
+                  setText(example);
+                  setAsked(example);
+                }}
+              >
+                {example}
+              </button>
             ))}
-          </ol>
-          <p className="text-xs text-muted-foreground">
-            AI가 고른 게 아니라, 적은 낱말·내 AI 현황·사용량 여유로 고른 결과예요. 사용량은 어림이에요.
-          </p>
-        </div>
-      )}
-    </section>
+          </div>
+        </form>
+      </div>
+
+      {asked ? (
+        <section className="flex flex-col gap-3" role="status" aria-label="추천 결과">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b-2 border-foreground pb-2">
+            <h2 className="text-2xl font-extrabold">"{asked}"에 권하는 차림</h2>
+            <button type="button" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => setAsked('')}>
+              접기
+            </button>
+          </div>
+          {results.length === 0 ? (
+            <p className="py-2 text-base">
+              맞는 레시피를 찾지 못했어요. 낱말을 바꿔 적거나,{' '}
+              아래 상황별 묶음에서 골라 보세요.
+            </p>
+          ) : (
+            <>
+              <ol className="flex flex-col">
+                {results.map((item, index) => (
+                  <li key={item.recipe.id} className="border-b border-dashed border-input">
+                    <a href={hrefOf(item.recipe)} className="group flex gap-4 py-4 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none">
+                      <span className="w-7 shrink-0 font-heading text-3xl leading-none font-extrabold text-primary tabular-nums">{index + 1}</span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                          <span className="font-heading text-xl font-extrabold transition-colors group-hover:text-primary">
+                            {item.recipe.title}
+                          </span>
+                          <span className="leader hidden sm:block" aria-hidden />
+                          <span className="text-sm whitespace-nowrap text-muted-foreground">
+                            {COLLABORATIONS[collaborationOf(item.recipe)].label}, 재료 {item.recipe.cards.length}가지
+                          </span>
+                        </span>
+                        <span className="text-sm text-pretty text-muted-foreground">{item.reasons.join(', ')}.</span>
+                        <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <UsageMeter level={item.cost.usage.level} />
+                          <FitLabel fit={item.fit} />
+                        </span>
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+              <p className="text-xs text-muted-foreground">
+                AI가 고른 게 아니라, 적은 낱말과 내 AI 현황, 사용량 여유로 고른 결과예요. 사용량은 어림이에요.
+              </p>
+            </>
+          )}
+        </section>
+      ) : null}
+    </div>
   );
 }

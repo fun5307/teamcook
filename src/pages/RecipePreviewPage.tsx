@@ -8,6 +8,7 @@ import { CopyPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Notice, PageHeader } from '@/components/common';
 import { ExportPrepButton } from '@/components/ExportDialog';
+import { StartOrderButton } from '@/pages/order/OrdersPage';
 import { ShareButton, cloneRecipe } from '@/components/RecipeActions';
 import { RecipeOverview } from '@/components/RecipeOverview';
 import { builtinRecipes } from '@/data/recipes';
@@ -34,7 +35,7 @@ function BackLink() {
   return (
     <div>
       <Button asChild variant="outline">
-        <a href="#/">갤러리로 돌아가기</a>
+        <a href="#/recipes">레시피 책으로 돌아가기</a>
       </Button>
     </div>
   );
@@ -61,6 +62,7 @@ export function BuiltinRecipePage({ id }: { id: string }) {
             <ShareButton recipe={recipe} />
             <ExportPrepButton recipe={recipe} plans={plans} />
             <ImportButton recipe={recipe} />
+            <StartOrderButton recipe={recipe} />
           </>
         }
       />

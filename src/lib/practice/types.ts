@@ -130,6 +130,33 @@ export interface Correction {
   area: 'result' | 'note';
 }
 
+/**
+ * 기록을 만들 때의 주문 복사본 (주문에서 시작한 기록만). 주문을 나중에 고치거나 지워도 이 복사본은 그대로다.
+ * 원문(사용자가 쓴 요청)과 실제 입력(외부 도구에 넣은 글, RunInput.text)은 다른 것이다.
+ */
+export interface OrderSnapshot {
+  orderId: string;
+  revision: number;
+  title: string;
+  /** 사용자가 쓴 요청 원문 */
+  requestText: string;
+  /** 자료 이름·종류·읽기 상태 (본문은 넣지 않는다) */
+  materials: { name: string; kind: string; status: string }[];
+  /** 확정한 목표·결과물·조건·제외·성공 조건 */
+  requirements: { kind: string; text: string }[];
+  /** 확정한 작업 (작업별 결과를 적을 때 쓴다) */
+  work: { id: string; title: string; outputs: string[]; criteria: string[] }[];
+  /** 그때 정하지 않은 질문 */
+  open: string[];
+}
+
+/** 작업 하나의 결과 */
+export interface WorkResult {
+  workId: string;
+  state: CheckState;
+  note: string;
+}
+
 /** 기록을 만들 때의 레시피 복사본 */
 export interface RecipeSnapshot {
   /** 원본 레시피 id. 원본이 지워져도 스냅샷은 남는다. */
@@ -161,6 +188,8 @@ export interface RunResult {
   participants?: string[];
   /** 예정과 달랐던 수행 내용 */
   deviations: string;
+  /** 주문의 작업별 결과 (주문에서 시작한 기록만) */
+  workResults?: WorkResult[];
   /** 미해결 사항 */
   unresolved: string;
 }
@@ -186,6 +215,8 @@ export interface PracticeRun {
   kind: RunKind;
   /** kind가 'recipe'일 때만 있다 */
   snapshot?: RecipeSnapshot;
+  /** 주문에서 시작했으면 그때의 주문 복사본 */
+  order?: OrderSnapshot;
   input: RunInput;
   rubric: Rubric;
   result: RunResult;
@@ -209,6 +240,8 @@ export interface PracticeTask {
   rubric: Rubric;
   /** 성공 조건 문장 (레시피에서 가져온 것). 같은 과제의 다른 기록이 같은 조건으로 확인받게 한다. */
   successCriteria: string[];
+  /** 주문에서 시작한 과제면 그 주문 복사본 (같은 과제로 다시 기록할 때 물려준다) */
+  order?: OrderSnapshot;
   createdAt: string;
 }
 

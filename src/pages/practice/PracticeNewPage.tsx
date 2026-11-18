@@ -16,19 +16,30 @@ import { createRun, createTask, EMPTY_INPUT } from '@/lib/practice/model';
 import { defaultRubric } from '@/lib/practice/rubric';
 import type { Criterion, RunInput } from '@/lib/practice/types';
 import { saveNewRun, usePractice } from '@/store/usePractice';
+import { useOrders } from '@/store/useOrders';
+import { orderPrompt } from '@/lib/order/toRecipe';
+import { orderSnapshot } from '@/lib/order/snapshot';
 import { useStore } from '@/store/useStore';
 
-export function PracticeNewPage({ recipeId, taskId }: { recipeId?: string; taskId?: string }) {
+export function PracticeNewPage({ recipeId, taskId, orderId }: { recipeId?: string; taskId?: string; orderId?: string }) {
   const myRecipes = useStore((state) => state.recipes);
   const tasks = usePractice((state) => state.tasks);
+  const orders = useOrders((state) => state.orders);
   const allRecipes = [...myRecipes, ...builtinRecipes];
   const task = taskId ? tasks.find((item) => item.id === taskId) : undefined;
+  const order = orderId ? orders.find((item) => item.id === orderId) : undefined;
+  const startRecipe = allRecipes.find((item) => item.id === recipeId);
+  // 주문에서 왔으면 외부 도구에 실제로 넣을 시작 프롬프트를 입력으로 채운다 (원문과 다르다)
+  const orderInput = order && startRecipe ? orderPrompt(order, startRecipe) : '';
 
   const [chosenRecipe, setChosenRecipe] = useState<string>(recipeId ?? '');
   const recipe = allRecipes.find((item) => item.id === chosenRecipe);
   const [title, setTitle] = useState('');
-  const [text, setText] = useState(task?.input ?? '');
-  const [materials, setMaterials] = useState(task?.materials ?? '');
+  const [text, setText] = useState(task?.input ?? orderInput);
+  const [materials, setMaterials] = useState(
+    task?.materials ??
+      (order ? order.request.materials.map((item) => `${item.name}(${item.kind === 'link' ? '주소만' : item.status === 'read' ? '본문' : '읽지 못함'})`).join(', ') || '자료 없음' : ''),
+  );
   const [env, setEnv] = useState<RunInput>({ ...EMPTY_INPUT, tool: recipe ? 'Claude Code' : '' });
   const [criteria, setCriteria] = useState<Criterion[]>(() => defaultRubric().criteria);
   const [draftName, setDraftName] = useState('');
@@ -56,6 +67,7 @@ export function PracticeNewPage({ recipeId, taskId }: { recipeId?: string; taskI
             ? defaultRubric()
             : { id: 'custom', version: 1, criteria },
         successCriteria: recipe?.successCriteria,
+        ...(order ? { order: orderSnapshot(order) } : {}),
       });
     const run = createRun({ title, recipe, task: usedTask, input: env });
     if (save.report(saveNewRun(run, usedTask, !task))) navigate(`/run/${run.id}`);
@@ -127,6 +139,18 @@ export function PracticeNewPage({ recipeId, taskId }: { recipeId?: string; taskI
 
       <section className="flex flex-col gap-3 rounded-xl border bg-card p-5">
         <h2 className="text-lg font-bold">2. 넣을 과제</h2>
+        {order ? (
+          <Notice tone="info" className="flex flex-col gap-1">
+            <span>
+              주문 "{order.title}"(수정 {order.revision})에서 왔어요. 아래 입력은 외부 도구에 실제로 넣을 시작 프롬프트예요. 사용자가 쓴 요청 원문과는 달라요.
+              기록을 만들면 그때의 주문(원문·확정 내용·작업)을 복사해 두고, 나중에 주문을 고쳐도 이 기록은 바뀌지 않아요.
+            </span>
+            <details>
+              <summary className="cursor-pointer">요청 원문 보기</summary>
+              <p className="mt-1 whitespace-pre-wrap">{order.request.text}</p>
+            </details>
+          </Notice>
+        ) : null}
         {locked ? (
           <Notice tone="info">
             과제 "{task!.title}"의 입력·자료 조건·평가 기준을 그대로 써요. 결과와 점수는 복사하지 않아요.

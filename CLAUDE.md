@@ -7,9 +7,9 @@
 
 ## 한 줄 요약
 
-GPT(Codex)·Claude 등의 에이전트로 이뤄진 **AI 팀 레시피**를 설계하고, 내 플랜에 맞춰 실행 경로를 정하고, **링크 하나로 공유**하는 웹사이트(React, Vercel 배포).
+멀티 에이전트를 쓰는 사람이 **AI 팀을 부리는 고용주**가 되게 하는 웹사이트(React, Vercel 배포). 내 프로젝트 폴더를 열면 숨김 폴더(`.codex/agents`, `.claude/agents`) 속 역할 파일을 **팀원 카드로 보여 주고(보이게)**, 맡길 일·권한을 고치면 **그 파일에 바로 저장하고(고치게)**, Claude Code·Codex가 남긴 대화 기록에서 **누구에게 무엇을 시켰고 무엇을 돌려받았는지 업무 일지로 보여 준다(보고받게)**. 레시피 책(검증된 팀 구성)과 공유 링크는 팀을 들이는 통로다.
 
-**포지션: "실행은 어디서든, 팀 설계와 레시피는 여기서."**
+**포지션: "실행은 Claude Code·Codex에서, 팀을 보고 고치고 보고받는 것은 여기서."** (2026-11-17 사용자 결정으로 '내 프로젝트 폴더 열기'가 중심이 됐다. 이유와 경과는 `HANDOFF.md`의 '방향 전환')
 
 ## 핵심 원칙
 
@@ -20,12 +20,14 @@ GPT(Codex)·Claude 등의 에이전트로 이뤄진 **AI 팀 레시피**를 설�
 
 ## 하지 않을 것 (비목표)
 
-- 에이전트 실행·세션·스레드 관리 기능 (T3 Code, 1Code와 경쟁하지 않는다)
+- 에이전트 실행·세션·스레드 관리 기능 (T3 Code, 1Code와 경쟁하지 않는다). 대화 기록은 **읽기만** 한다.
+- 서비스 안에서 API 키로 에이전트를 돌리기 (2026-11-17 검토 후 하지 않기로 함: 구독을 못 쓰고 코드 작업을 못 한다)
 - 자체 LLM 오케스트레이션 엔진
 - 무료 웹 채팅 계정 자동 로그인·화면 긁기 (약관 위반)
 - 복사·붙여넣기 '릴레이 모드'를 중심 기능으로 만들기 (마지막 대안일 뿐)
 - 회원가입, 로그인, 서버 DB (공유는 URL만으로)
 - **API 키 값을 받거나 저장하기** ('보유 여부' 체크만 한다)
+- 사용자가 고르지 않은 폴더를 읽기. 기록 폴더에서는 대화 기록 파일(`.jsonl`)만 읽고, 인증·설정 파일은 열지 않는다. 설정 파일(`.codex/config.toml`, `.claude/settings.json`)은 자동으로 고치지 않는다.
 
 ## 폴더 구조
 
@@ -53,16 +55,19 @@ src/
 │  ├─ exportCheck.ts       # 내보내기 전 점검 (수정 필요·확인 필요·참고). 화면과 ZIP 생성이 함께 쓴다
 │  ├─ support.ts           # 도구·조리법이 실제로 해 주는 것: 권한을 지키는 수단, 실행 반영 범위 (설명은 여기에만 적는다)
 │  ├─ verification.ts      # 확인 기록 이름표 (문서 확인 / 파일 생성 확인 / 실제 실행 확인)
+│  ├─ order/               # 주문(작업 설계): types, draft(규칙 기반 초안), ops(작업 편집·참조 영향·범위), team(역할 제안), toRecipe(레시피 변환·점검·연결 상태), schema(저장·JSON), materials(자료 읽기), snapshot(실습 기록용 복사본)
+│  ├─ workspace/           # 내 프로젝트 폴더: fs(폴더 읽기·쓰기, 테스트용 메모리 폴더), team(팀 읽기 scanTeam, 고친 것만 쓰기 planSave·applyChanges, 레시피 들이기 planHire)
+│  ├─ journal/             # 업무 일지: claude·codex(대화 기록 해석, 형식은 문서에 없어 실제 기록에서 본 모양), read(기록 폴더 읽기)
 │  ├─ practice/            # 실습 기록·비교 평가 (2차, 부가 기능. 진입은 components/practice/PracticePanel.tsx의 옆 패널). types, schema(읽기·버전), storage(저장 API, 화면과 분리), model(만들기·잠금·측정 검사), rubric, compare, report(Markdown), transfer(JSON), demo(GraphRAG 합성 데모)
 │  ├─ suggest.ts           # "~하고 싶다"는 말에 레시피 제안 (AI 호출 없음: 낱말 + 내 플랜 + 사용량 여유, 고른 이유를 함께 돌려줌)
 │  ├─ cost.ts              # 사용량 어림(가벼움·보통·무거움)과 내 여건에서 어디서 나가는지. 토큰·금액 숫자는 짐작하지 않는다
 │  ├─ optimize.ts          # 구독 최적화 제안
 │  └─ bridge.ts            # Claude Code → Codex 연결(codex exec)
 ├─ cli/                    # 설치 명령 (node teamcook.mjs add <링크>). 빌드 결과는 루트의 cli/teamcook.mjs — 사용자가 이 파일을 GitHub에서 직접 받아 쓰므로 반드시 다시 빌드해 커밋
-├─ store/                  # zustand + localStorage. useStore = 레시피·플랜('agent-recipes'), usePractice = 실습 기록('teamcook-practice', 저장 성공 시에만 화면 반영)
+├─ store/                  # zustand + localStorage. useOrders = 주문('teamcook-orders', 저장 성공 시에만 화면 반영). useWorkspace = 연 폴더(손잡이는 IndexedDB에만 기억). useStore = 레시피·플랜('agent-recipes'), usePractice = 실습 기록('teamcook-practice', 저장 성공 시에만 화면 반영)
 ├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등)
 │  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
-└─ pages/                  # Gallery, RecipeEditor, MyPlans, SharedRecipe, HowToRun, Concepts(재료 사전 #/learn), practice/(실습 기록 목록·만들기·상세·비교)
+└─ pages/                  # Home(첫 화면 #/: 주문서 입력 + 내 팀), order/(주문 #/order/<id>, 목록 #/orders), team/(내 팀 #/team: 팀원·업무 일지), Gallery(레시피 책 #/recipes: 주문서 추천과 전체 목록), RecipeEditor, MyPlans, SharedRecipe, HowToRun, Concepts(재료 사전 #/learn), practice/(실습 기록 목록·만들기·상세·비교)
 samples/codex/             # 사용자의 실제 Codex TOML (변환기 테스트용)
 design/                    # 디자인 시안 (브라우저로 여는 HTML)과 적용 뒤 화면(shots/). 채택: 3차 시안 2 "레시피 카드"
 ```
@@ -81,8 +86,9 @@ design/                    # 디자인 시안 (브라우저로 여는 HTML)과 �
 - "설계한 것, 파일에 반영한 것, 실제로 실행해 확인한 것"을 섞지 않는다. 실행해 보지 않은 것을 "확인됨"이나 "지원"으로 적지 않는다. 확인 기록은 종류(문서·파일 생성·실제 실행)를 나눠 적는다.
 - 실습 기록은 레시피와 따로 저장하고 레시피 공유 링크에 넣지 않는다. 사이트는 AI를 실행하지 않으므로 기록의 출처를 '자동 관측'으로 만들지 않고, 미확인 값을 0으로 바꾸지 않으며, 점수를 합산하거나 승자를 정하지 않는다.
 - 개념 설명은 '재료' 비유(재료 = 에이전트, 조리법 = 협업 방식, 주방 = 실행 도구, 재료비 = 토큰)를 쓰되, 비유와 공식 문서로 확인한 사실을 나눠 적는다.
+- 주문의 자동 정리는 AI 없는 규칙 기반이다. 자동으로 만든 요구·작업은 모두 '제안'이고 사용자가 확정한 것만 레시피에 들어간다. 원문·자료를 고치거나 빼도 정리 내용을 조용히 바꾸지 않는다. 주문 ID와 실습 기록 ID는 다른 것이다.
 - 레시피의 조리법은 `recipe.collaboration`을 직접 읽지 말고 `collaborationOf(recipe)`로 읽는다 (없으면 서브에이전트).
-- 디자인은 "레시피 카드" 방향이다 (`HANDOFF.md`의 '디자인 방향'). 색·모서리·글꼴은 `src/index.css`에서만 고친다. 포인트 색은 토마토 빨강 하나, 보라색은 쓰지 않는다. 움직임은 절제한다(랜딩페이지식 화려한 효과 금지). 확인 날짜는 강조하지 않는다.
+- 디자인은 "레시피 카드" 방향이다 (`HANDOFF.md`의 '디자인 방향'). 색·모서리·글꼴은 `src/index.css`에서만 고친다. 포인트 색은 토마토 빨강 하나, 보라색은 쓰지 않는다. 움직임은 절제한다(랜딩페이지식 화려한 효과 금지). 스크롤 효과는 `Reveal` 부품의 '선이 그어지는' 한 가지 결만 쓴다. 개념 설명 화면은 줄글보다 도해·표를 먼저 쓴다. 확인 날짜는 강조하지 않는다.
 - 화면은 사용자 친화적으로: 한 화면에 한 가지 일, 꼭 필요한 칸만 먼저 보이고 선택 항목은 접는다. 같은 안내를 되풀이하지 않는다. 내보내기를 막는 것은 파일이 깨지는 경우뿐이고, 나머지는 "채우면 더 좋아요"로만 알린다.
 - 단계가 끝날 때마다 `HANDOFF.md`를 갱신한다.
 
