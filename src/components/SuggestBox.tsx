@@ -2,17 +2,20 @@
 // AI가 고르는 게 아니라 낱말·내 플랜·사용량 여유로 고른다. 그래서 고른 이유를 항상 함께 보여 준다.
 
 import { useState, type ReactNode } from 'react';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { FitLabel } from '@/components/RouteInfo';
+import { EngineLogo } from '@/components/BrandLogo';
+import { FitLabel, engineName } from '@/components/RouteInfo';
 import { COLLABORATIONS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
 import { builtinRecipes } from '@/data/recipes';
 import { BUDGETS, BUDGET_HINTS, BUDGET_LABELS, USAGE_LABELS, costOutlook, type UsageLevel } from '@/lib/cost';
+import { PATH_NAMES, effectiveRoute, resolveRecipe } from '@/lib/resolvePath';
 import { suggestRecipes, type Suggestion } from '@/lib/suggest';
 import { plansSummary } from '@/lib/plansSummary';
 import { useStore } from '@/store/useStore';
-import type { Recipe, UserPlans } from '@/types';
+import type { EngineId, PathLevel, Recipe, UserPlans } from '@/types';
 
 const USAGE_DOTS: Record<UsageLevel, number> = { light: 1, medium: 2, heavy: 3 };
 
@@ -66,6 +69,8 @@ export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; child
   const setBudget = useStore((state) => state.setBudget);
   const [text, setText] = useState('');
   const [asked, setAsked] = useState('');
+  // 차림표를 접어도 머리줄은 남겨, 다시 펼칠 수 있게 한다
+  const [open, setOpen] = useState(true);
   const results: Suggestion[] = asked
     ? suggestRecipes(asked, [...myRecipes, ...builtinRecipes], plans, providerData, budget)
     : [];
@@ -79,10 +84,11 @@ export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; child
 
         <form
           aria-label="레시피 제안"
-          className="ticket flex flex-col gap-5 px-6 pt-8 pb-9 lg:rotate-[1.2deg]"
+          className="ticket flex flex-col gap-5 px-6 pt-8 pb-9"
           onSubmit={(event) => {
             event.preventDefault();
             setAsked(text.trim());
+            setOpen(true);
           }}
         >
           <div className="flex items-baseline justify-between border-b-2 border-foreground pb-2">
@@ -151,6 +157,7 @@ export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; child
                 onClick={() => {
                   setText(example);
                   setAsked(example);
+                  setOpen(true);
                 }}
               >
                 {example}
@@ -161,55 +168,156 @@ export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; child
       </div>
 
       {asked ? (
-        <section className="flex flex-col gap-3" role="status" aria-label="추천 결과">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b-2 border-foreground pb-2">
-            <h2 className="text-2xl font-extrabold">"{asked}"에 권하는 차림</h2>
-            <button type="button" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => setAsked('')}>
-              접기
-            </button>
-          </div>
-          {results.length === 0 ? (
-            <p className="py-2 text-base">
-              맞는 레시피를 찾지 못했어요. 낱말을 바꿔 적거나,{' '}
-              <a className="underline underline-offset-4 hover:text-primary" href="#/recipes">
-                레시피 책
-              </a>
-              에서 상황별로 골라 보세요.
-            </p>
-          ) : (
-            <>
-              <ol className="flex flex-col">
-                {results.map((item, index) => (
-                  <li key={item.recipe.id} className="border-b border-dashed border-input">
-                    <a href={hrefOf(item.recipe)} className="group flex gap-4 py-4 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none">
-                      <span className="w-7 shrink-0 font-heading text-3xl leading-none font-extrabold text-primary tabular-nums">{index + 1}</span>
-                      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                          <span className="font-heading text-xl font-extrabold transition-colors group-hover:text-primary">
-                            {item.recipe.title}
-                          </span>
-                          <span className="leader hidden sm:block" aria-hidden />
-                          <span className="text-sm whitespace-nowrap text-muted-foreground">
-                            {COLLABORATIONS[collaborationOf(item.recipe)].label}, 재료 {item.recipe.cards.length}가지
-                          </span>
-                        </span>
-                        <span className="text-sm text-pretty text-muted-foreground">{item.reasons.join(', ')}.</span>
-                        <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                          <UsageMeter level={item.cost.usage.level} />
-                          <FitLabel fit={item.fit} />
-                        </span>
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ol>
-              <p className="text-xs text-muted-foreground">
-                AI가 고른 게 아니라, 적은 낱말과 내 AI 현황, 사용량 여유로 고른 결과예요. 사용량은 어림이에요.
-              </p>
-            </>
-          )}
-        </section>
+        <SuggestResults asked={asked} results={results} plans={plans} open={open} onToggle={() => setOpen(!open)} hrefOf={hrefOf} />
       ) : null}
     </div>
+  );
+}
+
+/** 레시피의 재료(에이전트)가 내 플랜에서 어느 회사 AI로, 어떤 경로로 도는지 */
+function TeamStrip({ recipe, plans }: { recipe: Recipe; plans: UserPlans }) {
+  const resolution = resolveRecipe(recipe, plans, providerData);
+  const style = collaborationOf(recipe);
+  const members = recipe.cards.map((card) => {
+    const resolved = resolution.perCard[card.id];
+    const route = resolved ? effectiveRoute(resolved) : { engine: 'manual' as EngineId, path: 4 as PathLevel };
+    return { card, ...route };
+  });
+  // 회사별로 몇 명인지
+  const tally = new Map<string, { engine: EngineId; count: number; label: string }>();
+  for (const member of members) {
+    const provider = providerData.engines[member.engine]?.provider;
+    const key = provider ?? member.engine;
+    const label = provider ? providerData.providers[provider].productName : engineName(member.engine);
+    const entry = tally.get(key) ?? { engine: member.engine, count: 0, label };
+    entry.count += 1;
+    tally.set(key, entry);
+  }
+  return (
+    <div className="flex flex-col gap-2.5">
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <span className="font-heading text-base font-extrabold">에이전트 {recipe.cards.length}명</span>
+        {[...tally.values()].map((item) => (
+          <span key={item.label} className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <EngineLogo engine={item.engine} className="text-foreground" />
+            {item.label} {item.count}
+          </span>
+        ))}
+        {style === 'debate' ? <span className="text-xs text-muted-foreground">(한 AI가 역할을 번갈아 맡아요)</span> : null}
+      </p>
+      <ol className="flex flex-wrap items-stretch gap-1.5" aria-label="재료 구성">
+        {members.map((member, index) => (
+          <li key={member.card.id} className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                'flex min-w-0 items-center gap-2 rounded-lg border-2 bg-card px-2.5 py-1.5',
+                member.path === 4 ? 'border-dashed border-input' : 'border-foreground',
+              )}
+              title={engineName(member.engine) + ' · ' + PATH_NAMES[member.path]}
+            >
+              <EngineLogo engine={member.engine} />
+              <span className="flex min-w-0 flex-col leading-tight">
+                <span className="truncate text-sm font-medium">{member.card.displayName || member.card.name}</span>
+                <span className="text-[11px] whitespace-nowrap text-muted-foreground">
+                  {engineName(member.engine)} · {PATH_SHORT[member.path]}
+                </span>
+              </span>
+            </span>
+            {index < members.length - 1 && style !== 'agent-team' ? <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden /> : null}
+          </li>
+        ))}
+      </ol>
+      <p className="text-xs text-muted-foreground">
+        내 플랜으로 돌리면 → <span className="font-medium text-foreground">{resolution.summary}</span>
+      </p>
+    </div>
+  );
+}
+
+const PATH_SHORT: Record<PathLevel, string> = { 1: '구독', 2: 'API 키', 3: '무료 한도', 4: '복사·붙여넣기' };
+
+function SuggestResults({
+  asked,
+  results,
+  plans,
+  open,
+  onToggle,
+  hrefOf,
+}: {
+  asked: string;
+  results: Suggestion[];
+  plans: UserPlans;
+  open: boolean;
+  onToggle: () => void;
+  hrefOf: (recipe: Recipe) => string;
+}) {
+  return (
+    <section className="flex flex-col gap-4" aria-label="추천 결과">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b-2 border-foreground pb-2">
+        <h2 className="text-2xl font-extrabold">
+          "{asked}"에 권하는 차림 <span className="font-sans text-base font-normal text-muted-foreground">{results.length}가지</span>
+        </h2>
+        <button
+          type="button"
+          aria-expanded={open}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-4 hover:text-primary"
+          onClick={onToggle}
+        >
+          {open ? '접기' : '펼치기'}
+          <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} aria-hidden />
+        </button>
+      </div>
+      {!open ? null : results.length === 0 ? (
+        <p className="py-2 text-base" role="status">
+          맞는 레시피를 찾지 못했어요. 낱말을 바꿔 적거나,{' '}
+          <a className="underline underline-offset-4 hover:text-primary" href="#/recipes">
+            레시피 책
+          </a>
+          에서 상황별로 골라 보세요.
+        </p>
+      ) : (
+        <>
+          <ol className="grid gap-4" role="status">
+            {results.map((item, index) => (
+              <li key={item.recipe.id}>
+                <article className="flex flex-col gap-4 rounded-2xl border-2 border-foreground bg-card p-5 sm:flex-row sm:gap-5">
+                  <span className="font-heading text-4xl leading-none font-extrabold text-primary tabular-nums">{index + 1}</span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <a href={hrefOf(item.recipe)} className="font-heading text-xl font-extrabold hover:text-primary">
+                          {item.recipe.title}
+                        </a>
+                        <span className="text-sm text-muted-foreground">{COLLABORATIONS[collaborationOf(item.recipe)].label}</span>
+                      </div>
+                      <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <UsageMeter level={item.cost.usage.level} />
+                        <FitLabel fit={item.fit} />
+                      </span>
+                    </div>
+                    <TeamStrip recipe={item.recipe} plans={plans} />
+                    <div className="flex flex-wrap items-end justify-between gap-3 border-t border-dashed border-input pt-3">
+                      <p className="max-w-xl text-sm text-pretty">
+                        <span className="text-xs font-bold text-primary">고른 이유 </span>
+                        {item.reasons.join(', ')}.
+                      </p>
+                      <a
+                        href={hrefOf(item.recipe)}
+                        className="inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap underline underline-offset-4 hover:text-primary"
+                      >
+                        레시피 보기 <ArrowRight className="size-3.5" aria-hidden />
+                      </a>
+                    </div>
+                  </div>
+                </article>
+              </li>
+            ))}
+          </ol>
+          <p className="text-xs text-muted-foreground">
+            AI가 고른 게 아니라, 적은 낱말과 내 AI 현황, 사용량 여유로 고른 결과예요. 사용량은 어림이에요.
+          </p>
+        </>
+      )}
+    </section>
   );
 }

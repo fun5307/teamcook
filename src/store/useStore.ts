@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ProviderId, Recipe, UserPlans } from '../types';
 import { BUDGETS, type Budget } from '../lib/cost';
+import { providerData } from '../data/providers';
 import { parseRecipe } from '../lib/recipeSchema';
 
 /**
@@ -63,6 +64,19 @@ interface AppState {
   setBudget: (budget: Budget) => void;
 }
 
+/**
+ * 옛 요금제 이름을 지금 이름으로 (2026-11-18): Gemini의 '유료(Pro·Ultra)'는 Pro로 옮긴다.
+ * 모르는 값이 남아 있으면 '안 써요'로 되돌린다.
+ */
+export function migratePlans(plans: UserPlans): UserPlans {
+  const next = { ...plans } as unknown as Record<string, unknown>;
+  if (next.google === 'paid') next.google = 'pro';
+  for (const id of ['openai', 'anthropic', 'google', 'xai'] as const) {
+    if (!providerData.providers[id].plans.some((plan) => plan.id === next[id])) next[id] = 'none';
+  }
+  return next as unknown as UserPlans;
+}
+
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
@@ -108,7 +122,7 @@ export const useStore = create<AppState>()(
           ...current,
           recipes,
           unreadable,
-          plans: { ...DEFAULT_PLANS, ...(saved.plans ?? {}), apiKeys: { ...(saved.plans?.apiKeys ?? {}) } },
+          plans: migratePlans({ ...DEFAULT_PLANS, ...(saved.plans ?? {}), apiKeys: { ...(saved.plans?.apiKeys ?? {}) } }),
           plansConfirmed: saved.plansConfirmed === true,
           budget: BUDGETS.includes(saved.budget as Budget) ? (saved.budget as Budget) : 'normal',
         };

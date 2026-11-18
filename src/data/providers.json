@@ -89,14 +89,26 @@
           "paid": false
         },
         {
-          "id": "paid",
-          "label": "유료 (Google AI Pro·Ultra)",
+          "id": "plus",
+          "label": "Google AI Plus",
+          "paid": true
+        },
+        {
+          "id": "pro",
+          "label": "Google AI Pro",
+          "paid": true
+        },
+        {
+          "id": "ultra",
+          "label": "Google AI Ultra (5배·20배)",
           "paid": true
         }
       ],
       "apiNote": "Gemini API 키(Google AI Studio)는 무료 한도가 있다고 알려져 있어요. (공식 문서 미확인)",
-      "sourceUrl": "https://www.tembo.io/blog/gemini-cli-pricing",
-      "lastVerified": "2026-11-16"
+      "sourceUrl": "https://antigravity.google/docs/plans",
+      "lastVerified": "2026-11-18",
+      "planNote": "Google AI 요금제는 Plus · Pro · Ultra 세 가지이고, Ultra는 Pro보다 사용량이 5배인 것과 20배인 것이 있어요. Antigravity는 Pro·Ultra에서 5시간마다 한도가 다시 차고, 무료·Plus는 일주일마다 차요.",
+      "planSourceUrl": "https://one.google.com/about/google-ai-plans/"
     },
     "xai": {
       "name": "xAI",
@@ -113,14 +125,39 @@
           "paid": false
         },
         {
+          "id": "plus",
+          "label": "X Plus",
+          "paid": true,
+          "price": "$8/월"
+        },
+        {
+          "id": "premium",
+          "label": "X Premium (SuperGrok 포함)",
+          "paid": true,
+          "price": "$30/월"
+        },
+        {
+          "id": "super",
+          "label": "X Super",
+          "paid": true,
+          "price": "$100/월"
+        },
+        {
+          "id": "ultra",
+          "label": "X Ultra",
+          "paid": true,
+          "price": "$200/월"
+        },
+        {
           "id": "supergrok",
-          "label": "SuperGrok / X Premium+",
+          "label": "예전 SuperGrok · X Premium+",
           "paid": true
         }
       ],
       "apiNote": "xAI API 키로도 Grok Build를 쓸 수 있다고 알려져 있어요. (공식 문서 미확인)",
-      "sourceUrl": "https://amplifying.ai/coding-agents/grok-build",
-      "lastVerified": "2026-11-16"
+      "sourceUrl": "https://x.ai/news/x-subscription",
+      "lastVerified": "2026-11-18",
+      "planNote": "2026-10-12부터 Grok·Cursor·X가 하나의 \"X 구독\"(Plus·Premium·Super·Ultra)으로 묶였어요. 사용량은 Plus를 1로 보면 Premium 4배, Super 15배, Ultra 50배예요. 예전 SuperGrok 구독은 그대로 쓸 수 있어요."
     }
   },
   "engines": {
@@ -209,29 +246,33 @@
         {
           "path": 1,
           "plans": [
-            "paid"
+            "pro",
+            "ultra"
           ],
-          "label": "Google AI Pro·Ultra 로그인",
+          "label": "Google AI Pro·Ultra 로그인 (5시간마다 한도 충전)",
           "badge": "Google AI Pro 필요",
-          "notes": []
+          "notes": [
+            "Ultra는 Pro보다 한도가 높고(5배·20배), 다른 회사 모델도 쓸 수 있어요."
+          ]
         },
         {
           "path": 3,
           "plans": [
-            "free"
+            "free",
+            "plus"
           ],
-          "label": "Antigravity 무료 개인 플랜",
+          "label": "Antigravity 기본 한도 (일주일마다 충전)",
           "badge": "Google 무료",
           "free": true,
           "notes": [
-            "무료 한도는 작고 예고 없이 바뀔 수 있어요. (공식 문서 미확인)"
+            "무료와 Google AI Plus는 같은 기본 한도예요. 일주일 한도를 다 쓰면 다음 주까지 기다려야 해요."
           ]
         }
       ],
-      "lockReason": "Antigravity CLI를 쓰려면 Google 계정이 필요해요",
-      "confidence": "third-party",
-      "sourceUrl": "https://www.tembo.io/blog/gemini-cli-pricing",
-      "lastVerified": "2026-11-16",
+      "lockReason": "Antigravity CLI를 쓰려면 Google 계정이 필요해요 (무료 계정도 돼요)",
+      "confidence": "official",
+      "sourceUrl": "https://antigravity.google/docs/plans",
+      "lastVerified": "2026-11-18",
       "configFormat": ".agents/agents/*.md",
       "configSourceUrl": "https://antigravity.google/docs/subagents"
     },
@@ -243,11 +284,16 @@
         {
           "path": 1,
           "plans": [
+            "premium",
+            "super",
+            "ultra",
             "supergrok"
           ],
-          "label": "SuperGrok·X Premium+ 로그인",
-          "badge": "SuperGrok 필요",
-          "notes": []
+          "label": "X Premium 이상 또는 예전 SuperGrok 로그인",
+          "badge": "X Premium 필요",
+          "notes": [
+            "X Premium은 SuperGrok 혜택을 포함한다고 안내돼 있어요. Grok Build가 요금제별로 어떻게 열리는지는 공식 안내에 따로 적혀 있지 않아요."
+          ]
         },
         {
           "path": 2,
@@ -258,12 +304,13 @@
           ]
         }
       ],
-      "lockReason": "Grok Build는 SuperGrok 또는 X Premium+에서만 쓸 수 있어요 (무료 불가)",
+      "lockReason": "Grok Build는 SuperGrok 혜택이 든 X Premium 이상(또는 예전 SuperGrok)에서 쓸 수 있어요",
       "confidence": "third-party",
       "sourceUrl": "https://amplifying.ai/coding-agents/grok-build",
-      "lastVerified": "2026-11-16",
+      "lastVerified": "2026-11-18",
       "configFormat": ".grok/agents/*.md",
-      "configSourceUrl": "https://docs.x.ai/build/features/subagents"
+      "configSourceUrl": "https://docs.x.ai/build/features/subagents",
+      "planSourceUrl": "https://x.ai/news/x-subscription"
     },
     "api": {
       "name": "API 직접 호출",

@@ -176,8 +176,9 @@ export interface Recipe {
 export interface UserPlans {
   openai: 'none' | 'free' | 'go' | 'plus' | 'pro';
   anthropic: 'none' | 'free' | 'pro' | 'max' | 'ultra';
-  google: 'none' | 'free' | 'paid';
-  xai: 'none' | 'free' | 'supergrok';
+  google: 'none' | 'free' | 'plus' | 'pro' | 'ultra';
+  /** supergrok = 2026-10 X 구독 이전의 SuperGrok·X Premium+ (그대로 쓸 수 있다) */
+  xai: 'none' | 'free' | 'plus' | 'premium' | 'super' | 'ultra' | 'supergrok';
   /** '보유 여부'만. 키 값은 절대 받지 않는다. */
   apiKeys: Partial<Record<ProviderId, boolean>>;
 }
@@ -202,7 +203,11 @@ export interface ProviderInfo {
   plans: PlanInfo[];
   /** API 키(종량제) 안내 한 줄 */
   apiNote: string;
+  /** 요금제 구성 안내 한 줄 (예: Ultra는 5배·20배가 있다). 내 AI 화면에 보인다 */
+  planNote?: string;
   sourceUrl: string;
+  /** 요금제 이름·값을 확인한 곳 (sourceUrl과 다를 때) */
+  planSourceUrl?: string;
   lastVerified: string;
 }
 
@@ -238,6 +243,8 @@ export interface EngineInfo {
   /** 요금제 정보의 출처. official: 공식 문서로 확인 / third-party: 제3자 자료만 확인 */
   confidence: 'official' | 'third-party';
   sourceUrl: string;
+  /** 요금제별로 열리는지 확인한 곳 (sourceUrl과 다를 때) */
+  planSourceUrl?: string;
   lastVerified: string;
 }
 

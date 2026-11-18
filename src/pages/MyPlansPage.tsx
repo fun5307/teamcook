@@ -87,6 +87,8 @@ export function MyPlansPage() {
                 })}
               </div>
 
+              {provider.planNote ? <p className="text-xs leading-relaxed text-muted-foreground">{provider.planNote}</p> : null}
+
               <label className="flex items-start gap-3 text-sm">
                 <Switch
                   checked={hasKey}
@@ -120,11 +122,6 @@ export function MyPlansPage() {
                             <li key={note}>{note}</li>
                           ))}
                         </ul>
-                      ) : null}
-                      {engine.confidence === 'third-party' ? (
-                        <p className="text-xs text-amber-700">
-                          ⚠️ 공식 문서가 아닌 자료로만 확인한 정보예요. 실제와 다를 수 있어요.
-                        </p>
                       ) : null}
                     </div>
                   );

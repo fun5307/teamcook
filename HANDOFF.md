@@ -349,6 +349,17 @@ npm run open           # = node cli/teamcook.mjs open  → 브라우저가 열�
 - 단위 테스트 323개(주소 알아보기 `src/lib/router.test.ts` 2개 추가), 타입 검사·빌드 통과.
 - Edge 자동 실행: 웹(열쇠 없이) 메뉴·첫 화면·추천·레시피 책·레시피 상세(주문 버튼 없음)·작업실 소개·숨긴 주소 접근, 390px 가로 넘침 없음. 작업실(가짜 폴더) 메뉴·프로젝트 고르기·안쪽 탭 감춤·메뉴로 업무 일지. 콘솔 오류 0건. 화면: `design/shots/d-1-web-home.png` ~ `d-6-phone-home.png`.
 
+### 다듬기 (같은 날)
+- 첫 화면 추천: **접어도 머리줄이 남고 "펼치기"로 다시 연다**. 주문서 카드의 기울기(1.2°)를 뺐다(Chrome에서 기울인 카드의 글자가 흐려 보이는 문제. 헤드리스 검사로는 재현되지 않아 원인 추정이며, 기울기를 없애 원인 자체를 뺐다).
+- **권하는 차림을 카드로**: 순위, 제목·조리법, 사용량·내 플랜 적합, **에이전트 N명과 회사별 수(로고)**, 재료마다 [로고 + 이름 + 도구 · 경로(구독/API 키/무료 한도/복사·붙여넣기)], 순서 화살표(에이전트 팀은 함께 일해 화살표 없음), "내 플랜으로 돌리면 → 요약", 고른 이유, 레시피 보기. 경로는 `resolveRecipe`·`effectiveRoute` 그대로.
+- 로고: `src/components/BrandLogo.tsx` + `brandPaths.ts` (simple-icons 15, CC0의 Claude·OpenAI·Google Gemini 모양을 한 가지 색으로). **Grok 로고는 simple-icons에 없어 "G" 글자 표시**. 의존성은 늘리지 않았다(모양 데이터만 옮김).
+- **Gemini·Grok 요금제 다시 확인 (2026-11-18, 공식):**
+  - Google (one.google.com/about/google-ai-plans, antigravity.google/pricing·docs/plans): 요금제 **Plus · Pro · Ultra(Pro 대비 5배·20배)**. Antigravity는 무료 개인 플랜이 있고, 무료·Plus("Pro·Ultra가 아닌 사용자")는 **일주일마다** 충전되는 기본 한도, **Pro·Ultra는 5시간마다** 충전(Ultra가 가장 높고 다른 회사 모델 사용). 한국 페이지라 **달러 가격은 공식으로 못 봐서 적지 않았다**(제3자 자료: Plus $4.99, Pro $19.99, Ultra 5배 $99.99, 20배 $199.99). Antigravity CLI의 `confidence`를 `official`로.
+  - xAI (x.ai/news/x-subscription, 2026-10-12): Grok·Cursor·X가 **X 구독**으로 묶임. Free / Plus $8 / Premium $30("SuperGrok, Cursor Pro, X Premium+ 혜택") / Super $100 / Ultra $200, 사용량은 Plus 대비 4·15·50배. 예전 SuperGrok 구독은 그대로 유지 가능. **Grok Build가 요금제별로 열리는지는 공식 글에 없다** → Premium 이상과 예전 SuperGrok을 구독 경로로 두고 그 사실을 경로 안내에 적었다. Grok Build는 `third-party` 그대로(x.ai의 다른 페이지는 자동 읽기가 막혀 확인 못 함).
+  - 저장된 옛 값: Gemini `paid` → `pro`, 모르는 값 → `none` (`migratePlans`, `src/store/useStore.ts`).
+- 내 AI 화면: 요금제 아래 구성 안내 한 줄(`planNote`)을 더하고, "공식 문서가 아닌 자료로만 확인한 정보예요" 문구를 뺐다(사용자 요청). 레시피 화면의 경로 안내에 붙는 "공식 문서로 확인하지 못했어요"(`unverifiedNote`)는 그대로다.
+- 테스트 328개(`src/lib/plans2026.test.ts` 5개), 브라우저 확인(접기·펼치기, 카드 3장·로고 9개, 기울기 없음, 내 AI 옛 값 옮기기, 390px 넘침 없음, 콘솔 오류 0). 화면: `design/shots/p-1-plans.png` ~ `p-3-phone-suggest.png`. **미커밋.**
+
 ## 레시피 제안·사용량 어림·재료 사전 (2026-11-17, 사용자 요청)
 
 > 2026-11-17 커밋·배포. 같은 날 사용자 결정으로 **재료 사전은 주 메뉴**에, **실습 기록은 페이지 맨 아래(바닥글)**로 옮겼다. **3차 지시서(로컬 실행·A2A 실습)는 하지 않기로 사용자가 결정했다.**
