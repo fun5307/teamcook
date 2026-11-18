@@ -22,7 +22,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Field, NativeSelect, Notice, PageHeader } from '@/components/common';
 import { FlowSection } from '@/components/FlowSection';
 import { ExportPrepButton } from '@/components/ExportDialog';
-import { StartOrderButton } from '@/pages/order/OrdersPage';
 import { ShareButton, cloneRecipe } from '@/components/RecipeActions';
 import {
   DeliverableEditor,
@@ -695,7 +694,6 @@ export function RecipeEditorPage({ id }: { id: string }) {
           <>
             <ShareButton recipe={recipe} />
             <ExportPrepButton recipe={recipe} plans={plans} codexBridge={codexBridge} onGoto={gotoIssue} />
-            <StartOrderButton recipe={recipe} />
             <Button variant="ghost" onClick={onDuplicate}>
               <Copy aria-hidden />
               복제

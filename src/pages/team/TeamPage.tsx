@@ -256,7 +256,10 @@ function HireSection() {
   );
 }
 
-export function TeamPage() {
+/**
+ * view를 주면(작업실의 메뉴가 고른 화면) 안쪽 탭을 감춘다. 웹의 맛보기에서는 안쪽 탭으로 오간다.
+ */
+export function TeamPage({ view }: { view?: Tab } = {}) {
   const root = useWorkspace((state) => state.root);
   const snapshot = useWorkspace((state) => state.snapshot);
   const cards = useWorkspace((state) => state.cards);
@@ -265,7 +268,8 @@ export function TeamPage() {
   const error = useWorkspace((state) => state.error);
   const rescan = useWorkspace((state) => state.rescan);
   const save = useWorkspace((state) => state.save);
-  const [tab, setTab] = useState<Tab>('members');
+  const [tabState, setTab] = useState<Tab>('members');
+  const tab = view ?? tabState;
   const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'warn'; text: string } | null>(null);
   const [outside, setOutside] = useState(false);
@@ -285,9 +289,11 @@ export function TeamPage() {
   if (!root || !snapshot) {
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-5 py-8">
-        <h1 className="text-4xl font-extrabold">내 팀</h1>
+        <h1 className="text-4xl font-extrabold">{isLocal() ? '어느 프로젝트를 볼까요?' : '내 팀'}</h1>
         <p className="text-base text-muted-foreground">
-          프로젝트 폴더를 열면, 그 안에 숨어 있는 역할 파일을 팀원 카드로 꺼내 보여 드려요.
+          {isLocal()
+            ? '고르면 그 프로젝트의 팀원과 업무 일지를 보여 드려요.'
+            : '프로젝트 폴더를 열면, 그 안에 숨어 있는 역할 파일을 팀원 카드로 꺼내 보여 드려요.'}
         </p>
         <OpenProjectPanel />
       </div>
@@ -361,15 +367,17 @@ export function TeamPage() {
         </Notice>
       ) : null}
 
-      <SectionTabs
-        label="내 팀 보기"
-        current={tab}
-        onChange={setTab}
-        items={[
-          { id: 'members', label: '팀원', note: String(cards.length) },
-          { id: 'journal', label: '업무 일지', note: '누가 무슨 일을 했나' },
-        ]}
-      />
+      {view ? null : (
+        <SectionTabs
+          label="내 팀 보기"
+          current={tab}
+          onChange={setTab}
+          items={[
+            { id: 'members', label: '팀원', note: String(cards.length) },
+            { id: 'journal', label: '업무 일지', note: '누가 무슨 일을 했나' },
+          ]}
+        />
+      )}
 
       {tab === 'journal' ? <JournalTab projectName={snapshot.folderName} projectPath={localInfo()?.project?.path} cards={cards} /> : null}
 

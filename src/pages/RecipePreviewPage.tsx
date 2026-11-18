@@ -8,7 +8,6 @@ import { CopyPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Notice, PageHeader } from '@/components/common';
 import { ExportPrepButton } from '@/components/ExportDialog';
-import { StartOrderButton } from '@/pages/order/OrdersPage';
 import { ShareButton, cloneRecipe } from '@/components/RecipeActions';
 import { RecipeOverview } from '@/components/RecipeOverview';
 import { builtinRecipes } from '@/data/recipes';
@@ -62,7 +61,6 @@ export function BuiltinRecipePage({ id }: { id: string }) {
             <ShareButton recipe={recipe} />
             <ExportPrepButton recipe={recipe} plans={plans} />
             <ImportButton recipe={recipe} />
-            <StartOrderButton recipe={recipe} />
           </>
         }
       />

@@ -1,4 +1,4 @@
-// 레시피 책(#/recipes): "무엇을 하려고 하나요?"로 상황을 먼저 고르고, 그 상황의 레시피를 본다. (첫 화면은 HomePage.tsx)
+// 레시피 책(#/recipes): 상황별 묶음으로 레시피를 본다. 하고 싶은 일로 권받는 것은 첫 화면(HomePage.tsx)이 한다.
 // 검색과 조건(내 플랜, 조리법)은 접어 두고, 쓰면 상황 묶음 대신 결과 목록이 나온다.
 
 import { useRef, useState, type CSSProperties } from 'react';
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/common';
 import { Reveal } from '@/components/Reveal';
-import { SuggestBox } from '@/components/SuggestBox';
 import { FitLabel, STYLE_COLORS, engineName } from '@/components/RouteInfo';
 import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
@@ -18,8 +17,9 @@ import { newId } from '@/lib/id';
 import { importFile } from '@/lib/importFiles';
 import { fitsMyPlans, requiredPlans } from '@/lib/requiredPlans';
 import { navigate } from '@/lib/router';
+import { plansSummary } from '@/lib/plansSummary';
 import { useStore } from '@/store/useStore';
-import type { AgentCard, Collaboration, EngineId, ProviderId, Recipe, UserPlans } from '@/types';
+import type { AgentCard, Collaboration, EngineId, Recipe, UserPlans } from '@/types';
 
 type Filter = 'all' | 'fits' | 'full';
 
@@ -65,16 +65,7 @@ export function blankRecipe(cards: AgentCard[] = [], title = '새 레시피'): R
 }
 
 /** 내 AI 현황을 한 줄로 요약 */
-export function plansSummary(plans: UserPlans): string {
-  const parts: string[] = [];
-  for (const id of Object.keys(providerData.providers) as ProviderId[]) {
-    const provider = providerData.providers[id];
-    const plan = provider.plans.find((item) => item.id === plans[id]);
-    if (plan && plan.id !== 'none') parts.push(`${provider.productName} ${plan.label}`);
-    if (plans.apiKeys[id]) parts.push(`${provider.name} API 키`);
-  }
-  return parts.length > 0 ? parts.join(' · ') : '쓰는 AI가 없어요';
-}
+export { plansSummary };
 
 /** 레시피 카드 한 장: 고르는 데 필요한 것만 (제목, 설명, 필요한 플랜, 내 플랜으로 되는지). 나머지는 상세 화면에서 본다. */
 function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans; href: string }) {
@@ -227,12 +218,16 @@ export function GalleryPage() {
           void onFiles(event.dataTransfer.files);
         }}
       >
-        <SuggestBox myRecipes={myRecipes}>
+        <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-5">
           <div>
             <h1 className="text-4xl font-extrabold sm:text-5xl">레시피 책</h1>
             <p className="mt-3 max-w-md text-base leading-relaxed text-pretty">
-              검증된 팀 구성을 골라 내 프로젝트에 들이세요. 하고 싶은 작업을 주문서에 적으면 내 여건에 맞는 팀을 권해 드려요.
+              검증된 팀 구성을 골라 내 프로젝트에 들이세요. 하고 싶은 일로 찾고 싶으면{' '}
+              <a className="underline underline-offset-2 hover:text-primary" href="#/">
+                첫 화면
+              </a>
+              에 적어 보세요.
             </p>
             <p className="mt-2 text-base text-muted-foreground">
               바로 쓸 수 있는 팀 {builtinRecipes.length}가지와 내가 만든 레시피. 내 AI 현황은{' '}
@@ -260,7 +255,7 @@ export function GalleryPage() {
             />
           </div>
         </div>
-        </SuggestBox>
+        </div>
       </section>
 
       {messages.length > 0 ? (

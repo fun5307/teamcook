@@ -1,4 +1,4 @@
-// 첫 화면의 '주문서': 하고 싶은 작업을 적으면 레시피를 권한다. 결과는 차림표처럼 보여 준다.
+// 첫 화면의 '주문서': 하고 싶은 작업을 적으면 레시피를 권한다. 쓰는 AI와 사용량 여유도 여기서 함께 본다. 결과는 차림표처럼 보여 준다.
 // AI가 고르는 게 아니라 낱말·내 플랜·사용량 여유로 고른다. 그래서 고른 이유를 항상 함께 보여 준다.
 
 import { useState, type ReactNode } from 'react';
@@ -10,6 +10,7 @@ import { providerData } from '@/data/providers';
 import { builtinRecipes } from '@/data/recipes';
 import { BUDGETS, BUDGET_HINTS, BUDGET_LABELS, USAGE_LABELS, costOutlook, type UsageLevel } from '@/lib/cost';
 import { suggestRecipes, type Suggestion } from '@/lib/suggest';
+import { plansSummary } from '@/lib/plansSummary';
 import { useStore } from '@/store/useStore';
 import type { Recipe, UserPlans } from '@/types';
 
@@ -60,6 +61,7 @@ const EXAMPLES = ['로그인 버그 원인 찾기', '새 기능 만들고 검토
  */
 export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; children: ReactNode }) {
   const plans = useStore((state) => state.plans);
+  const plansConfirmed = useStore((state) => state.plansConfirmed);
   const budget = useStore((state) => state.budget);
   const setBudget = useStore((state) => state.setBudget);
   const [text, setText] = useState('');
@@ -127,6 +129,14 @@ export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; child
             <p className="text-xs text-pretty text-muted-foreground">{BUDGET_HINTS[budget]}</p>
           </fieldset>
 
+          <p className="-mt-2 flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
+            <span className="text-muted-foreground">쓰는 AI</span>
+            <a className="underline underline-offset-4 hover:text-primary" href="#/plans" title="바꾸면 추천이 달라져요">
+              {plansSummary(plans)}
+              {plansConfirmed ? '' : ' (가정)'}
+            </a>
+          </p>
+
           <Button type="submit" size="lg" className="h-11 text-base" disabled={!text.trim()}>
             레시피 추천받기
           </Button>
@@ -161,7 +171,10 @@ export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; child
           {results.length === 0 ? (
             <p className="py-2 text-base">
               맞는 레시피를 찾지 못했어요. 낱말을 바꿔 적거나,{' '}
-              아래 상황별 묶음에서 골라 보세요.
+              <a className="underline underline-offset-4 hover:text-primary" href="#/recipes">
+                레시피 책
+              </a>
+              에서 상황별로 골라 보세요.
             </p>
           ) : (
             <>

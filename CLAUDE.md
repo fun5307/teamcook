@@ -11,6 +11,8 @@
 
 **포지션: "실행은 Claude Code·Codex에서, 팀을 보고 고치고 보고받는 것은 여기서."** (2026-11-17 사용자 결정으로 '내 프로젝트 폴더 열기'가 중심이 됐다. 이유와 경과는 `HANDOFF.md`의 '방향 전환')
 
+**문이 두 개다 (2026-11-18, `HANDOFF.md`의 '문 두 개').** 웹(처음 해 보는 사람: 레시피 추천·레시피 책, 요리 말투)과 작업실(`npm run open`이 띄운 내 컴퓨터 화면, 이미 팀을 돌리는 사람: 팀원·업무 일지, 회사 말투). 코드는 하나이고 `App.tsx`가 `isLocal()`로 틀을 고른다. 한 문에 기능을 더할 때는 그 문의 사람과 말투에 맞는지 먼저 본다. 주문서와 실습 기록은 화면에서 숨겼다(주소로만 열림).
+
 ## 핵심 원칙
 
 1. 팀 설계는 하나로, 실행 경로는 사용자가 가진 플랜에 맞춰 자동으로.
@@ -60,6 +62,7 @@ src/
 │  ├─ journal/             # 업무 일지: claude·codex(대화 기록 해석, 형식은 문서에 없어 실제 기록에서 본 모양), read(기록 폴더 읽기)
 │  ├─ local/               # 내 컴퓨터 도우미(teamcook open)와 이야기하는 쪽: 도우미가 띄운 화면인지 알아보기, 도우미 너머의 폴더를 DirLike로 쓰기, 실시간 알림
 │  ├─ practice/            # 실습 기록·비교 평가 (2차, 부가 기능. 진입은 components/practice/PracticePanel.tsx의 옆 패널). types, schema(읽기·버전), storage(저장 API, 화면과 분리), model(만들기·잠금·측정 검사), rubric, compare, report(Markdown), transfer(JSON), demo(GraphRAG 합성 데모)
+│  ├─ plansSummary.ts      # 내 AI 현황 한 줄 요약 (추천 상자·레시피 책이 함께 씀)
 │  ├─ suggest.ts           # "~하고 싶다"는 말에 레시피 제안 (AI 호출 없음: 낱말 + 내 플랜 + 사용량 여유, 고른 이유를 함께 돌려줌)
 │  ├─ cost.ts              # 사용량 어림(가벼움·보통·무거움)과 내 여건에서 어디서 나가는지. 토큰·금액 숫자는 짐작하지 않는다
 │  ├─ optimize.ts          # 구독 최적화 제안
@@ -68,7 +71,7 @@ src/
 ├─ store/                  # zustand + localStorage. useOrders = 주문('teamcook-orders', 저장 성공 시에만 화면 반영). useWorkspace = 연 폴더(손잡이는 IndexedDB에만 기억). useStore = 레시피·플랜('agent-recipes'), usePractice = 실습 기록('teamcook-practice', 저장 성공 시에만 화면 반영)
 ├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등)
 │  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
-└─ pages/                  # Home(첫 화면 #/: 주문서 입력 + 내 팀), order/(주문 #/order/<id>, 목록 #/orders), team/(내 팀 #/team: 팀원·업무 일지), Gallery(레시피 책 #/recipes: 주문서 추천과 전체 목록), RecipeEditor, MyPlans, SharedRecipe, HowToRun, Concepts(재료 사전 #/learn), practice/(실습 기록 목록·만들기·상세·비교)
+└─ pages/                  # Home(웹 첫 화면 #/: "어떤 일을 맡길까요?" + 추천 상자), Workshop(작업실 소개 #/workshop, 웹에서만), team/(팀원 #/team·업무 일지 #/journal, 작업실의 중심이자 웹의 맛보기, LocalProjects = 작업실의 최근 프로젝트), Gallery(레시피 책 #/recipes), RecipeEditor, MyPlans(내 AI), SharedRecipe, HowToRun, Concepts(재료 사전 #/learn), order/(숨김: 주문 시작 #/orders/new, 주문 #/order/<id>, 목록 #/orders), practice/(숨김: 실습 기록 #/runs)
 samples/codex/             # 사용자의 실제 Codex TOML (변환기 테스트용)
 design/                    # 디자인 시안 (브라우저로 여는 HTML)과 적용 뒤 화면(shots/). 채택: 3차 시안 2 "레시피 카드"
 ```

@@ -7,8 +7,11 @@ import { readShareHash } from './share';
 export type Route =
   | { page: 'home' }
   | { page: 'team' }
+  | { page: 'journal' }
+  | { page: 'workshop' }
   | { page: 'order'; id: string }
   | { page: 'orders' }
+  | { page: 'order-start' }
   | { page: 'gallery' }
   | { page: 'preview'; id: string }
   | { page: 'edit'; id: string }
@@ -48,6 +51,9 @@ export function parseRoute(hash: string): Route {
   if (first === 'learn') return { page: 'learn' };
   if (first === 'recipes') return { page: 'gallery' };
   if (first === 'team') return { page: 'team' };
+  if (first === 'journal') return { page: 'journal' };
+  if (first === 'workshop') return { page: 'workshop' };
+  if (first === 'orders' && second === 'new') return { page: 'order-start' };
   if (first === 'order' && second) return { page: 'order', id: decodeURIComponent(second) };
   if (first === 'orders') return { page: 'orders' };
   return { page: 'home' };
