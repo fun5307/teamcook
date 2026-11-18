@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="브라우저에 저장하는 간단한 할 일 목록">
+  <title>나의 할 일</title>
+  <style>
+    /* 독립 페이지 전용 스타일. 기존 앱의 스타일과 공유하지 않습니다. */
+    :root { color-scheme: light; --paper: #fff; --ground: #f5f6f7; --ink: #252a30; --muted: #5d6570; --line: #dce0e4; --accent: #bb3529; font-family: "맑은 고딕", "Apple SD Gothic Neo", sans-serif; color: var(--ink); background: var(--ground); }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 72px 20px; }
+    main { max-width: 640px; margin: auto; }
+    h1 { font-size: clamp(28px, 5vw, 38px); letter-spacing: -.04em; margin: 0 0 12px; }
+    header p, footer { color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .sheet { margin-top: 32px; padding: 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
+    label[for="task"] { display: block; font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+    .entry { display: flex; gap: 10px; }
+    input[type="text"] { min-width: 0; flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: inherit; background: var(--paper); color: var(--ink); }
+    button { min-height: 44px; border: 0; border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+    .add { background: var(--accent); color: white; }
+    .add:hover { background: #982b22; }
+    button:active { transform: translateY(1px); }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .summary { margin: 28px 0 0; padding-bottom: 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+    ul { padding: 0; margin: 0; list-style: none; }
+    li { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); padding: 12px 0; }
+    .task-label { display: flex; flex: 1; min-width: 0; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; line-height: 1.6; }
+    input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; margin: 0; accent-color: var(--accent); }
+    .task-label span { overflow-wrap: anywhere; }
+    input:checked + span { text-decoration: line-through; color: var(--muted); }
+    .delete { background: transparent; color: var(--muted); font-size: 14px; flex-shrink: 0; }
+    .delete:hover { background: #fff0ed; color: var(--accent); }
+    .empty { text-align: center; padding: 32px 0 12px; color: var(--muted); line-height: 1.8; }
+    .error { color: #a52a20; font-size: 14px; line-height: 1.6; }
+    .error:empty { display: none; }
+    footer { margin-top: 20px; text-align: center; }
+    @media (max-width: 480px) { body { padding: 36px 16px; } .sheet { padding: 20px; margin-top: 24px; } .entry { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><h1>나의 할 일</h1><p>해야 할 일을 적고, 끝낸 일은 가볍게 체크하세요.</p></header>
+    <div class="sheet">
+      <form id="task-form">
+        <label for="task">새 할 일</label>
+        <div class="entry"><input id="task" type="text" maxlength="300" placeholder="무엇을 해야 하나요?" autocomplete="off" required><button class="add" type="submit">추가하기</button></div>
+      </form>
+      <p id="error" class="error" role="alert"></p>
+      <p id="summary" class="summary" role="status"></p>
+      <ul id="tasks" aria-label="할 일 목록"></ul>
+      <p id="empty" class="empty">아직 할 일이 없어요.<br>첫 번째 할 일을 추가해 보세요.</p>
+    </div>
+    <footer>목록은 이 브라우저에 저장됩니다.</footer>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const STORAGE_KEY = 'teamcook-standalone-todos-v1';
+      const form = document.getElementById('task-form');
+      const input = document.getElementById('task');
+      const list = document.getElementById('tasks');
+      const error = document.getElementById('error');
+      const summary = document.getElementById('summary');
+      const empty = document.getElementById('empty');
+      let tasks = [];
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+        if (!Array.isArray(saved) || !saved.every(task => task && typeof task.text === 'string' && task.text.trim().length > 0 && task.text.length <= 300 && typeof task.done === 'boolean')) throw new Error('invalid data');
+        tasks = saved.map(({ text, done }) => ({ text, done }));
+      } catch {
+        error.textContent = '목록을 불러오지 못했습니다. 브라우저의 저장 설정을 확인해 주세요. 새 항목을 저장하면 기존 저장 내용을 대체합니다.';
+      }
+      function save(next) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          tasks = next;
+          error.textContent = '';
+          render();
+          return true;
+        } catch {
+          error.textContent = '저장하지 못했습니다. 브라우저의 저장 공간과 설정을 확인한 뒤 다시 시도해 주세요.';
+          return false;
+        }
+      }
+      function render() {
+        list.replaceChildren();
+        tasks.forEach((task, index) => {
+          const row = document.createElement('li');
+          const label = document.createElement('label');
+          label.className = 'task-label';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = task.done;
+          checkbox.addEventListener('change', () => {
+            if (!save(tasks.map((item, i) => i === index ? { ...item, done: checkbox.checked } : item))) checkbox.checked = task.done;
+            list.children[index]?.querySelector('input').focus();
+          });
+          const text = document.createElement('span');
+          text.textContent = task.text;
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'delete';
+          remove.textContent = '삭제';
+          remove.setAttribute('aria-label', `${task.text} 삭제`);
+          remove.addEventListener('click', () => {
+            if (save(tasks.filter((_, i) => i !== index))) {
+              const nextRow = list.children[Math.min(index, tasks.length - 1)];
+              (nextRow?.querySelector('button') ?? input).focus();
+            }
+          });
+          label.append(checkbox, text);
+          row.append(label, remove);
+          list.append(row);
+        });
+        const done = tasks.filter(task => task.done).length;
+        summary.textContent = `전체 ${tasks.length}개 · 완료 ${done}개 · 남은 일 ${tasks.length - done}개`;
+        empty.hidden = tasks.length > 0;
+      }
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        const text = input.value.trim();
+        if (!text) { input.setCustomValidity('할 일을 입력해 주세요.'); input.reportValidity(); return; }
+        if (save([...tasks, { text, done: false }])) { input.value = ''; input.focus(); }
+      });
+      input.addEventListener('input', () => input.setCustomValidity(''));
+      render();
+    })();
+  </script>
+</body>
+</html>
