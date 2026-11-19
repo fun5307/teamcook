@@ -961,7 +961,7 @@ export function RecipeEditorPage({ id }: { id: string }) {
             <div className="mt-3 flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-muted-foreground">필요한 플랜</span>
-                <PlanBadges required={required} showDate />
+                <PlanBadges required={required} />
               </div>
               <RecipeRunSummary resolution={resolved} onSwitchStyle={setStyle} />
               <p className="text-xs text-muted-foreground">

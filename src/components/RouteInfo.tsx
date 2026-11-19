@@ -195,7 +195,7 @@ export function RecipeRunSummary({
 }
 
 /** '필요한 플랜' 배지 묶음 */
-export function PlanBadges({ required, showDate = false }: { required: RequiredPlans; showDate?: boolean }) {
+export function PlanBadges({ required }: { required: RequiredPlans }) {
   if (required.details.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -213,9 +213,6 @@ export function PlanBadges({ required, showDate = false }: { required: RequiredP
           {badge.text}
         </span>
       ))}
-      {showDate ? (
-        <span className="text-xs text-muted-foreground">{providerData.lastVerified} 확인</span>
-      ) : null}
     </div>
   );
 }

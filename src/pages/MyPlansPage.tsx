@@ -55,11 +55,11 @@ export function MyPlansPage() {
                 </h2>
                 <a
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:underline"
-                  href={provider.sourceUrl}
+                  href={provider.planSourceUrl ?? provider.sourceUrl}
                   target="_blank"
                   rel="noreferrer noopener"
                 >
-                  {provider.lastVerified} 확인 <ExternalLink className="size-3" aria-hidden />
+                  요금 안내 <ExternalLink className="size-3" aria-hidden />
                 </a>
               </div>
 
@@ -179,8 +179,7 @@ export function MyPlansPage() {
           </li>
         </ul>
         <p className="text-xs text-muted-foreground">
-          요금제와 무료 범위는 자주 바뀌어요. 여기 정보는 {providerData.lastVerified}에 확인한 것이니, 결제 전에는
-          각 회사의 공식 페이지를 꼭 확인하세요.
+          요금제와 무료 범위는 자주 바뀌어요. 결제 전에는 각 회사의 공식 페이지를 꼭 확인하세요.
         </p>
       </section>
     </div>

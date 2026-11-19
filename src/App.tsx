@@ -6,7 +6,6 @@
 
 import { CircleHelp, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { providerData } from '@/data/providers';
 import { isLocal } from '@/lib/local/client';
 import { type Route, useRoute } from '@/lib/router';
 import { ConceptsPage } from '@/pages/ConceptsPage';
@@ -183,8 +182,7 @@ function WebShell({ route }: { route: Route }) {
         <>
           <p>teamcook — 실행은 Claude Code·Codex에서, 팀 설계와 레시피는 여기서. 이 사이트는 AI를 실행하지 않아요.</p>
           <p>
-            레시피와 내 AI 정보는 이 브라우저에만 저장돼요. 로그인도, 서버 저장도, API 키 입력도 없어요. 요금제 정보는{' '}
-            {providerData.lastVerified}에 확인했습니다.{' '}
+            레시피와 내 AI 정보는 이 브라우저에만 저장돼요. 로그인도, 서버 저장도, API 키 입력도 없어요.{' '}
             <a className="underline underline-offset-2 hover:text-primary" href="#/learn">
               재료 사전
             </a>

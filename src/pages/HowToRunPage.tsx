@@ -5,7 +5,6 @@ import type { ReactNode } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Notice, PageHeader } from '@/components/common';
 import { AGENT_TEAMS_SETTINGS_JSON, COLLABORATIONS } from '@/data/collaboration';
-import { providerData } from '@/data/providers';
 import { CLI_DOWNLOAD_COMMAND } from '@/data/site';
 
 function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
@@ -295,7 +294,7 @@ node teamcook.mjs add "https://teamcook-eta.vercel.app/#r=…"`}</Code>
       </Step>
 
       <p className="text-xs text-muted-foreground">
-        이 페이지의 요금제·설정 정보는 {providerData.lastVerified}에 확인했어요. 도구는 빠르게 바뀌니, 다르게 동작하면
+        도구는 빠르게 바뀌니, 다르게 동작하면
         각 도구의 공식 문서를 확인하세요.
       </p>
     </div>

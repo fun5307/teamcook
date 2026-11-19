@@ -176,7 +176,7 @@ export interface Recipe {
 export interface UserPlans {
   openai: 'none' | 'free' | 'go' | 'plus' | 'pro';
   anthropic: 'none' | 'free' | 'pro' | 'max' | 'ultra';
-  google: 'none' | 'free' | 'plus' | 'pro' | 'ultra';
+  google: 'none' | 'free' | 'plus' | 'pro' | 'ultra' | 'ultra20';
   /** supergrok = 2026-10 X 구독 이전의 SuperGrok·X Premium+ (그대로 쓸 수 있다) */
   xai: 'none' | 'free' | 'plus' | 'premium' | 'super' | 'ultra' | 'supergrok';
   /** '보유 여부'만. 키 값은 절대 받지 않는다. */
