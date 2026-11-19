@@ -10,7 +10,7 @@ import { FitLabel, engineName } from '@/components/RouteInfo';
 import { COLLABORATIONS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
 import { builtinRecipes } from '@/data/recipes';
-import { BUDGETS, BUDGET_HINTS, BUDGET_LABELS, USAGE_LABELS, costOutlook, type UsageLevel } from '@/lib/cost';
+import { BUDGETS, BUDGET_HINTS, BUDGET_LABELS, USAGE_LABELS, budgetNote, costOutlook, type Budget, type UsageLevel } from '@/lib/cost';
 import { PATH_NAMES, effectiveRoute, resolveRecipe } from '@/lib/resolvePath';
 import { suggestRecipes, type Suggestion } from '@/lib/suggest';
 import { plansSummary } from '@/lib/plansSummary';
@@ -168,7 +168,7 @@ export function SuggestBox({ myRecipes, children }: { myRecipes: Recipe[]; child
       </div>
 
       {asked ? (
-        <SuggestResults asked={asked} results={results} plans={plans} open={open} onToggle={() => setOpen(!open)} hrefOf={hrefOf} />
+        <SuggestResults asked={asked} results={results} plans={plans} budget={budget} open={open} onToggle={() => setOpen(!open)} hrefOf={hrefOf} />
       ) : null}
     </div>
   );
@@ -240,6 +240,7 @@ function SuggestResults({
   asked,
   results,
   plans,
+  budget,
   open,
   onToggle,
   hrefOf,
@@ -247,6 +248,7 @@ function SuggestResults({
   asked: string;
   results: Suggestion[];
   plans: UserPlans;
+  budget: Budget;
   open: boolean;
   onToggle: () => void;
   hrefOf: (recipe: Recipe) => string;
@@ -296,6 +298,19 @@ function SuggestResults({
                       </span>
                     </div>
                     <TeamStrip recipe={item.recipe} plans={plans} />
+                    {(() => {
+                      const note = budgetNote(budget, item.cost.usage.level, item.cost.metered);
+                      return (
+                        <p
+                          className={cn(
+                            'text-xs',
+                            note.good === true ? 'font-medium text-emerald-700' : note.good === false ? 'font-medium text-primary' : 'text-muted-foreground',
+                          )}
+                        >
+                          사용량 여유 · {note.text}
+                        </p>
+                      );
+                    })()}
                     <div className="flex flex-wrap items-end justify-between gap-3 border-t border-dashed border-input pt-3">
                       <p className="max-w-xl text-sm text-pretty">
                         <span className="text-xs font-bold text-primary">고른 이유 </span>
@@ -314,7 +329,7 @@ function SuggestResults({
             ))}
           </ol>
           <p className="text-xs text-muted-foreground">
-            AI가 고른 게 아니라, 적은 낱말과 내 AI 현황, 사용량 여유로 고른 결과예요. 사용량은 어림이에요.
+            AI가 고른 게 아니라, 적은 낱말과 내 AI 현황, 사용량 여유({BUDGET_LABELS[budget]})로 고른 결과예요. 사용량 여유는 순서를 조금 바꾸는 정도로만 쓰여요. 사용량은 어림이에요.
           </p>
         </>
       )}

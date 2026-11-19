@@ -292,8 +292,10 @@ const DETAILS: Record<string, Detail> = {
 };
 
 const ENGINE_PREP: Partial<Record<EngineId, string>> = {
-  'codex-cli': 'Codex CLI 설치와 ChatGPT 로그인',
-  'claude-code': 'Claude Code 설치와 로그인 (Claude Pro 이상 또는 API 키)',
+  'codex-cli': 'Codex 설치와 ChatGPT 로그인 (터미널은 Plus 이상, Free·Go는 데스크톱 앱. 또는 OpenAI API 키)',
+  'claude-code': 'Claude Code 설치와 로그인 (Claude Pro 이상 또는 Claude 콘솔 API 키)',
+  'antigravity-cli': 'Antigravity CLI(agy) 설치와 구글 계정 로그인 (무료 계정도 돼요. 또는 Gemini API 키)',
+  'grok-build': 'Grok Build 설치와 로그인 (무료 계정도 돼요. 또는 xAI API 키)',
 };
 
 /** 조리법과 쓰는 도구로 정해지는 준비 조건 */

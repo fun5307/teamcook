@@ -38,6 +38,19 @@ export const USAGE_LABELS: Record<UsageLevel, string> = {
   heavy: '무거움',
 };
 
+/** 고른 '사용량 여유'가 이 레시피를 권하는 데 어떻게 쓰였는지 한 줄 (추천 카드에 보인다) */
+export function budgetNote(budget: Budget, usage: UsageLevel, metered: number): { text: string; good: boolean | null } {
+  if (budget === 'plenty') return { text: '넉넉하게 기준이라 사용량은 따지지 않았어요', good: null };
+  if (budget === 'save') {
+    if (usage === 'heavy') return { text: '아껴 쓰기에는 무거워서 뒤로 밀었어요', good: false };
+    if (metered > 0) return { text: '아껴 쓰기 기준: API 키로 돌아 쓴 만큼 돈이 나가요', good: false };
+    if (usage === 'light') return { text: '아껴 쓰기에 잘 맞아서 앞으로 올렸어요', good: true };
+    return { text: '아껴 쓰기 기준으로는 보통이에요', good: null };
+  }
+  if (usage === 'heavy') return { text: '보통 기준: 무거워서 한도가 빨리 줄 수 있어요', good: false };
+  return { text: '보통 기준: 사용량은 알려만 드려요', good: null };
+}
+
 export interface UsageEstimate {
   level: UsageLevel;
   /** 동시에 또는 차례로 쓰이는 대화 창(문맥) 수의 어림. 토큰 수가 아니다. */
@@ -88,12 +101,16 @@ export function costOutlook(recipe: Recipe, plans: UserPlans, providers: Provide
     return outlook;
   }
   const { perCard } = resolveRecipe(recipe, plans, providers);
+  let geminiKey = false;
   for (const card of recipe.cards) {
     const resolution = perCard[card.id];
     if (!resolution) continue;
-    const { path } = effectiveRoute(resolution);
+    const { path, engine } = effectiveRoute(resolution);
     if (path === 1) outlook.subscription += 1;
-    else if (path === 2) outlook.metered += 1;
+    else if (path === 2) {
+      outlook.metered += 1;
+      if (providers.engines[engine]?.provider === 'google') geminiKey = true;
+    }
     else if (path === 3) outlook.freeTier += 1;
     else outlook.manual += 1;
   }
@@ -106,6 +123,11 @@ export function costOutlook(recipe: Recipe, plans: UserPlans, providers: Provide
   }
   if (outlook.metered > 0) {
     outlook.lines.push(`역할 ${outlook.metered}개는 API 키로 돌아요. 쓴 만큼 돈이 나가요.`);
+    if (geminiKey) {
+      outlook.lines.push(
+        'Gemini API 키는 일부 모델을 무료 한도 안에서 쓸 수 있고(이때 입력은 구글 제품 개선에 쓰일 수 있어요), Google AI Pro·Ultra의 월 크레딧도 쓸 수 있어요.',
+      );
+    }
   }
   if (outlook.freeTier > 0) {
     outlook.lines.push(

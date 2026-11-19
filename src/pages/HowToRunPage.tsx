@@ -1,5 +1,6 @@
-// '어디서 돌리나요?' 화면: 내보낸 파일을 터미널·T3 Code·1Code에서 쓰는 법.
-// 이 사이트는 에이전트를 직접 실행하지 않는다. 실행은 사용자 PC의 Codex·Claude Code가 맡는다.
+// '어디서 돌리나요?' 화면: 레시피 파일을 어디에 넣고, 어느 도구에서 돌리고, 돌린 뒤 어디서 보는지.
+// 이 사이트는 에이전트를 직접 실행하지 않는다. 실행은 사용자 PC의 Codex·Claude Code 등이 맡고,
+// 돌린 뒤 팀을 보고 고치고 보고받는 것은 작업실(teamcook open)이 맡는다.
 
 import type { ReactNode } from 'react';
 import { ExternalLink } from 'lucide-react';
@@ -45,8 +46,25 @@ export function HowToRunPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="어디서 돌리나요?"
-        description="이 사이트는 팀을 설계하고 파일로 내보내는 곳이에요. 실행은 내 PC의 Codex나 Claude Code가 합니다."
+        description="teamcook은 AI를 직접 돌리지 않아요. 팀 파일을 내 프로젝트에 넣어 주고, 돌린 뒤에 팀을 보고 고치고 보고받는 곳이에요. 실행은 내 PC의 Claude Code·Codex 같은 도구가 합니다."
       />
+
+      <ol className="grid gap-3 sm:grid-cols-3" aria-label="전체 흐름">
+        {[
+          { n: '①', title: '팀 고르기', body: '레시피 책에서 팀을 고르고 파일로 받아요. (1·6번)' },
+          { n: '②', title: '내 도구에서 실행', body: 'Claude Code·Codex·T3 Code 등에서 일을 시켜요. (2~5번)' },
+          { n: '③', title: '작업실에서 보고받기', body: '팀원을 보고 고치고, 업무 일지로 결과를 확인해요. (7번)' },
+        ].map((item) => (
+          <li key={item.n} className="flex flex-col gap-1 rounded-2xl border bg-card p-4">
+            <span className="font-heading text-lg font-extrabold">
+              <span className="mr-1.5 text-primary">{item.n}</span>
+              {item.title}
+            </span>
+            <span className="text-sm text-muted-foreground">{item.body}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="-mt-3 text-sm text-muted-foreground">이미 팀 파일이 있는 프로젝트라면 ①을 건너뛰고, 팀을 보고 고치고 싶다면 7번으로 가세요.</p>
 
       <Notice tone="info">
         내보낸 파일은 Codex와 Claude Code의 <strong>표준 설정 형식</strong>이에요. 그래서 터미널에서든, 그 도구들을
@@ -174,13 +192,32 @@ claude`}</Code>
             문장으로 표현합니다.
           </li>
         </ul>
+        <p className="font-medium">로그인과 API 키</p>
+        <ul className="list-disc pl-5 text-muted-foreground">
+          <li>
+            <strong>Antigravity:</strong> 처음 <code>agy</code>를 켜면 구글 계정으로 로그인해요(무료·Plus·Pro·Ultra 모두).
+            브라우저가 없는 서버 같은 곳에서는 Google AI Studio에서 만든 Gemini API 키를 쓸 수 있어요. 설정 파일{' '}
+            <code>~/.gemini/antigravity-cli/settings.json</code>에 <code>"modelProvider": "gemini"</code>를 적고{' '}
+            <code>GEMINI_API_KEY</code> 환경 변수에 키를 넣습니다. <code>GOOGLE_API_KEY</code>나 .env 파일은 읽지 않아요.
+          </li>
+          <li>
+            <strong>Grok Build:</strong> 처음 <code>grok</code>을 켜면 브라우저가 열려 로그인해요. 브라우저가 없는 곳에서는{' '}
+            <code>XAI_API_KEY</code> 환경 변수에 xAI API 키를 넣습니다.
+          </li>
+          <li>
+            API 키는 구독과 따로 계산돼요. 무료 구글 계정으로도 Gemini API 키를 받을 수 있고, 일부 모델은 무료지만 그때 입력한
+            내용이 구글 제품 개선에 쓰일 수 있어요. Google AI Pro·Ultra는 매달 API 크레딧(Pro $10, Ultra 5배 $40, 20배 $100)을
+            주지만, xAI API는 X 구독과 별개로 콘솔에 크레딧을 채워 쓴 만큼 내요.
+          </li>
+        </ul>
         <Notice tone="warn">
-          두 도구는 설정 파일 형식만 공식 문서로 확인했고, 실제로 실행해 보지는 못했어요. 요금제 정보도 공식 문서가
-          아닌 자료 기준입니다.
+          두 도구는 설정 파일 형식과 로그인 방법을 공식 문서로 확인했고, 레시피 파일로 실제로 실행해 보지는 못했어요.
         </Notice>
         <div className="flex flex-wrap gap-3">
           <Source href="https://antigravity.google/docs/subagents">Antigravity 서브에이전트 공식 문서</Source>
+          <Source href="https://antigravity.google/docs/cli/install">Antigravity 로그인 공식 문서</Source>
           <Source href="https://docs.x.ai/build/features/subagents">Grok Build 서브에이전트 공식 문서</Source>
+          <Source href="https://docs.x.ai/build/overview">Grok Build 시작하기 공식 문서</Source>
         </div>
       </Step>
 
@@ -209,7 +246,30 @@ node teamcook.mjs add "https://teamcook-eta.vercel.app/#r=…"`}</Code>
         </ul>
       </Step>
 
-      <Step number={7} title="두 회사 모델을 섞은 팀은 이렇게">
+      <Step number={7} title="돌린 뒤에는 작업실에서 보고받기">
+        <p>
+          팀을 돌린 뒤에는 <strong>작업실</strong>에서 팀원과 업무 일지를 봅니다. 작업실은 내 컴퓨터에서 터미널 명령으로 열고,
+          Claude Code·Codex가 남긴 대화 기록을 <strong>읽기만</strong> 해요. 실행을 대신 해 주지는 않아요.
+        </p>
+        <ul className="list-disc pl-5 text-muted-foreground">
+          <li>
+            <strong>팀원:</strong> 프로젝트의 <code>.claude/agents</code>·<code>.codex/agents</code> 역할 파일을 카드로 보여
+            주고, 맡길 일과 권한을 고치면 그 파일에 바로 저장해요.
+          </li>
+          <li>
+            <strong>업무 일지:</strong> 누구에게 무엇을 시켰고 무엇을 돌려받았는지를 시간과 함께 보여 줘요.
+          </li>
+          <li>
+            내 컴퓨터에서 연 작업실은 역할 파일이 바뀌거나 새 기록이 생기면 화면을 저절로 새로 고쳐요.
+          </li>
+        </ul>
+        <p>
+          여는 법은 <a className="underline underline-offset-2 hover:text-primary" href="#/workshop">작업실 소개</a>에 있어요. 설치 없이
+          Chrome·Edge에서 폴더를 직접 골라 맛볼 수도 있어요.
+        </p>
+      </Step>
+
+      <Step number={8} title="두 회사 모델을 섞은 팀은 이렇게">
         <p>
           'Claude 작성 + Codex 교차 검토'처럼 도구가 섞인 팀은, <strong>같은 프로젝트 폴더에서 두 도구를 번갈아</strong>{' '}
           쓰면 됩니다.
@@ -232,9 +292,9 @@ node teamcook.mjs add "https://teamcook-eta.vercel.app/#r=…"`}</Code>
         </p>
       </Step>
 
-      <Step number={8} title="조리법(협업 방식)에 따라 실행 방법이 달라요">
+      <Step number={9} title="조리법(협업 방식)에 따라 실행 방법이 달라요">
         <p>
-          레시피마다 <strong>조리법</strong>이 있어요. 위 1~7번은 기본 조리법인 <strong>서브에이전트</strong> 기준이고,
+          레시피마다 <strong>조리법</strong>이 있어요. 위 1~6번은 기본 조리법인 <strong>서브에이전트</strong> 기준이고,
           나머지 두 가지는 이렇게 돌립니다.
         </p>
 
@@ -268,7 +328,7 @@ node teamcook.mjs add "https://teamcook-eta.vercel.app/#r=…"`}</Code>
           ))}
         </ul>
         <Notice tone="warn">
-          에이전트 팀은 켜는 방법과 한계를 공식 문서로 확인했지만({COLLABORATIONS['agent-team'].lastVerified}), 실험
+          에이전트 팀은 켜는 방법과 한계를 공식 문서로 확인했지만, 실험
           기능이라 동작이 바뀔 수 있어요. 팀원이 생기지 않고 서브에이전트로 일을 시작하면 "서브에이전트 말고 에이전트
           팀으로 다시 해 줘"라고 말하세요.
         </Notice>

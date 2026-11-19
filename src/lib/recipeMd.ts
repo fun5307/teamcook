@@ -370,10 +370,10 @@ export function buildRecipeMd(recipe: Recipe, providers: ProviderData, plans?: U
     '   - 이미 `.codex/config.toml`이 있다면 덮어쓰지 말고, 이 파일의 `[agents]` 부분만 옮겨 적으세요.',
     '2. 두 도구 모두에서 팀 전체를 쓸 수 있게, 모든 에이전트를 Codex 형식(`.codex/agents/*.toml`)과 Claude Code 형식(`.claude/agents/*.md`)으로 둘 다 넣어 두었습니다. 쓰지 않는 쪽 폴더는 지워도 됩니다.',
     ...(engines.includes('antigravity-cli')
-      ? ['3. Antigravity를 쓴다면 `.agents` 폴더도 같은 곳에 복사합니다. (`.agents/agents/*.md`, 실행: `agy`)']
+      ? ['3. Antigravity를 쓴다면 `.agents` 폴더도 같은 곳에 복사합니다. (`.agents/agents/*.md`, 실행: `agy`. 처음엔 구글 계정 로그인, 또는 설정의 `modelProvider`를 `gemini`로 하고 `GEMINI_API_KEY`)']
       : []),
     ...(engines.includes('grok-build')
-      ? ['3. Grok Build를 쓴다면 `.grok` 폴더도 같은 곳에 복사합니다. (`.grok/agents/*.md`, 실행: `grok`, 에이전트 목록: `/agents`)']
+      ? ['3. Grok Build를 쓴다면 `.grok` 폴더도 같은 곳에 복사합니다. (`.grok/agents/*.md`, 실행: `grok`, 에이전트 목록: `/agents`. 처음엔 브라우저 로그인, 브라우저가 없으면 `XAI_API_KEY`)']
       : []),
     '',
     '## 실행 방법',

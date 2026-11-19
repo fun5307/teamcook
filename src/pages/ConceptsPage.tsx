@@ -1,6 +1,6 @@
 // '재료 사전': 멀티 에이전트, 서브에이전트, 에이전트 팀, 토론형, 토큰, A2A, MCP를 그림과 표로 설명한다.
 // 병 라벨, 성분표, 도해로 "재료" 이야기를 풀고, 글은 그림을 읽는 데 필요한 만큼만 쓴다.
-// 사실로 적은 내용은 공식 문서로 확인했다 (출처와 확인 날짜는 맨 아래). 그림의 길이·크기 가운데
+// 사실로 적은 내용은 공식 문서로 확인했다 (출처는 맨 아래). 그림의 길이·크기 가운데
 // 공식 수치가 아닌 것은 "어림"이라고 표시한다.
 
 import type { CSSProperties, ReactNode } from 'react';
@@ -10,7 +10,6 @@ import { STYLE_COLORS } from '@/components/RouteInfo';
 import { COLLABORATIONS } from '@/data/collaboration';
 import type { Collaboration } from '@/types';
 
-export const CONCEPTS_VERIFIED = '2026-11-17';
 
 export const SOURCES = [
   { label: 'Claude Code 서브에이전트', href: 'https://code.claude.com/docs/en/sub-agents' },
@@ -519,7 +518,7 @@ export function ConceptsPage() {
       </Chapter>
 
       <footer className="flex flex-col gap-1.5 border-t pt-4 text-xs text-muted-foreground">
-        <p>사실로 적은 내용은 아래 공식 문서에서 {CONCEPTS_VERIFIED}에 확인했어요. 자주 바뀌는 분야라 중요한 결정 전에는 원문을 보세요.</p>
+        <p>사실로 적은 내용은 아래 공식 문서를 근거로 했어요. 자주 바뀌는 분야라 중요한 결정 전에는 원문을 보세요.</p>
         <ul className="flex flex-wrap gap-x-4 gap-y-1">
           {SOURCES.map((source) => (
             <li key={source.href}>

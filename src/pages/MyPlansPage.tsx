@@ -89,6 +89,17 @@ export function MyPlansPage() {
 
               {provider.planNote ? <p className="text-xs leading-relaxed text-muted-foreground">{provider.planNote}</p> : null}
 
+              {(() => {
+                const mine = provider.plans.find((plan) => plan.id === plans[id]);
+                if (!mine || mine.id === 'none') return null;
+                return (
+                  <p className="rounded-lg bg-muted px-3 py-2 text-xs leading-relaxed">
+                    <span className="font-medium">API 사용량 </span>
+                    {mine.apiCredit ?? '이 요금제에는 API 사용량이 들어 있지 않아요. API를 쓰려면 따로 결제해요.'}
+                  </p>
+                );
+              })()}
+
               <label className="flex items-start gap-3 text-sm">
                 <Switch
                   checked={hasKey}

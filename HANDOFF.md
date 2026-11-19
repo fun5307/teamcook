@@ -360,11 +360,20 @@ npm run open           # = node cli/teamcook.mjs open  → 브라우저가 열�
 - 내 AI 화면: 요금제 아래 구성 안내 한 줄(`planNote`)을 더하고, "공식 문서가 아닌 자료로만 확인한 정보예요" 문구를 뺐다(사용자 요청). 레시피 화면의 경로 안내에 붙는 "공식 문서로 확인하지 못했어요"(`unverifiedNote`)는 그대로다.
 - 테스트 328개(`src/lib/plans2026.test.ts` 5개), 브라우저 확인(접기·펼치기, 카드 3장·로고 9개, 기울기 없음, 내 AI 옛 값 옮기기, 390px 넘침 없음, 콘솔 오류 0). 화면: `design/shots/p-1-plans.png` ~ `p-3-phone-suggest.png`. **미커밋.**
 
-### 요금 정보 손질 (2026-11-19, 사용자 요청) — 미커밋
-- **확인 날짜 표시를 뺐다**: 화면 맨 아래 "요금제 정보는 …에 확인", 내 AI 카드 우상단 "…확인", 실행 경로 사다리 아래 "여기 정보는 …에 확인한 것이니". 카드 우상단은 날짜 대신 "요금 안내 ↗"(공식 요금 페이지 링크, `planSourceUrl ?? sourceUrl`)로 바꿨다. 데이터의 `lastVerified`는 기록용으로 남아 있고, 요금 페이지 링크 외에 `RouteInfo`의 배지 날짜(showDate)와 도움말 맨 아래 문장은 그대로다.
+### 요금 정보 손질 (2026-11-19, 사용자 요청) — 커밋 8514b1d, 배포됨
+- **확인 날짜 표시를 뺐다**: 화면 맨 아래 "요금제 정보는 …에 확인", 내 AI 카드 우상단 "…확인", 실행 경로 사다리 아래 "여기 정보는 …에 확인한 것이니", `RouteInfo` 배지 날짜, 도움말 맨 아래 문장. 카드 우상단은 날짜 대신 "요금 안내 ↗"(공식 요금 페이지 링크, `planSourceUrl ?? sourceUrl`)로 바꿨다. 데이터의 `lastVerified`는 기록용으로 남아 있다.
 - **Gemini (원화, gemini.google/kr/subscriptions에서 읽음 + 사용자 확인)**: 무료 ₩0 · Plus ₩7,500(공식 페이지, 사용자 확인) · Pro ₩29,000(사용자가 알려 줌, 공식 페이지에서는 못 읽음) · Ultra 5배 ₩119,000 · Ultra 20배 ₩300,000(공식 페이지). Ultra를 `ultra`(5배)와 `ultra20`(20배)로 나눴다. Antigravity 무료 플랜은 2026-11-18부터 Claude·GPT-OSS 모델이 빠지고 Gemini 모델만이라는 안내를 넣었다.
 - **Grok Build**: 사용자가 x.ai/pricing에서 확인한 대로 "무료부터 쓸 수 있고, 요금제가 높을수록 사용량이 늘어난다"로 고쳤다 (무료 = ③ 무료 한도, X Plus 이상·예전 SuperGrok = ① 구독, API 키 = ②). **x.ai/pricing은 자동 읽기가 403으로 막혀 내가 직접 읽지는 못했다** (사용자가 직접 본 것). 요금제별 구체적 사용량은 적지 않았다.
 - 테스트 328개 통과, 브라우저에서 확인(`design/shots/p-4-plans.png`).
+
+### 도움말 개편·Google/xAI API 조사 (2026-11-19, 사용자 요청) — 미커밋
+- **남은 날짜 표시 삭제**: 재료 사전 맨 아래 "…에 확인했어요"(`CONCEPTS_VERIFIED` 상수째 삭제), 도움말의 에이전트 팀 확인 날짜.- **도움말 '어디서 돌리나요?'를 새 방향에 맞춤**: 맨 위에 흐름 3칸(①팀 고르기 ②내 도구에서 실행 ③작업실에서 보고받기), 새 7번 "돌린 뒤에는 작업실에서 보고받기"(팀원·업무 일지·읽기만·실시간 갱신, 여는 법은 #/workshop). 옛 7·8번은 8·9번으로. 5번(Antigravity·Grok)에 로그인과 API 키 안내를 더하고 "요금제 정보는 공식 문서가 아닌 자료 기준" 문장을 뺐다. T3 Code 기록이 업무 일지에 보이는지는 **아직 확인되지 않아** 적지 않았다.
+- **Google API (공식: aistudio.google.com/docs/pricing·rate-limits, antigravity.google/docs/install)**: Gemini API는 일부 모델이 무료이고 그때 입력은 제품 개선에 쓰일 수 있으며(유료는 안 쓰임), 무료 한도 숫자는 문서에 없고 AI Studio에서 본다. 종량제 단가가 있으나 모델·단가가 자주 바뀌고 프로모션 가격 날짜가 섞여 있어 **금액은 적지 않았다**. Antigravity CLI는 구글 계정 로그인이 기본이고, `~/.gemini/antigravity-cli/settings.json`의 `"modelProvider": "gemini"` + `GEMINI_API_KEY`로 API 키도 쓴다(`GOOGLE_API_KEY`·.env는 읽지 않음). → `antigravity-cli`에 **경로 ② Gemini API 키**를 추가(구독 ①이 있으면 구독이 먼저). Google AI Pro·Ultra에 API 사용량이 포함된다는 말은 공식 문서에 없다고 적었다.
+- **xAI API (공식: docs.x.ai/build/overview, docs.x.ai/docs/pricing, 퀵스타트)**: Grok Build는 처음 켜면 브라우저 로그인, 브라우저 없는 곳은 `XAI_API_KEY`. API는 토큰 단가가 공개돼 있고(grok-4.x, grok-build-0.1 포함) 크레딧을 채워 쓰는 방식이며, 무료 API 크레딧·데이터 공유 프로그램은 읽은 페이지에 없다. 가격 페이지에 "Grok Build's free tier"라는 말이 있어 **Grok Build 무료 한도가 있다는 것은 공식으로 확인**됐고, 빠른 모델(Grok 4.7 Fast)은 무료에 안 들어 있다. 어떤 X 구독이 Grok Build를 여는지는 여전히 공식으로 못 읽어 `confidence`는 `third-party`로 유지(레시피 화면의 "공식 문서로 확인하지 못했어요" 안내가 계속 붙음). 공식 문서 주소는 `.md` 없이 `docs.x.ai/build/overview`처럼 열어야 읽힌다.
+- **정정 (같은 날, 사용자 지적)**: "구독에 API 사용량이 들어 있는지"를 요금제마다 `PlanInfo.apiCredit`으로 적는다. 있는 것만 적고 **나머지는 API 사용량이 없다고 단정**한다(내 AI 화면에서 요금제를 고르면 "API 사용량" 줄이 보임). 공식 확인: ChatGPT **Pro** = 구독료만큼(월 $100·$200·$500, `developers.openai.com/api/docs/guides/chatgpt-api-credits`; 7일 뒤·같은 이메일 API 조직 연결·그 달에 안 쓰면 소멸·Codex API 키나 로그인 한도에는 못 씀, Business는 별도 표라 데이터에 없음, Plus·Go·Free 없음). **Google AI Pro $10 / Ultra 5배 $40 / Ultra 20배 $100** 월 크레딧(`developers.google.com/profile/help/benefits`, Gemini API·AI Studio에 쓸 수 있고 1년 유효. 블로그는 Cloud 결제 연결·$5 선결제 필요라고 함, 사용자가 준 표의 "Ultra $100"은 20배 기준). Plus는 없음. Claude·xAI 구독은 없음. 무료 구글 계정의 Gemini API 키도 공식 확인(`aistudio.google.com/docs/billing`: 새 사용자에게 프로젝트와 키가 기본으로 만들어짐). 위 "Pro·Ultra에 포함된다는 말이 없다"는 내 이전 서술은 틀렸다.
+- **레시피 책에도 반영**: 레시피의 "준비할 것"(`recipeDetails.ts`의 `ENGINE_PREP`)에 Antigravity·Grok Build 줄을 더하고 Codex 줄을 고쳤다(터미널은 Plus 이상, Free·Go는 데스크톱 앱, 또는 API 키). 사용량 안내(`cost.ts`의 `costOutlook`)는 Gemini API 키로 도는 역할이 있으면 "일부 모델 무료 한도, Google AI Pro·Ultra 월 크레딧도 쓸 수 있음"을 덧붙인다. RECIPE.md의 Antigravity·Grok 설치 줄에 로그인·API 키 방법을 더했다(`recipeMd.ts`, CLI는 이 파일을 쓰지 않아 다시 빌드 안 함).
+- **사용량 여유가 안 바뀐 것처럼 보인다는 지적**: 코드 문제는 아니었다(선택은 추천 계산 `suggestRecipes`에 그대로 들어간다). 다만 점수에 ±2만 더해 상위 3개가 그대로인 경우가 많고, 보통과 넉넉하게는 거의 같았으며, 화면에 반영됐다는 표시가 없었다. 추천 카드마다 "사용량 여유 · …" 한 줄(`budgetNote`, `cost.ts`)과 결과 아래 문구에 고른 여유 이름을 더해 눈에 보이게 했다. 레시피별 사용량은 저장된 값이 아니라 조리법·역할 수로 그때그때 계산한다(`usageEstimate`).
+- 테스트 334개(Gemini API 키 경로 1, 구독 크레딧 2, Gemini 사용량 안내 1, 사용량 여유 2), 타입·빌드 통과.
 
 ## 레시피 제안·사용량 어림·재료 사전 (2026-11-17, 사용자 요청)
 
@@ -385,7 +394,7 @@ npm run open           # = node cli/teamcook.mjs open  → 브라우저가 열�
 
 ### 재료 사전 (`src/pages/ConceptsPage.tsx`, 주소 `#/learn`)
 - 주 메뉴의 "재료 사전"(레시피, 내 AI 현황 다음). 주방 용어표(재료 = 에이전트, 레시피 = 팀 설계, 조리법 = 협업 방식, 주방 = 실행 도구, 주문서 = 첫 프롬프트, 재료비 = 토큰과 한도), 멀티 에이전트, 조리법 세 가지, 재료비, A2A와 MCP, 무엇을 고를까.
-- 비유("주방에 빗대면")와 사실("실제로는")을 나란히 적는다. 사실은 공식 문서로 확인했고 출처와 확인 날짜(`CONCEPTS_VERIFIED`)를 맨 아래에 작게 둔다. A2A는 a2a-protocol.org(공개 표준, Linux Foundation, Agent Card·Task·Message·Artifact, MCP는 수직·A2A는 수평)에서 확인. A2A를 누가 처음 만들었는지는 확인한 페이지에 없어 적지 않았다.
+- 비유("주방에 빗대면")와 사실("실제로는")을 나란히 적는다. 사실은 공식 문서로 확인했고 출처를 맨 아래에 작게 둔다(확인 날짜 표시는 2026-11-19에 뺐다). A2A는 a2a-protocol.org(공개 표준, Linux Foundation, Agent Card·Task·Message·Artifact, MCP는 수직·A2A는 수평)에서 확인. A2A를 누가 처음 만들었는지는 확인한 페이지에 없어 적지 않았다.
 - **teamcook은 A2A·MCP를 설정하거나 실행하지 않는다**고 문서에 적었다. 역할 카드는 A2A의 Agent Card가 아니다.
 
 ### 화면 다시 만들기 (같은 날, 사용자: "챗봇 화면 같다", "재료 사전이 줄글뿐이다", "스크롤 효과") — 미커밋

@@ -193,6 +193,8 @@ export interface PlanInfo {
   label: string;
   paid: boolean;
   price?: string;
+  /** 이 요금제가 매달 API 크레딧을 주면 그 안내. 없으면 구독에 API 사용량이 들어 있지 않다는 뜻 */
+  apiCredit?: string;
 }
 
 export interface ProviderInfo {

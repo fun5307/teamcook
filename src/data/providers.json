@@ -33,10 +33,11 @@
           "id": "pro",
           "label": "Pro",
           "paid": true,
-          "price": "$100/월부터"
+          "price": "$100/월부터",
+          "apiCredit": "구독료만큼 API 크레딧을 줘요 (월 $100·$200·$500). 구독한 지 7일이 지나고, 같은 이메일의 OpenAI API 조직에 연결해야 받아요. 그 달에 안 쓰면 사라져요. 이 크레딧은 API 사용에만 쓰이고, ChatGPT·로그인 Codex 한도를 늘리거나 API 키로 돌리는 Codex에는 쓸 수 없어요."
         }
       ],
-      "apiNote": "OpenAI API 키가 있으면 플랜과 상관없이 Codex CLI를 쓸 수 있어요. 쓴 만큼 요금이 나가요.",
+      "apiNote": "OpenAI API 키가 있으면 플랜과 상관없이 Codex CLI를 쓸 수 있어요. 쓴 만큼 요금이 나가요. (Free·Go·Plus 구독에는 API 사용량이 들어 있지 않아요.)",
       "sourceUrl": "https://learn.chatgpt.com/docs/pricing",
       "lastVerified": "2026-11-16"
     },
@@ -70,7 +71,7 @@
           "paid": true
         }
       ],
-      "apiNote": "Claude 콘솔(API) 계정이 있으면 구독 없이 Claude Code를 쓸 수 있어요. 쓴 만큼 요금이 나가요.",
+      "apiNote": "Claude 콘솔(API) 계정이 있으면 구독 없이 Claude Code를 쓸 수 있어요. 쓴 만큼 요금이 나가요. (Claude 구독에는 API 사용량이 들어 있지 않아요.)",
       "sourceUrl": "https://code.claude.com/docs/en/setup",
       "lastVerified": "2026-11-16"
     },
@@ -99,22 +100,25 @@
           "id": "pro",
           "label": "Google AI Pro",
           "paid": true,
-          "price": "₩29,000/월"
+          "price": "₩29,000/월",
+          "apiCredit": "매달 $10어치 크레딧을 줘요. Gemini API·Google AI Studio·Google Cloud에 쓸 수 있고, 받은 날부터 1년간 유효해요."
         },
         {
           "id": "ultra",
           "label": "Google AI Ultra 5배",
           "paid": true,
-          "price": "₩119,000/월"
+          "price": "₩119,000/월",
+          "apiCredit": "매달 $40어치 크레딧을 줘요. Gemini API·Google AI Studio·Google Cloud에 쓸 수 있고, 받은 날부터 1년간 유효해요."
         },
         {
           "id": "ultra20",
           "label": "Google AI Ultra 20배",
           "paid": true,
-          "price": "₩300,000/월"
+          "price": "₩300,000/월",
+          "apiCredit": "매달 $100어치 크레딧을 줘요. Gemini API·Google AI Studio·Google Cloud에 쓸 수 있고, 받은 날부터 1년간 유효해요."
         }
       ],
-      "apiNote": "Gemini API 키(Google AI Studio)는 무료 한도가 있다고 알려져 있어요. (공식 문서 미확인)",
+      "apiNote": "무료 구글 계정으로도 Google AI Studio에서 Gemini API 키를 받아 Antigravity CLI에 쓸 수 있어요. 일부 모델은 무료이고(한도 숫자는 AI Studio에서 확인), 무료일 때는 입력 내용이 제품 개선에 쓰일 수 있어요. 그 밖의 모델은 쓴 만큼 요금이에요. Google AI Pro·Ultra는 매달 API 크레딧을 줘요(요금제를 고르면 보여요). Plus에는 없어요.",
       "sourceUrl": "https://antigravity.google/docs/plans",
       "lastVerified": "2026-11-18",
       "planNote": "Ultra는 Pro보다 사용량이 5배(₩119,000)인 것과 20배(₩300,000)인 것이 있어요. Antigravity는 Pro·Ultra에서 5시간마다 한도가 다시 차고, 무료·Plus는 일주일마다 차요. 무료 플랜의 Claude·GPT 모델은 2026-11-18부터 빠져서 Gemini 모델만 써요.",
@@ -164,7 +168,7 @@
           "paid": true
         }
       ],
-      "apiNote": "xAI API 키로도 Grok Build를 쓸 수 있다고 알려져 있어요. (공식 문서 미확인)",
+      "apiNote": "xAI API 키(환경 변수 XAI_API_KEY)로도 Grok Build를 쓸 수 있어요. API는 콘솔에 크레딧을 채워 쓴 만큼 내는 방식이고, 무료 크레딧은 공식 문서에서 찾지 못했어요. X 구독(Grok)에는 API 사용량이 들어 있지 않아요.",
       "sourceUrl": "https://x.ai/news/x-subscription",
       "lastVerified": "2026-11-18",
       "planNote": "2026-10-12부터 Grok·Cursor·X가 하나의 \"X 구독\"(Plus·Premium·Super·Ultra)으로 묶였어요. 사용량은 Plus를 1로 보면 Premium 4배, Super 15배, Ultra 50배예요. Grok Build는 무료부터 쓸 수 있고, 위 요금제로 갈수록 쓸 수 있는 양이 늘어요. 예전 SuperGrok 구독은 그대로 쓸 수 있어요.",
@@ -268,6 +272,15 @@
           ]
         },
         {
+          "path": 2,
+          "apiKey": true,
+          "label": "Gemini API 키 (Google AI Studio)",
+          "notes": [
+            "설정 파일에서 modelProvider를 gemini로 바꾸고 GEMINI_API_KEY 환경 변수에 키를 넣어요.",
+            "일부 모델은 무료 한도 안에서 쓸 수 있지만, 그때는 입력한 내용이 구글 제품 개선에 쓰일 수 있어요. 유료(종량제)로 바꾸면 쓰이지 않아요."
+          ]
+        },
+        {
           "path": 3,
           "plans": [
             "free",
@@ -317,7 +330,8 @@
           "badge": "Grok 무료",
           "free": true,
           "notes": [
-            "무료 한도는 작아서 금방 다 쓸 수 있어요."
+            "무료 한도는 작아서 금방 다 쓸 수 있어요.",
+            "빠른 모델(Grok 4.7 Fast)은 무료 한도에 들어 있지 않아요."
           ]
         },
         {
@@ -331,7 +345,7 @@
       ],
       "lockReason": "Grok Build를 쓰려면 Grok 계정(무료도 돼요)이 필요해요",
       "confidence": "third-party",
-      "sourceUrl": "https://amplifying.ai/coding-agents/grok-build",
+      "sourceUrl": "https://docs.x.ai/build/overview",
       "lastVerified": "2026-11-18",
       "configFormat": ".grok/agents/*.md",
       "configSourceUrl": "https://docs.x.ai/build/features/subagents",
