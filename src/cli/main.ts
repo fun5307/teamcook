@@ -56,7 +56,8 @@ async function open(rest: string[]): Promise<number> {
   }
   if (!existsSync(path.join(uiDir, 'index.html'))) {
     console.error(`화면 파일을 찾지 못했어요: ${uiDir}
-저장소에서 먼저 npm run build 를 실행해 주세요.`);
+저장소에서 실행하는 중이라면 먼저 npm run build 를 실행해 주세요.
+npx로 실행했다면 받은 패키지가 온전하지 않을 수 있어요. npx teamcook@latest open 으로 다시 실행해 주세요.`);
     return 1;
   }
   const claudeHome = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');

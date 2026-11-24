@@ -101,10 +101,11 @@ var providerData = {
 					"id": "pro",
 					"label": "Pro",
 					"paid": true,
-					"price": "$100/월부터"
+					"price": "$100/월부터",
+					"apiCredit": "구독료만큼 API 크레딧을 줘요 (월 $100·$200·$500). 구독한 지 7일이 지나고, 같은 이메일의 OpenAI API 조직에 연결해야 받아요. 그 달에 안 쓰면 사라져요. 이 크레딧은 API 사용에만 쓰이고, ChatGPT·로그인 Codex 한도를 늘리거나 API 키로 돌리는 Codex에는 쓸 수 없어요."
 				}
 			],
-			"apiNote": "OpenAI API 키가 있으면 플랜과 상관없이 Codex CLI를 쓸 수 있어요. 쓴 만큼 요금이 나가요.",
+			"apiNote": "OpenAI API 키가 있으면 플랜과 상관없이 Codex CLI를 쓸 수 있어요. 쓴 만큼 요금이 나가요. (Free·Go·Plus 구독에는 API 사용량이 들어 있지 않아요.)",
 			"sourceUrl": "https://learn.chatgpt.com/docs/pricing",
 			"lastVerified": "2026-11-16"
 		},
@@ -138,7 +139,7 @@ var providerData = {
 					"paid": true
 				}
 			],
-			"apiNote": "Claude 콘솔(API) 계정이 있으면 구독 없이 Claude Code를 쓸 수 있어요. 쓴 만큼 요금이 나가요.",
+			"apiNote": "Claude 콘솔(API) 계정이 있으면 구독 없이 Claude Code를 쓸 수 있어요. 쓴 만큼 요금이 나가요. (Claude 구독에는 API 사용량이 들어 있지 않아요.)",
 			"sourceUrl": "https://code.claude.com/docs/en/setup",
 			"lastVerified": "2026-11-16"
 		},
@@ -154,17 +155,42 @@ var providerData = {
 				{
 					"id": "free",
 					"label": "무료",
-					"paid": false
+					"paid": false,
+					"price": "₩0"
 				},
 				{
-					"id": "paid",
-					"label": "유료 (Google AI Pro·Ultra)",
-					"paid": true
+					"id": "plus",
+					"label": "Google AI Plus",
+					"paid": true,
+					"price": "₩7,500/월"
+				},
+				{
+					"id": "pro",
+					"label": "Google AI Pro",
+					"paid": true,
+					"price": "₩29,000/월",
+					"apiCredit": "매달 $10어치 크레딧을 줘요. Gemini API·Google AI Studio·Google Cloud에 쓸 수 있고, 받은 날부터 1년간 유효해요."
+				},
+				{
+					"id": "ultra",
+					"label": "Google AI Ultra 5배",
+					"paid": true,
+					"price": "₩119,000/월",
+					"apiCredit": "매달 $40어치 크레딧을 줘요. Gemini API·Google AI Studio·Google Cloud에 쓸 수 있고, 받은 날부터 1년간 유효해요."
+				},
+				{
+					"id": "ultra20",
+					"label": "Google AI Ultra 20배",
+					"paid": true,
+					"price": "₩300,000/월",
+					"apiCredit": "매달 $100어치 크레딧을 줘요. Gemini API·Google AI Studio·Google Cloud에 쓸 수 있고, 받은 날부터 1년간 유효해요."
 				}
 			],
-			"apiNote": "Gemini API 키(Google AI Studio)는 무료 한도가 있다고 알려져 있어요. (공식 문서 미확인)",
-			"sourceUrl": "https://www.tembo.io/blog/gemini-cli-pricing",
-			"lastVerified": "2026-11-16"
+			"apiNote": "무료 구글 계정으로도 Google AI Studio에서 Gemini API 키를 받아 Antigravity CLI에 쓸 수 있어요. 일부 모델은 무료이고(한도 숫자는 AI Studio에서 확인), 무료일 때는 입력 내용이 제품 개선에 쓰일 수 있어요. 그 밖의 모델은 쓴 만큼 요금이에요. Google AI Pro·Ultra는 매달 API 크레딧을 줘요(요금제를 고르면 보여요). Plus에는 없어요.",
+			"sourceUrl": "https://antigravity.google/docs/plans",
+			"lastVerified": "2026-11-18",
+			"planNote": "Ultra는 Pro보다 사용량이 5배(₩119,000)인 것과 20배(₩300,000)인 것이 있어요. Antigravity는 Pro·Ultra에서 5시간마다 한도가 다시 차고, 무료·Plus는 일주일마다 차요. 무료 플랜의 Claude·GPT 모델은 2026-11-18부터 빠져서 Gemini 모델만 써요.",
+			"planSourceUrl": "https://gemini.google/kr/subscriptions/?hl=ko"
 		},
 		"xai": {
 			"name": "xAI",
@@ -181,14 +207,40 @@ var providerData = {
 					"paid": false
 				},
 				{
+					"id": "plus",
+					"label": "X Plus",
+					"paid": true,
+					"price": "$8/월"
+				},
+				{
+					"id": "premium",
+					"label": "X Premium (SuperGrok 포함)",
+					"paid": true,
+					"price": "$30/월"
+				},
+				{
+					"id": "super",
+					"label": "X Super",
+					"paid": true,
+					"price": "$100/월"
+				},
+				{
+					"id": "ultra",
+					"label": "X Ultra",
+					"paid": true,
+					"price": "$200/월"
+				},
+				{
 					"id": "supergrok",
-					"label": "SuperGrok / X Premium+",
+					"label": "예전 SuperGrok · X Premium+",
 					"paid": true
 				}
 			],
-			"apiNote": "xAI API 키로도 Grok Build를 쓸 수 있다고 알려져 있어요. (공식 문서 미확인)",
-			"sourceUrl": "https://amplifying.ai/coding-agents/grok-build",
-			"lastVerified": "2026-11-16"
+			"apiNote": "xAI API 키(환경 변수 XAI_API_KEY)로도 Grok Build를 쓸 수 있어요. API는 콘솔에 크레딧을 채워 쓴 만큼 내는 방식이고, 무료 크레딧은 공식 문서에서 찾지 못했어요. X 구독(Grok)에는 API 사용량이 들어 있지 않아요.",
+			"sourceUrl": "https://x.ai/news/x-subscription",
+			"lastVerified": "2026-11-18",
+			"planNote": "2026-10-12부터 Grok·Cursor·X가 하나의 \"X 구독\"(Plus·Premium·Super·Ultra)으로 묶였어요. 사용량은 Plus를 1로 보면 Premium 4배, Super 15배, Ultra 50배예요. Grok Build는 무료부터 쓸 수 있고, 위 요금제로 갈수록 쓸 수 있는 양이 늘어요. 예전 SuperGrok 구독은 그대로 쓸 수 있어요.",
+			"planSourceUrl": "https://x.ai/pricing"
 		}
 	},
 	engines: {
@@ -257,49 +309,81 @@ var providerData = {
 			"name": "Antigravity CLI",
 			"provider": "google",
 			"status": "ready",
-			"access": [{
-				"path": 1,
-				"plans": ["paid"],
-				"label": "Google AI Pro·Ultra 로그인",
-				"badge": "Google AI Pro 필요",
-				"notes": []
-			}, {
-				"path": 3,
-				"plans": ["free"],
-				"label": "Antigravity 무료 개인 플랜",
-				"badge": "Google 무료",
-				"free": true,
-				"notes": ["무료 한도는 작고 예고 없이 바뀔 수 있어요. (공식 문서 미확인)"]
-			}],
-			"lockReason": "Antigravity CLI를 쓰려면 Google 계정이 필요해요",
-			"confidence": "third-party",
-			"sourceUrl": "https://www.tembo.io/blog/gemini-cli-pricing",
-			"lastVerified": "2026-11-16",
+			"access": [
+				{
+					"path": 1,
+					"plans": [
+						"pro",
+						"ultra",
+						"ultra20"
+					],
+					"label": "Google AI Pro·Ultra 로그인 (5시간마다 한도 충전)",
+					"badge": "Google AI Pro 필요",
+					"notes": ["Ultra는 Pro보다 한도가 높고(5배·20배), 다른 회사 모델도 쓸 수 있어요."]
+				},
+				{
+					"path": 2,
+					"apiKey": true,
+					"label": "Gemini API 키 (Google AI Studio)",
+					"notes": ["설정 파일에서 modelProvider를 gemini로 바꾸고 GEMINI_API_KEY 환경 변수에 키를 넣어요.", "일부 모델은 무료 한도 안에서 쓸 수 있지만, 그때는 입력한 내용이 구글 제품 개선에 쓰일 수 있어요. 유료(종량제)로 바꾸면 쓰이지 않아요."]
+				},
+				{
+					"path": 3,
+					"plans": ["free", "plus"],
+					"label": "Antigravity 기본 한도 (일주일마다 충전)",
+					"badge": "Google 무료",
+					"free": true,
+					"notes": ["무료와 Google AI Plus는 같은 기본 한도예요. 일주일 한도를 다 쓰면 다음 주까지 기다려야 해요.", "2026-11-18부터 Claude·GPT-OSS 모델은 빠지고 Gemini 모델만 써요."]
+				}
+			],
+			"lockReason": "Antigravity CLI를 쓰려면 Google 계정이 필요해요 (무료 계정도 돼요)",
+			"confidence": "official",
+			"sourceUrl": "https://antigravity.google/docs/plans",
+			"lastVerified": "2026-11-18",
 			"configFormat": ".agents/agents/*.md",
-			"configSourceUrl": "https://antigravity.google/docs/subagents"
+			"configSourceUrl": "https://antigravity.google/docs/subagents",
+			"planSourceUrl": "https://gemini.google/kr/subscriptions/?hl=ko"
 		},
 		"grok-build": {
 			"name": "Grok Build",
 			"provider": "xai",
 			"status": "ready",
-			"access": [{
-				"path": 1,
-				"plans": ["supergrok"],
-				"label": "SuperGrok·X Premium+ 로그인",
-				"badge": "SuperGrok 필요",
-				"notes": []
-			}, {
-				"path": 2,
-				"apiKey": true,
-				"label": "xAI API 키 (종량제)",
-				"notes": ["쓴 만큼 요금이 나가요."]
-			}],
-			"lockReason": "Grok Build는 SuperGrok 또는 X Premium+에서만 쓸 수 있어요 (무료 불가)",
+			"access": [
+				{
+					"path": 1,
+					"plans": [
+						"plus",
+						"premium",
+						"super",
+						"ultra",
+						"supergrok"
+					],
+					"label": "X 구독 또는 예전 SuperGrok 로그인 (요금제가 높을수록 사용량 많음)",
+					"badge": "X 구독",
+					"notes": []
+				},
+				{
+					"path": 3,
+					"plans": ["free"],
+					"label": "Grok 무료 한도",
+					"badge": "Grok 무료",
+					"free": true,
+					"notes": ["무료 한도는 작아서 금방 다 쓸 수 있어요.", "빠른 모델(Grok 4.7 Fast)은 무료 한도에 들어 있지 않아요."]
+				},
+				{
+					"path": 2,
+					"apiKey": true,
+					"label": "xAI API 키 (종량제)",
+					"notes": ["쓴 만큼 요금이 나가요."]
+				}
+			],
+			"lockReason": "Grok Build를 쓰려면 Grok 계정(무료도 돼요)이 필요해요",
 			"confidence": "third-party",
-			"sourceUrl": "https://amplifying.ai/coding-agents/grok-build",
-			"lastVerified": "2026-11-16",
+			"sourceUrl": "https://docs.x.ai/build/overview",
+			"lastVerified": "2026-11-18",
 			"configFormat": ".grok/agents/*.md",
-			"configSourceUrl": "https://docs.x.ai/build/features/subagents"
+			"configSourceUrl": "https://docs.x.ai/build/features/subagents",
+			"planSourceUrl": "https://x.ai/pricing"
 		},
 		"api": {
 			"name": "API 직접 호출",
@@ -17177,7 +17261,7 @@ function buildRecipeMd(recipe, providers, plans) {
 		out.push(...debateSections(recipe));
 		return out.join("\n");
 	}
-	out.push("## 설치 (1분)", "", "1. 이 폴더 안의 `.codex` 폴더와 `.claude` 폴더를 **내 프로젝트 폴더 맨 위**에 복사합니다.", "   - 점(.)으로 시작하는 폴더는 숨김 폴더라 안 보일 수 있어요. (Windows 탐색기: 보기 → 숨긴 항목 / macOS Finder: Cmd+Shift+.)", "   - 이미 `.codex/config.toml`이 있다면 덮어쓰지 말고, 이 파일의 `[agents]` 부분만 옮겨 적으세요.", "2. 두 도구 모두에서 팀 전체를 쓸 수 있게, 모든 에이전트를 Codex 형식(`.codex/agents/*.toml`)과 Claude Code 형식(`.claude/agents/*.md`)으로 둘 다 넣어 두었습니다. 쓰지 않는 쪽 폴더는 지워도 됩니다.", ...engines.includes("antigravity-cli") ? ["3. Antigravity를 쓴다면 `.agents` 폴더도 같은 곳에 복사합니다. (`.agents/agents/*.md`, 실행: `agy`)"] : [], ...engines.includes("grok-build") ? ["3. Grok Build를 쓴다면 `.grok` 폴더도 같은 곳에 복사합니다. (`.grok/agents/*.md`, 실행: `grok`, 에이전트 목록: `/agents`)"] : [], "", "## 실행 방법", "", "### 터미널에서 Codex로", "", "```bash", "cd 내-프로젝트-폴더", hasReadOnly ? "codex            # 검토·조사만 할 때는: codex --sandbox read-only" : "codex", "```", "", `확인: \`${recipe.cards[0]?.name ?? "reviewer"} 에이전트에게 이 프로젝트를 한 줄로 요약하게 해 줘\` 라고 입력해 보세요. 실행 중인 에이전트는 \`/subagents\`로 볼 수 있습니다.`, "", "### 터미널에서 Claude Code로", "", "```bash", "cd 내-프로젝트-폴더", "claude", "```", "", `확인: \`어떤 서브에이전트가 있어?\` 라고 물어보세요. 특정 에이전트를 콕 집어 부르려면 \`@agent-${recipe.cards[0]?.name ?? "reviewer"}\` 처럼 씁니다.`, "(`.claude/agents` 폴더를 처음 만든 경우에는 Claude Code를 한 번 껐다 켜야 보입니다.)", "", "### 에이전트가 안 보일 때", "", "- `.codex`와 `.claude` 폴더가 프로젝트 폴더 **맨 위**에 있는지 확인합니다 (하위 폴더에 넣으면 안 보입니다).", "- 도구를 그 프로젝트 폴더에서 실행했는지 확인하고, 파일을 넣은 뒤 도구를 한 번 껐다 켭니다.", "- 파일 이름과 확장자(`.toml`, `.md`)가 바뀌지 않았는지 확인합니다.", "- 도구에 로그인돼 있는지 확인합니다.", "", "### T3 Code · 1Code에서", "", "두 도구는 내 PC에 설치된 Codex·Claude Code를 대신 실행해 주는 화면입니다. 위처럼 파일을 프로젝트 폴더에 넣은 뒤 그 폴더를 프로젝트로 열면 됩니다.", "채팅마다 별도의 git 작업 폴더(worktree)를 만드는 도구에서는, **`.codex`와 `.claude` 폴더를 git에 커밋해 두어야** 에이전트가 보입니다.", "", "### 첫 프롬프트 예시", "", "```text", starterPrompt(recipe), "```", "");
+	out.push("## 설치 (1분)", "", "1. 이 폴더 안의 `.codex` 폴더와 `.claude` 폴더를 **내 프로젝트 폴더 맨 위**에 복사합니다.", "   - 점(.)으로 시작하는 폴더는 숨김 폴더라 안 보일 수 있어요. (Windows 탐색기: 보기 → 숨긴 항목 / macOS Finder: Cmd+Shift+.)", "   - 이미 `.codex/config.toml`이 있다면 덮어쓰지 말고, 이 파일의 `[agents]` 부분만 옮겨 적으세요.", "2. 두 도구 모두에서 팀 전체를 쓸 수 있게, 모든 에이전트를 Codex 형식(`.codex/agents/*.toml`)과 Claude Code 형식(`.claude/agents/*.md`)으로 둘 다 넣어 두었습니다. 쓰지 않는 쪽 폴더는 지워도 됩니다.", ...engines.includes("antigravity-cli") ? ["3. Antigravity를 쓴다면 `.agents` 폴더도 같은 곳에 복사합니다. (`.agents/agents/*.md`, 실행: `agy`. 처음엔 구글 계정 로그인, 또는 설정의 `modelProvider`를 `gemini`로 하고 `GEMINI_API_KEY`)"] : [], ...engines.includes("grok-build") ? ["3. Grok Build를 쓴다면 `.grok` 폴더도 같은 곳에 복사합니다. (`.grok/agents/*.md`, 실행: `grok`, 에이전트 목록: `/agents`. 처음엔 브라우저 로그인, 브라우저가 없으면 `XAI_API_KEY`)"] : [], "", "## 실행 방법", "", "### 터미널에서 Codex로", "", "```bash", "cd 내-프로젝트-폴더", hasReadOnly ? "codex            # 검토·조사만 할 때는: codex --sandbox read-only" : "codex", "```", "", `확인: \`${recipe.cards[0]?.name ?? "reviewer"} 에이전트에게 이 프로젝트를 한 줄로 요약하게 해 줘\` 라고 입력해 보세요. 실행 중인 에이전트는 \`/subagents\`로 볼 수 있습니다.`, "", "### 터미널에서 Claude Code로", "", "```bash", "cd 내-프로젝트-폴더", "claude", "```", "", `확인: \`어떤 서브에이전트가 있어?\` 라고 물어보세요. 특정 에이전트를 콕 집어 부르려면 \`@agent-${recipe.cards[0]?.name ?? "reviewer"}\` 처럼 씁니다.`, "(`.claude/agents` 폴더를 처음 만든 경우에는 Claude Code를 한 번 껐다 켜야 보입니다.)", "", "### 에이전트가 안 보일 때", "", "- `.codex`와 `.claude` 폴더가 프로젝트 폴더 **맨 위**에 있는지 확인합니다 (하위 폴더에 넣으면 안 보입니다).", "- 도구를 그 프로젝트 폴더에서 실행했는지 확인하고, 파일을 넣은 뒤 도구를 한 번 껐다 켭니다.", "- 파일 이름과 확장자(`.toml`, `.md`)가 바뀌지 않았는지 확인합니다.", "- 도구에 로그인돼 있는지 확인합니다.", "", "### T3 Code · 1Code에서", "", "두 도구는 내 PC에 설치된 Codex·Claude Code를 대신 실행해 주는 화면입니다. 위처럼 파일을 프로젝트 폴더에 넣은 뒤 그 폴더를 프로젝트로 열면 됩니다.", "채팅마다 별도의 git 작업 폴더(worktree)를 만드는 도구에서는, **`.codex`와 `.claude` 폴더를 git에 커밋해 두어야** 에이전트가 보입니다.", "", "### 첫 프롬프트 예시", "", "```text", starterPrompt(recipe), "```", "");
 	if (recipe.howToRun) out.push("만든 사람의 실행 팁:", "", `> ${recipe.howToRun.replace(/\r?\n/g, "\n> ")}`, "");
 	out.push("## 알아 둘 점", "", "- **Codex의 읽기 전용:** Codex는 에이전트 파일만으로는 읽기 전용을 강제할 수 없습니다(서브에이전트는 메인 세션의 권한을 물려받음). 그래서 읽기 전용 에이전트의 지시문 끝에 \"수정하지 마라\"는 문장을 넣어 두었습니다. 확실히 막으려면 `codex --sandbox read-only`로 실행하세요.", "- **Claude Code의 읽기 전용:** `tools` 목록을 읽기 도구(Read, Grep, Glob)로 제한해 두었습니다.", "- **검토 결과는 주장입니다:** 다른 모델의 지적도 틀릴 수 있습니다. 작성자가 확인한 뒤 맞는 것만 반영하세요.", "- **다시 고치려면:** `recipe.json`을 teamcook 사이트에서 불러오면 이 팀을 그대로 편집할 수 있습니다.", "");
 	return out.join("\n");
@@ -17776,7 +17860,7 @@ var MAX_CARDS = 30;
 var MAX_HANDOFFS = 100;
 var MAX_SHORT = 300;
 var MAX_LONG = 2e4;
-function isObject(value) {
+function isObject$2(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function text(value, max, fallback = "") {
@@ -17798,7 +17882,7 @@ function parseDeliverables(value) {
 	const used = /* @__PURE__ */ new Set();
 	const list = [];
 	for (const item of value.slice(0, MAX_ITEMS)) {
-		if (!isObject(item)) continue;
+		if (!isObject$2(item)) continue;
 		const name = text(item.name, MAX_SHORT);
 		if (name.trim() === "") continue;
 		let id = text(item.id, MAX_SHORT);
@@ -17819,7 +17903,7 @@ function parseVerification(value) {
 	const used = /* @__PURE__ */ new Set();
 	const list = [];
 	for (const item of value.slice(0, MAX_ITEMS)) {
-		if (!isObject(item)) continue;
+		if (!isObject$2(item)) continue;
 		if (typeof item.checkedAt !== "string" || !DATE_PATTERN.test(item.checkedAt)) continue;
 		let id = text(item.id, MAX_SHORT);
 		if (!id || used.has(id)) id = newId("check");
@@ -17850,16 +17934,16 @@ function wholeNumber(value, fallback, min, max) {
 	return Math.min(max, Math.max(min, Math.round(value)));
 }
 function parseExtra(value) {
-	if (!isObject(value)) return void 0;
+	if (!isObject$2(value)) return void 0;
 	const extra = {};
-	if (isObject(value.codex)) extra.codex = value.codex;
-	if (isObject(value.claude)) extra.claude = value.claude;
-	if (isObject(value.antigravity)) extra.antigravity = value.antigravity;
-	if (isObject(value.grok)) extra.grok = value.grok;
+	if (isObject$2(value.codex)) extra.codex = value.codex;
+	if (isObject$2(value.claude)) extra.claude = value.claude;
+	if (isObject$2(value.antigravity)) extra.antigravity = value.antigravity;
+	if (isObject$2(value.grok)) extra.grok = value.grok;
 	return Object.keys(extra).length > 0 ? extra : void 0;
 }
 function parseCard(value, usedIds) {
-	if (!isObject(value)) return null;
+	if (!isObject$2(value)) return null;
 	const name = text(value.name, MAX_SHORT).trim();
 	if (!name) return null;
 	let id = text(value.id, MAX_SHORT);
@@ -17901,7 +17985,7 @@ function parseCard(value, usedIds) {
 * - 더 새로운 버전은 읽지 않고 거절한다 (모르는 항목을 조용히 버리지 않으려고).
 */
 function parseRecipe(raw) {
-	if (!isObject(raw)) throw new RecipeFormatError("레시피 데이터가 아니에요.");
+	if (!isObject$2(raw)) throw new RecipeFormatError("레시피 데이터가 아니에요.");
 	const version = raw.schemaVersion;
 	if (typeof version !== "number") throw new RecipeFormatError("레시피 형식 버전(schemaVersion)이 없어요.");
 	if (version > 2) throw new RecipeFormatError("이 레시피는 더 새로운 버전에서 만들어졌어요. 페이지를 새로고침한 뒤 다시 열어 보세요.");
@@ -17911,7 +17995,7 @@ function parseRecipe(raw) {
 	const cards = raw.cards.slice(0, MAX_CARDS).map((item) => parseCard(item, usedIds)).filter((card) => card !== null);
 	const handoffs = [];
 	if (Array.isArray(raw.handoffs)) for (const item of raw.handoffs.slice(0, MAX_HANDOFFS)) {
-		if (!isObject(item)) continue;
+		if (!isObject$2(item)) continue;
 		const from = text(item.from, MAX_SHORT);
 		const to = text(item.to, MAX_SHORT);
 		if (!usedIds.has(from) || !usedIds.has(to)) continue;
@@ -17926,7 +18010,7 @@ function parseRecipe(raw) {
 		if (deliverableIds) handoff.deliverableIds = deliverableIds;
 		handoffs.push(handoff);
 	}
-	const settings = isObject(raw.settings) ? raw.settings : {};
+	const settings = isObject$2(raw.settings) ? raw.settings : {};
 	const recipe = {
 		schemaVersion: 2,
 		id: text(raw.id, MAX_SHORT) || newId("recipe"),
@@ -18062,6 +18146,614 @@ function planInstall(link, options = {}) {
 		ok: true,
 		recipe,
 		files
+	};
+}
+// src/lib/journal/claude.ts
+var AGENT_TOOLS = /* @__PURE__ */ new Set(["Agent", "Task"]);
+/** 파일을 고치는 도구. 셸 명령(Bash)으로 바꾼 파일은 기록만으로는 알 수 없어 세지 않는다. */
+var EDIT_TOOLS = /* @__PURE__ */ new Set([
+	"Edit",
+	"Write",
+	"MultiEdit",
+	"NotebookEdit"
+]);
+var isObject$1 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var str$1 = (value) => typeof value === "string" ? value : void 0;
+var num = (value) => typeof value === "number" && Number.isFinite(value) ? value : void 0;
+/** content가 문자열이거나 [{type:'text', text}] 배열일 때 글만 모은다 */
+function textOf(content) {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content.map((block) => isObject$1(block) && block.type === "text" ? str$1(block.text) ?? "" : "").filter(Boolean).join("\n");
+}
+/** 사용자가 직접 친 말인지 (도구 결과, 시스템이 끼워 넣은 글이 아닌지) */
+function isHumanPrompt(text) {
+	const trimmed = text.trim();
+	return trimmed !== "" && !trimmed.startsWith("<") && !trimmed.startsWith("[Request interrupted");
+}
+/** 도구 호출이 파일을 고치는 것이면 그 경로를 돌려준다 */
+function editedPath(block) {
+	const name = str$1(block.name) ?? "";
+	if (!EDIT_TOOLS.has(name) || !isObject$1(block.input)) return void 0;
+	return str$1(block.input.file_path) ?? str$1(block.input.notebook_path);
+}
+var ClaudeSessionBuilder = class {
+	session;
+	byToolUse = /* @__PURE__ */ new Map();
+	lite;
+	turns = 0;
+	prompts = [];
+	toolCounts = {};
+	edits = {};
+	/** 같은 도구 호출이 스트리밍으로 여러 줄에 반복돼도 한 번만 센다 */
+	seenToolUse = /* @__PURE__ */ new Set();
+	/** 메시지 id → 출력 토큰. 같은 메시지가 여러 줄에 반복되므로 id마다 한 번만 센다 */
+	outputByMessage = /* @__PURE__ */ new Map();
+	/** lite일 때 이어하기 복사본을 걸러내려고 항목마다 키를 남긴다 */
+	items = {
+		prompts: [],
+		tools: []
+	};
+	constructor(id, options = {}) {
+		this.lite = options.lite === true;
+		this.session = {
+			tool: "claude-code",
+			id,
+			firstPrompt: "",
+			delegations: [],
+			skippedLines: 0
+		};
+	}
+	clip(text) {
+		return this.lite && text.length > 400 ? `${text.slice(0, 400)}…` : text;
+	}
+	/** 사용자가 직접 친 말 하나를 센다 */
+	human(text, at) {
+		const trimmed = text.trim();
+		this.turns += 1;
+		if (this.lite) this.items.prompts.push({
+			key: `${at ?? ""}|${trimmed.slice(0, 80)}`,
+			text: trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed,
+			...at ? { at } : {}
+		});
+		if (this.prompts.length < 5) this.prompts.push(trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed);
+		if (!this.session.firstPrompt) this.session.firstPrompt = this.clip(trimmed);
+	}
+	addLine(line) {
+		if (!line.includes("\"type\":\"assistant\"") && !line.includes("\"type\":\"user\"")) return;
+		let entry;
+		try {
+			entry = JSON.parse(line);
+		} catch {
+			this.session.skippedLines += 1;
+			return;
+		}
+		if (!isObject$1(entry) || entry.isSidechain === true) return;
+		const message = isObject$1(entry.message) ? entry.message : null;
+		if (!message) return;
+		const at = str$1(entry.timestamp);
+		if (at) {
+			this.session.startedAt ??= at;
+			this.session.endedAt = at;
+		}
+		this.session.cwd ??= str$1(entry.cwd);
+		const blocks = Array.isArray(message.content) ? message.content.filter(isObject$1) : [];
+		if (entry.type === "assistant") {
+			const said = textOf(message.content);
+			if (said.trim()) this.session.finalAnswer = this.clip(said);
+			const messageId = str$1(message.id);
+			const usage = isObject$1(message.usage) ? num(message.usage.output_tokens) : void 0;
+			if (messageId && usage !== void 0) this.outputByMessage.set(messageId, Math.max(usage, this.outputByMessage.get(messageId) ?? 0));
+			for (const block of blocks) {
+				if (block.type !== "tool_use") continue;
+				const toolId = str$1(block.id);
+				const name = str$1(block.name) ?? "";
+				if (name && toolId && !this.seenToolUse.has(toolId)) {
+					this.seenToolUse.add(toolId);
+					this.toolCounts[name] = (this.toolCounts[name] ?? 0) + 1;
+					const edited = editedPath(block);
+					if (edited) this.edits[edited] = (this.edits[edited] ?? 0) + 1;
+					if (this.lite) this.items.tools.push({
+						id: toolId,
+						name,
+						...at ? { at } : {},
+						...edited ? { edit: edited } : {}
+					});
+				}
+				if (!AGENT_TOOLS.has(name)) continue;
+				const input = isObject$1(block.input) ? block.input : {};
+				const id = str$1(block.id);
+				if (!id || this.byToolUse.has(id)) continue;
+				const delegation = {
+					id,
+					role: str$1(input.subagent_type) || "general-purpose",
+					instruction: this.clip(str$1(input.prompt) ?? ""),
+					status: "unknown"
+				};
+				const title = str$1(input.description);
+				if (title) delegation.title = title;
+				if (at) delegation.startedAt = at;
+				this.byToolUse.set(id, delegation);
+				this.session.delegations.push(delegation);
+			}
+			return;
+		}
+		if (entry.type === "user") {
+			if (typeof message.content === "string") {
+				if (entry.isMeta !== true && isHumanPrompt(message.content)) this.human(message.content, at);
+				return;
+			}
+			let counted = false;
+			for (const block of blocks) {
+				if (block.type === "text" && !counted && entry.isMeta !== true && isHumanPrompt(str$1(block.text) ?? "")) {
+					counted = true;
+					this.human(str$1(block.text) ?? "", at);
+				}
+				if (block.type !== "tool_result") continue;
+				const delegation = this.byToolUse.get(str$1(block.tool_use_id) ?? "");
+				if (!delegation) continue;
+				const detail = isObject$1(entry.toolUseResult) ? entry.toolUseResult : {};
+				delegation.result = this.clip(textOf(detail.content) || textOf(block.content));
+				delegation.status = block.is_error === true || detail.status === "failed" ? "failed" : "done";
+				const tokens = num(detail.totalTokens);
+				if (tokens !== void 0) delegation.tokens = tokens;
+				const duration = num(detail.totalDurationMs);
+				if (duration !== void 0) delegation.durationMs = duration;
+				const tools = num(detail.totalToolUseCount);
+				if (tools !== void 0) delegation.toolCount = tools;
+				const agentId = str$1(detail.agentId);
+				if (agentId) delegation.agentId = agentId;
+			}
+		}
+	}
+	result() {
+		const activity = {
+			turns: this.turns,
+			prompts: this.prompts,
+			toolCounts: this.toolCounts,
+			edits: this.edits
+		};
+		if (this.outputByMessage.size > 0) activity.outputTokens = [...this.outputByMessage.values()].reduce((sum, value) => sum + value, 0);
+		if (this.lite) activity.items = {
+			prompts: this.items.prompts,
+			tools: this.items.tools,
+			outputs: Object.fromEntries(this.outputByMessage)
+		};
+		this.session.activity = activity;
+		return this.session;
+	}
+};
+/** 서브에이전트 기록 파일(agent-<id>.jsonl)에서 그 팀원이 고친 파일(경로 → 횟수)을 모은다. 한 줄씩 넣는다. */
+var ClaudeAgentEditsBuilder = class {
+	edits = {};
+	seen = /* @__PURE__ */ new Set();
+	addLine(line) {
+		if (!line.includes("\"tool_use\"") || !line.includes("\"type\":\"assistant\"")) return;
+		let entry;
+		try {
+			entry = JSON.parse(line);
+		} catch {
+			return;
+		}
+		if (!isObject$1(entry) || !isObject$1(entry.message) || !Array.isArray(entry.message.content)) return;
+		for (const block of entry.message.content.filter(isObject$1)) {
+			if (block.type !== "tool_use") continue;
+			const id = str$1(block.id);
+			if (id) {
+				if (this.seen.has(id)) continue;
+				this.seen.add(id);
+			}
+			const path = editedPath(block);
+			if (path) this.edits[path] = (this.edits[path] ?? 0) + 1;
+		}
+	}
+	result() {
+		return this.edits;
+	}
+};
+/** 프로젝트 폴더 경로에서 Claude Code가 쓰는 기록 폴더 이름을 만든다. 예: 'c:\\claude-MCP' → 'c--claude-MCP' */
+function claudeProjectSlug(cwd) {
+	return cwd.replace(/[^a-zA-Z0-9]/g, "-");
+}
+// src/lib/journal/codex.ts
+var isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var str = (value) => typeof value === "string" ? value : void 0;
+function contentText(content) {
+	if (!Array.isArray(content)) return "";
+	return content.map((block) => isObject(block) ? str(block.text) ?? "" : "").filter(Boolean).join("\n");
+}
+/** 도구가 끼워 넣은 글(환경 정보 등)이 아니라 사람이 한 말로 보이는지 */
+var looksHuman = (text) => {
+	const trimmed = text.trim();
+	return trimmed !== "" && !trimmed.startsWith("<") && !trimmed.startsWith("# AGENTS.md instructions");
+};
+var CodexRolloutBuilder = class {
+	rollout = {
+		id: "",
+		userMessages: [],
+		assistantMessages: [],
+		agentMessages: [],
+		skippedLines: 0,
+		userCount: 0,
+		toolCounts: {},
+		edits: {}
+	};
+	/** 이 번호부터가 이 스레드 자신의 기록 (앞은 부모에게서 복사된 것) */
+	ownFrom = 0;
+	lite;
+	constructor(options = {}) {
+		this.lite = options.lite === true;
+	}
+	clip(text) {
+		return this.lite && text.length > 400 ? `${text.slice(0, 400)}…` : text;
+	}
+	addLine(line) {
+		if (!line.includes("\"FileChange\"") && !line.includes("\"session_meta\"") && !line.includes("\"response_item\"") && !line.includes("\"token_count\"")) return;
+		let entry;
+		try {
+			entry = JSON.parse(line);
+		} catch {
+			this.rollout.skippedLines += 1;
+			return;
+		}
+		if (!isObject(entry) || !isObject(entry.payload)) return;
+		const payload = entry.payload;
+		const at = str(entry.timestamp);
+		if (at) {
+			this.rollout.startedAt ??= at;
+			this.rollout.endedAt = at;
+		}
+		if (entry.type === "session_meta") {
+			if (this.rollout.id) return;
+			this.rollout.id = str(payload.id) ?? str(payload.session_id) ?? "";
+			const parent = str(payload.parent_thread_id);
+			if (parent) this.rollout.parentId = parent;
+			const role = str(payload.agent_role);
+			if (role) this.rollout.role = role;
+			const nickname = str(payload.agent_nickname);
+			if (nickname) this.rollout.nickname = nickname;
+			const cwd = str(payload.cwd);
+			if (cwd) this.rollout.cwd = cwd;
+			const source = str(payload.thread_source);
+			if (source) this.rollout.threadSource = source;
+			const start = payload.subagent_history_start_ordinal;
+			if (typeof start === "number") this.ownFrom = start;
+			return;
+		}
+		if (typeof entry.ordinal === "number" && entry.ordinal < this.ownFrom) return;
+		if (entry.type === "event_msg" && payload.type === "item_completed") {
+			const item = isObject(payload.item) ? payload.item : null;
+			if (item?.type === "FileChange" && item.status === "completed" && isObject(item.changes)) for (const file of Object.keys(item.changes)) this.rollout.edits[file] = (this.rollout.edits[file] ?? 0) + 1;
+			return;
+		}
+		if (entry.type === "response_item" && (payload.type === "custom_tool_call" || payload.type === "function_call")) {
+			const name = str(payload.name);
+			if (name) this.rollout.toolCounts[name] = (this.rollout.toolCounts[name] ?? 0) + 1;
+			return;
+		}
+		if (entry.type === "response_item" && payload.type === "agent_message") {
+			const text = contentText(payload.content);
+			if (text.trim() && !(this.lite && this.rollout.agentMessages.length > 0)) this.rollout.agentMessages.push({
+				author: str(payload.author) ?? "",
+				recipient: str(payload.recipient) ?? "",
+				text: this.clip(text.trim()),
+				...at ? { at } : {}
+			});
+			return;
+		}
+		if (entry.type === "response_item" && payload.type === "message") {
+			const text = contentText(payload.content);
+			if (payload.role === "user" && looksHuman(text)) {
+				this.rollout.userCount += 1;
+				if (!this.lite || this.rollout.userMessages.length < 5) this.rollout.userMessages.push(this.clip(text.trim()));
+			}
+			if (payload.role === "assistant" && text.trim()) {
+				if (this.lite) this.rollout.assistantMessages = [this.clip(text.trim())];
+				else this.rollout.assistantMessages.push(text.trim());
+			}
+			return;
+		}
+		if (entry.type === "event_msg" && payload.type === "token_count" && isObject(payload.info)) {
+			const total = isObject(payload.info.total_token_usage) ? payload.info.total_token_usage.total_tokens : void 0;
+			if (typeof total === "number" && Number.isFinite(total)) this.rollout.totalTokens = total;
+		}
+	}
+	result() {
+		return this.rollout;
+	}
+};
+var duration = (rollout) => {
+	if (!rollout.startedAt || !rollout.endedAt) return void 0;
+	const ms = Date.parse(rollout.endedAt) - Date.parse(rollout.startedAt);
+	return Number.isFinite(ms) && ms >= 0 ? ms : void 0;
+};
+/**
+* 기록 파일 여러 개를 세션으로 묶는다: 부모가 없는 것이 세션이고, parent_thread_id가 가리키는 것이 맡긴 일이다.
+* 팀원이 또 다른 팀원에게 맡긴 일도 따라가 모두 이 세션의 맡긴 일로 담고, 누가 맡겼는지(parentId)를 적는다.
+* 부모 기록이 목록에 없는 서브에이전트 기록은 버리지 않고 '부모 기록 없음' 세션으로 따로 보여 준다.
+*/
+function buildCodexSessions(rollouts) {
+	const usable = rollouts.filter((rollout) => rollout.id && !(rollout.parentId && rollout.threadSource && rollout.threadSource !== "subagent"));
+	const ids = new Set(usable.map((rollout) => rollout.id));
+	const toDelegation = (child, parentId) => {
+		const delegation = {
+			id: child.id,
+			role: child.role ?? "기본 에이전트",
+			instruction: child.agentMessages[0]?.text ?? "",
+			status: child.assistantMessages.length > 0 ? "done" : "unknown",
+			agentId: child.id,
+			edited: { ...child.edits }
+		};
+		if (parentId) delegation.parentId = parentId;
+		if (child.nickname) delegation.title = child.nickname;
+		const result = child.assistantMessages[child.assistantMessages.length - 1];
+		if (result) delegation.result = result;
+		if (child.startedAt) delegation.startedAt = child.startedAt;
+		const ms = duration(child);
+		if (ms !== void 0) delegation.durationMs = ms;
+		if (child.totalTokens !== void 0) delegation.tokens = child.totalTokens;
+		return delegation;
+	};
+	/** 이 스레드가 맡긴 일을 시간순으로, 그 일이 또 맡긴 일은 바로 아래에 담는다 */
+	const collect = (rootId, parentDelegationId, seen) => {
+		const out = [];
+		const children = usable.filter((child) => child.parentId === rootId && !seen.has(child.id)).sort((a, b) => (a.startedAt ?? "").localeCompare(b.startedAt ?? ""));
+		for (const child of children) {
+			seen.add(child.id);
+			out.push(toDelegation(child, parentDelegationId), ...collect(child.id, child.id, seen));
+		}
+		return out;
+	};
+	const sessions = [];
+	for (const rollout of usable) {
+		if (rollout.parentId && ids.has(rollout.parentId)) continue;
+		const orphan = Boolean(rollout.parentId);
+		const seen = /* @__PURE__ */ new Set([rollout.id]);
+		const session = {
+			tool: "codex-cli",
+			id: rollout.id,
+			firstPrompt: orphan ? `(부모 기록 없음) ${rollout.role ?? ""} ${rollout.agentMessages[0]?.text ?? ""}`.trim() : rollout.userMessages[0] ?? "",
+			delegations: orphan ? [toDelegation(rollout), ...collect(rollout.id, rollout.id, seen)] : collect(rollout.id, void 0, seen),
+			skippedLines: rollout.skippedLines,
+			activity: {
+				turns: orphan ? 0 : rollout.userCount,
+				prompts: orphan ? [] : rollout.userMessages.slice(0, 5).map((text) => text.length > 200 ? `${text.slice(0, 200)}…` : text),
+				toolCounts: orphan ? {} : rollout.toolCounts,
+				edits: orphan ? {} : rollout.edits,
+				...rollout.totalTokens !== void 0 ? { totalTokens: rollout.totalTokens } : {}
+			}
+		};
+		if (rollout.startedAt) session.startedAt = rollout.startedAt;
+		if (rollout.endedAt) session.endedAt = rollout.endedAt;
+		if (rollout.cwd) session.cwd = rollout.cwd;
+		const final = rollout.assistantMessages[rollout.assistantMessages.length - 1];
+		if (final && !orphan) session.finalAnswer = final;
+		sessions.push(session);
+	}
+	return sessions.sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
+}
+// src/lib/journal/types.ts
+function summarizeRoles(session) {
+	const map = /* @__PURE__ */ new Map();
+	for (const item of session.delegations) {
+		const row = map.get(item.role) ?? {
+			role: item.role,
+			count: 0,
+			tokens: 0,
+			durationMs: 0
+		};
+		row.count += 1;
+		row.tokens = row.tokens === null || item.tokens === void 0 ? null : row.tokens + item.tokens;
+		row.durationMs = row.durationMs === null || item.durationMs === void 0 ? null : row.durationMs + item.durationMs;
+		map.set(item.role, row);
+	}
+	return [...map.values()];
+}
+// src/lib/journal/activity.ts
+var normalize = (value) => value.replace(/\\/g, "/").replace(/\/+$/, "");
+/** 프로젝트 안의 파일이면 프로젝트 기준 상대 경로로, 밖이면 슬래시만 맞춘 전체 경로로 */
+function relativeToProject(file, projectPath) {
+	const target = normalize(file);
+	const base = normalize(projectPath);
+	if (base && target.toLowerCase().startsWith(`${base.toLowerCase()}/`)) return target.slice(base.length + 1);
+	return target;
+}
+var squash = (text) => text.replace(/\s+/g, " ").trim();
+var clip = (text, max) => text.length > max ? `${text.slice(0, max)}…` : text;
+/** 대화 제목: 처음 말 가운데 너무 짧지 않은(= "계속해", "응" 같지 않은) 첫 것. 없으면 첫 말. */
+function pickTitle(prompts, fallback = "") {
+	const cleaned = prompts.map(squash).filter(Boolean);
+	return clip(cleaned.find((text) => text.length >= 8) ?? cleaned[0] ?? squash(fallback), 100);
+}
+function addCounts(into, record, project) {
+	for (const [file, count] of Object.entries(record ?? {})) {
+		const key = relativeToProject(file, project);
+		into.set(key, (into.get(key) ?? 0) + count);
+	}
+}
+var sumValues = (record) => Object.values(record ?? {}).reduce((sum, value) => sum + value, 0);
+var startOf = (session) => session.startedAt ?? session.endedAt ?? "";
+/**
+* Claude Code의 이어하기(resume)로 앞 대화의 줄이 새 대화 파일에 복사되면, 같은 일이 여러 대화에 들어 있어 그대로 더하면 몇 배로 부풀려진다.
+* (이 컴퓨터의 실제 기록에서 파일 고침의 82%가 다른 파일과 겹쳤다.) 항목마다 키(메시지·도구 id, 보낸 시각+글)가 복사본에서도 같아서,
+* 대화를 '오래된 것부터' 받아 먼저 만든 대화에 한 번만 귀속시키고 뒤 대화에서는 뺀다.
+* 새로 한 일이 하나도 없는(복사만 된) 대화는 목록에서 뺀다. items가 없는 대화(Codex 등)는 그대로 둔다.
+* 한계: 오래된 원본이 읽는 범위 밖이면 복사본이 원본 몫까지 가진다.
+*/
+function dedupeSessions(ordered) {
+	const seenPrompts = /* @__PURE__ */ new Set();
+	const seenTools = /* @__PURE__ */ new Set();
+	const seenMessages = /* @__PURE__ */ new Set();
+	const seenDelegations = /* @__PURE__ */ new Set();
+	const out = [];
+	for (const session of ordered) {
+		const items = session.activity?.items;
+		if (!items) {
+			out.push(session);
+			continue;
+		}
+		const prompts = items.prompts.filter((item) => !seenPrompts.has(item.key));
+		const tools = items.tools.filter((item) => !seenTools.has(item.id));
+		const outputs = Object.entries(items.outputs).filter(([id]) => !seenMessages.has(id));
+		const delegations = session.delegations.filter((item) => !seenDelegations.has(item.id));
+		for (const item of items.prompts) seenPrompts.add(item.key);
+		for (const item of items.tools) seenTools.add(item.id);
+		for (const id of Object.keys(items.outputs)) seenMessages.add(id);
+		for (const item of session.delegations) seenDelegations.add(item.id);
+		if (prompts.length === 0 && tools.length === 0 && outputs.length === 0 && delegations.length === 0) continue;
+		const toolCounts = {};
+		const edits = {};
+		for (const tool of tools) {
+			toolCounts[tool.name] = (toolCounts[tool.name] ?? 0) + 1;
+			if (tool.edit) edits[tool.edit] = (edits[tool.edit] ?? 0) + 1;
+		}
+		const times = [
+			...prompts.map((item) => item.at),
+			...tools.map((item) => item.at),
+			...delegations.map((item) => item.startedAt)
+		].filter((at) => Boolean(at));
+		const startedAt = times.length > 0 ? times.reduce((min, at) => at < min ? at : min) : session.startedAt;
+		const activity = {
+			turns: prompts.length,
+			prompts: prompts.slice(0, 5).map((item) => item.text),
+			toolCounts,
+			edits
+		};
+		if (outputs.length > 0) activity.outputTokens = outputs.reduce((sum, [, tokens]) => sum + tokens, 0);
+		out.push({
+			...session,
+			...startedAt ? { startedAt } : {},
+			firstPrompt: prompts[0]?.text ?? "",
+			delegations,
+			activity
+		});
+	}
+	return out;
+}
+function buildActivitySummary(sessions, project, options = {}) {
+	const ordered = [...sessions].sort((a, b) => startOf(b).localeCompare(startOf(a)));
+	const fileTotals = /* @__PURE__ */ new Map();
+	const roleTotals = /* @__PURE__ */ new Map();
+	const roleEdits = [];
+	const rows = [];
+	const totals = {
+		sessions: ordered.length,
+		claude: 0,
+		codex: 0,
+		turns: 0,
+		editCount: 0,
+		editedFiles: 0,
+		claudeOutputTokens: 0,
+		codexTokens: 0
+	};
+	let unchecked = 0;
+	for (const session of ordered) {
+		if (session.tool === "claude-code") totals.claude += 1;
+		else totals.codex += 1;
+		const activity = session.activity;
+		const perSession = /* @__PURE__ */ new Map();
+		addCounts(perSession, activity?.edits, project.path);
+		for (const delegation of session.delegations) if (delegation.edited === void 0) unchecked += 1;
+		else {
+			addCounts(perSession, delegation.edited, project.path);
+			const files = Object.keys(delegation.edited).map((file) => relativeToProject(file, project.path));
+			if (files.length > 0) roleEdits.push({
+				role: delegation.role,
+				tool: session.tool,
+				sessionId: session.id,
+				...delegation.startedAt ? { at: delegation.startedAt } : {},
+				files
+			});
+		}
+		for (const [file, count] of perSession) {
+			const row = fileTotals.get(file) ?? {
+				edits: 0,
+				sessions: 0
+			};
+			row.edits += count;
+			row.sessions += 1;
+			fileTotals.set(file, row);
+		}
+		const editCount = [...perSession.values()].reduce((sum, value) => sum + value, 0);
+		totals.turns += activity?.turns ?? 0;
+		totals.editCount += editCount;
+		const at = startOf(session);
+		if (at) {
+			if (!totals.firstAt || at < totals.firstAt) totals.firstAt = at;
+			const end = session.endedAt ?? at;
+			if (!totals.lastAt || end > totals.lastAt) totals.lastAt = end;
+		}
+		for (const row of summarizeRoles(session)) {
+			const sum = roleTotals.get(row.role) ?? {
+				count: 0,
+				tokens: 0,
+				durationMs: 0,
+				files: /* @__PURE__ */ new Set(),
+				unknown: false
+			};
+			sum.count += row.count;
+			sum.tokens = sum.tokens === null || row.tokens === null ? null : sum.tokens + row.tokens;
+			sum.durationMs = sum.durationMs === null || row.durationMs === null ? null : sum.durationMs + row.durationMs;
+			roleTotals.set(row.role, sum);
+		}
+		for (const delegation of session.delegations) {
+			const sum = roleTotals.get(delegation.role);
+			if (!sum) continue;
+			if (delegation.edited === void 0) sum.unknown = true;
+			else for (const file of Object.keys(delegation.edited)) sum.files.add(relativeToProject(file, project.path));
+		}
+		let tokens;
+		if (activity?.outputTokens !== void 0) {
+			tokens = {
+				kind: "output",
+				value: activity.outputTokens
+			};
+			totals.claudeOutputTokens += activity.outputTokens;
+		} else if (activity?.totalTokens !== void 0) {
+			tokens = {
+				kind: "total",
+				value: activity.totalTokens
+			};
+			totals.codexTokens += activity.totalTokens;
+		}
+		const final = session.finalAnswer ? squash(session.finalAnswer) : "";
+		rows.push({
+			tool: session.tool,
+			id: session.id,
+			title: pickTitle(activity?.prompts ?? [], session.firstPrompt),
+			...session.startedAt ? { startedAt: session.startedAt } : {},
+			...session.endedAt ? { endedAt: session.endedAt } : {},
+			turns: activity?.turns ?? 0,
+			delegations: session.delegations.length,
+			toolCalls: sumValues(activity?.toolCounts),
+			editCount,
+			editedFiles: perSession.size,
+			topFiles: [...perSession.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([file]) => file),
+			...tokens ? { tokens } : {},
+			...final ? { finalAnswer: clip(final, 200) } : {}
+		});
+	}
+	totals.editedFiles = fileTotals.size;
+	return {
+		generatedAt: options.now ?? (/* @__PURE__ */ new Date()).toISOString(),
+		project,
+		totals,
+		sessions: rows.slice(0, options.limit ?? 40),
+		topFiles: [...fileTotals.entries()].map(([path, row]) => ({
+			path,
+			...row
+		})).sort((a, b) => b.edits - a.edits || b.sessions - a.sessions || a.path.localeCompare(b.path)).slice(0, 12),
+		roles: [...roleTotals.entries()].map(([role, row]) => ({
+			role,
+			count: row.count,
+			tokens: row.tokens,
+			durationMs: row.durationMs,
+			editedFiles: row.unknown ? null : row.files.size
+		})).sort((a, b) => b.count - a.count || a.role.localeCompare(b.role)),
+		roleEdits,
+		uncheckedDelegations: unchecked,
+		notes: options.notes ?? [],
+		...options.tookMs !== void 0 ? { tookMs: options.tookMs } : {}
 	};
 }
 // src/cli/local/discover.ts
@@ -18204,6 +18896,237 @@ async function discoverProjects(claudeProjects, codexSessions, options = {}) {
 	}
 	return list;
 }
+// src/cli/local/activity.ts
+/** 읽은 결과를 파일의 크기·수정 시각이 같은 동안 기억해 둔다 (메모리에만) */
+var ActivityCache = class {
+	claude = /* @__PURE__ */ new Map();
+	subagent = /* @__PURE__ */ new Map();
+	codexMeta = /* @__PURE__ */ new Map();
+	codexRollout = /* @__PURE__ */ new Map();
+};
+var SAFE_ID = /^[A-Za-z0-9_-]{1,120}$/;
+var stampOf = (info) => `${info.size}:${info.mtimeMs}`;
+var norm = (value) => value.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+async function eachLine(file, onLine) {
+	const stream = openLogStream(file);
+	const lines = createInterface({
+		input: stream,
+		crlfDelay: Infinity
+	});
+	try {
+		for await (const line of lines) if (line) onLine(line);
+	} finally {
+		lines.close();
+		stream.destroy();
+	}
+}
+async function safeStat(file) {
+	try {
+		const info = await stat(file);
+		return info.isFile() ? info : null;
+	} catch {
+		return null;
+	}
+}
+async function safeDir(dir) {
+	try {
+		return await readdir(dir, { withFileTypes: true });
+	} catch {
+		return [];
+	}
+}
+async function readClaude(options, deadline, notes) {
+	const { project, claudeProjects, cache } = options;
+	const wanted = claudeProjectSlug(project.path.replace(/[\\/]+$/, "")).toLowerCase();
+	const dirs = (await safeDir(claudeProjects)).filter((entry) => entry.isDirectory() && entry.name.toLowerCase() === wanted);
+	const files = [];
+	for (const dir of dirs) {
+		const full = path.join(claudeProjects, dir.name);
+		for (const entry of await safeDir(full)) {
+			if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue;
+			const info = await safeStat(path.join(full, entry.name));
+			if (info) files.push({
+				dir: full,
+				name: entry.name,
+				file: path.join(full, entry.name),
+				mtime: info.mtimeMs,
+				birth: info.birthtimeMs > 0 ? info.birthtimeMs : info.mtimeMs,
+				size: info.size
+			});
+		}
+	}
+	files.sort((a, b) => b.mtime - a.mtime);
+	const cap = options.maxPerTool ?? 80;
+	if (files.length > cap) notes.push(`Claude Code 대화 ${files.length}개 가운데 최근 ${cap}개만 읽었어요.`);
+	const sessions = [];
+	let late = 0;
+	const picked = files.slice(0, cap).sort((a, b) => a.birth - b.birth || a.mtime - b.mtime || a.name.localeCompare(b.name));
+	for (const item of picked) {
+		const stamp = `${item.size}:${item.mtime}`;
+		const id = item.name.replace(/\.jsonl$/, "");
+		let session = cache.claude.get(item.file)?.stamp === stamp ? cache.claude.get(item.file).value : void 0;
+		if (!session) {
+			if (Date.now() > deadline) {
+				late += 1;
+				continue;
+			}
+			try {
+				const builder = new ClaudeSessionBuilder(id, { lite: true });
+				await eachLine(item.file, (line) => builder.addLine(line));
+				session = builder.result();
+				cache.claude.set(item.file, {
+					stamp,
+					value: session
+				});
+			} catch {
+				notes.push(`Claude Code 기록 하나를 읽지 못해 건너뛰었어요 (읽는 중 지워졌을 수 있어요).`);
+				continue;
+			}
+		}
+		const delegations = [];
+		for (const delegation of session.delegations) {
+			const agentId = delegation.agentId;
+			if (!agentId || !SAFE_ID.test(agentId) || !SAFE_ID.test(id)) {
+				delegations.push(delegation);
+				continue;
+			}
+			const file = path.join(item.dir, id, "subagents", `agent-${agentId}.jsonl`);
+			const info = await safeStat(file);
+			if (!info) {
+				delegations.push(delegation);
+				continue;
+			}
+			const cached = cache.subagent.get(file);
+			let edited = cached?.stamp === stampOf(info) ? cached.value : void 0;
+			if (!edited) {
+				if (Date.now() > deadline) {
+					late += 1;
+					delegations.push(delegation);
+					continue;
+				}
+				try {
+					const builder = new ClaudeAgentEditsBuilder();
+					await eachLine(file, (line) => builder.addLine(line));
+					edited = builder.result();
+					cache.subagent.set(file, {
+						stamp: stampOf(info),
+						value: edited
+					});
+				} catch {
+					delegations.push(delegation);
+					continue;
+				}
+			}
+			delegations.push({
+				...delegation,
+				edited
+			});
+		}
+		sessions.push({
+			...session,
+			delegations
+		});
+	}
+	if (late > 0) notes.push("시간이 오래 걸려 일부 Claude Code 기록은 읽지 못했어요. 잠시 뒤 다시 열면 이어서 읽어요.");
+	const own = dedupeSessions(sessions);
+	if (own.length < sessions.length) notes.push(`Claude Code 기록 ${sessions.length}개 가운데 ${sessions.length - own.length}개는 이어하기로 앞 대화를 복사만 해서 새로 한 일이 없어 대화 수에서 뺐어요.`);
+	return own;
+}
+async function readCodex(options, deadline, notes) {
+	const { project, codexSessions, cache } = options;
+	const all = [];
+	await codexFiles(codexSessions, 3, all);
+	all.sort((a, b) => path.basename(b).localeCompare(path.basename(a)));
+	const candidateCap = options.codexCandidates ?? 400;
+	const canUnpack = zstdSupported();
+	const skippedZst = all.filter((file) => file.endsWith(".zst")).length;
+	const candidates = all.slice(0, candidateCap);
+	if (all.length > candidateCap) notes.push(`Codex는 최근 기록 ${candidateCap}개 안에서 이 폴더의 대화를 찾았어요 (전체 ${all.length}개).`);
+	if (!canUnpack && skippedZst > 0) notes.push(`Codex 압축 기록 ${skippedZst}개는 이 Node 버전(22.15 이상 필요)에서 풀 수 없어 읽지 못했어요.`);
+	const metas = /* @__PURE__ */ new Map();
+	let late = 0;
+	for (const file of candidates) {
+		const info = await safeStat(file);
+		if (!info) continue;
+		const cached = cache.codexMeta.get(file);
+		let meta = cached?.stamp === stampOf(info) ? cached.value : void 0;
+		if (meta === void 0) {
+			if (Date.now() > deadline) {
+				late += 1;
+				continue;
+			}
+			if (file.endsWith(".zst") && !canUnpack) continue;
+			meta = await firstMatch(file, 3, (line) => {
+				if (line.type !== "session_meta") return void 0;
+				const payload = line.payload ?? {};
+				return {
+					id: typeof payload.id === "string" ? payload.id : "",
+					cwd: typeof payload.cwd === "string" ? payload.cwd : "",
+					parentId: typeof payload.parent_thread_id === "string" ? payload.parent_thread_id : ""
+				};
+			}) ?? null;
+			cache.codexMeta.set(file, {
+				stamp: stampOf(info),
+				value: meta
+			});
+		}
+		if (meta?.id) metas.set(file, meta);
+	}
+	const mine = /* @__PURE__ */ new Set();
+	for (const meta of metas.values()) if (!meta.parentId && meta.cwd && norm(meta.cwd) === norm(project.path)) mine.add(meta.id);
+	for (let grew = true; grew;) {
+		grew = false;
+		for (const meta of metas.values()) if (meta.parentId && mine.has(meta.parentId) && !mine.has(meta.id)) {
+			mine.add(meta.id);
+			grew = true;
+		}
+	}
+	const chosen = [...metas.entries()].filter(([, meta]) => mine.has(meta.id)).map(([file]) => file);
+	const parsedCap = (options.maxPerTool ?? 80) * 3;
+	if (chosen.length > parsedCap) notes.push(`Codex 기록 ${chosen.length}개 가운데 최근 ${parsedCap}개만 읽었어요.`);
+	const rollouts = [];
+	for (const file of chosen.slice(0, parsedCap)) {
+		const info = await safeStat(file);
+		if (!info) continue;
+		const cached = cache.codexRollout.get(file);
+		let rollout = cached?.stamp === stampOf(info) ? cached.value : void 0;
+		if (!rollout) {
+			if (Date.now() > deadline) {
+				late += 1;
+				continue;
+			}
+			try {
+				const builder = new CodexRolloutBuilder({ lite: true });
+				await eachLine(file, (line) => builder.addLine(line));
+				rollout = builder.result();
+				cache.codexRollout.set(file, {
+					stamp: stampOf(info),
+					value: rollout
+				});
+			} catch {
+				notes.push("Codex 기록 하나를 읽지 못해 건너뛰었어요 (읽는 중 지워졌을 수 있어요).");
+				continue;
+			}
+		}
+		rollouts.push(rollout);
+	}
+	if (late > 0) notes.push("시간이 오래 걸려 일부 Codex 기록은 읽지 못했어요. 잠시 뒤 다시 열면 이어서 읽어요.");
+	return buildCodexSessions(rollouts);
+}
+/** 이 프로젝트에서 AI가 한 일을 두 도구의 기록에서 모아 요약한다 */
+async function readActivity(options) {
+	const started = Date.now();
+	const deadline = started + (options.budgetMs ?? 3e4);
+	const notes = [];
+	const claude = await readClaude(options, deadline, notes);
+	const codex = await readCodex(options, deadline, notes);
+	const skipped = [...claude, ...codex].reduce((sum, session) => sum + session.skippedLines, 0);
+	if (skipped > 0) notes.push(`읽지 못하고 건너뛴 줄이 ${skipped}개 있어요.`);
+	return buildActivitySummary([...claude, ...codex], options.project, {
+		notes,
+		tookMs: Date.now() - started
+	});
+}
 // src/cli/local/policy.ts
 var ROOT_IDS = [
 	"project",
@@ -18326,6 +19249,8 @@ async function startLocalServer(options) {
 	let project = null;
 	let port = options.port;
 	let recentCache = null;
+	const activityCache = new ActivityCache();
+	const activityRuns = /* @__PURE__ */ new Map();
 	const zstd = zstdSupported();
 	const baseOf = (root) => {
 		if (root === "claude-logs") return options.claudeProjects;
@@ -18462,6 +19387,21 @@ async function startLocalServer(options) {
 				list: await discoverProjects(options.claudeProjects, options.codexSessions)
 			};
 			return send(res, 200, recentCache.list);
+		}
+		if (route === "GET /api/activity") {
+			if (!project) throw new HttpError(409, "아직 연 프로젝트가 없어요.");
+			const current = project;
+			let run = activityRuns.get(current.path);
+			if (!run) {
+				run = readActivity({
+					project: current,
+					claudeProjects: options.claudeProjects,
+					codexSessions: options.codexSessions,
+					cache: activityCache
+				}).finally(() => activityRuns.delete(current.path));
+				activityRuns.set(current.path, run);
+			}
+			return send(res, 200, await run);
 		}
 		if (route === "POST /api/project") {
 			let wanted;
@@ -18674,7 +19614,8 @@ async function open(rest) {
 	else if (rest[i] === "--ui") uiDir = path.resolve(rest[i += 1] ?? ".");
 	if (!existsSync(path.join(uiDir, "index.html"))) {
 		console.error(`화면 파일을 찾지 못했어요: ${uiDir}
-저장소에서 먼저 npm run build 를 실행해 주세요.`);
+저장소에서 실행하는 중이라면 먼저 npm run build 를 실행해 주세요.
+npx로 실행했다면 받은 패키지가 온전하지 않을 수 있어요. npx teamcook@latest open 으로 다시 실행해 주세요.`);
 		return 1;
 	}
 	const claudeHome = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");

@@ -1,6 +1,6 @@
 // 작업실 소개 (#/workshop, 웹에서만): 이미 Claude Code·Codex로 팀을 돌리는 사람을 위한 '내 컴퓨터 도우미' 안내.
 // 작업실 자체는 teamcook open으로 내 컴퓨터에서 열린다. 웹에서는 설치 없이 맛보기(Chrome·Edge 폴더 열기)만 된다.
-// 지금은 시범이라 저장소에서 실행한다고 그대로 적는다 (배포 방법은 아직 정하지 않았다).
+// 여는 법은 npm에 올린 패키지를 npx로 실행하는 한 줄이다 (npm publish 뒤에 이 문구를 쓴다).
 
 import { OpenProjectPanel } from '@/pages/team/TeamPage';
 
@@ -41,12 +41,10 @@ export function WorkshopPage() {
       <section className="flex flex-col gap-3" aria-label="작업실 여는 법">
         <h2 className="text-2xl font-extrabold">여는 법</h2>
         <p className="text-sm text-muted-foreground">
-          지금은 시범이라 teamcook 저장소(fun5307/teamcook)를 받아 실행해요. Node.js가 필요해요(22.15 이상이면 Codex의 압축된 옛 기록도 읽어요).
+          터미널에서 한 줄이면 돼요. Node.js가 필요해요(20 이상, 22.15 이상이면 Codex의 압축된 옛 기록도 읽어요).
         </p>
         <pre className="overflow-x-auto rounded-xl bg-foreground p-4 font-mono text-sm leading-relaxed text-background">
-          {`npm install
-npm run build
-npm run open      # 브라우저가 열려요. 끝낼 때는 터미널에서 Ctrl+C`}
+          {`npx teamcook open      # 브라우저가 열려요. 끝낼 때는 터미널에서 Ctrl+C`}
         </pre>
         <p className="text-xs leading-relaxed text-muted-foreground">
           작업실은 이 컴퓨터 안에서만 열려요. 대화 기록은 ~/.claude/projects와 ~/.codex/sessions의 기록 파일만 읽기만 하고, 쓰는 곳은 고른
