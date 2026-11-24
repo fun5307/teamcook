@@ -70,7 +70,7 @@ src/
 │  └─ bridge.ts            # Claude Code → Codex 연결(codex exec)
 ├─ cli/                    # 설치 명령 (node teamcook.mjs add <링크>)과 내 컴퓨터 도우미 (node teamcook.mjs open, local/: 읽고 쓸 수 있는 곳 규칙 policy, 최근 프로젝트 찾기 discover, 이 컴퓨터 안에서만 열리는 server, activity = 기록을 읽어 활동 요약을 만드는 쪽). 빌드 결과는 루트의 cli/teamcook.mjs — 사용자가 이 파일을 GitHub에서 직접 받아 쓰므로 반드시 다시 빌드해 커밋
 ├─ store/                  # zustand + localStorage. useOrders = 주문('teamcook-orders', 저장 성공 시에만 화면 반영). useWorkspace = 연 폴더(손잡이는 IndexedDB에만 기억). useStore = 레시피·플랜('agent-recipes'), usePractice = 실습 기록('teamcook-practice', 저장 성공 시에만 화면 반영)
-├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등)
+├─ components/             # 공용 부품 (RouteInfo, RecipeOverview, FlowCanvas 등). RecipeTile = 레시피 카드 한 장(레시피 책은 링크로, 팀원 들이기는 고르는 버튼으로 같은 카드를 쓴다)
 │  └─ ui/                  # shadcn/ui 컴포넌트 (npx shadcn@latest add <이름>)
 └─ pages/                  # Home(웹 첫 화면 #/: "어떤 일을 맡길까요?" + 추천 상자), Workshop(작업실 소개 #/workshop, 웹에서만), team/(팀원 #/team·활동 #/activity·업무 일지 #/journal, 작업실의 중심이자 웹의 맛보기, LocalProjects = 작업실의 최근 프로젝트, ActivityTab = 이 폴더에서 AI가 한 일, StartGuide = 레시피를 들인 뒤 시작 안내), Gallery(레시피 책 #/recipes), RecipeEditor, MyPlans(내 AI), SharedRecipe, HowToRun, Concepts(재료 사전 #/learn), order/(숨김: 주문 시작 #/orders/new, 주문 #/order/<id>, 목록 #/orders), practice/(숨김: 실습 기록 #/runs)
 samples/codex/             # 사용자의 실제 Codex TOML (변환기 테스트용)

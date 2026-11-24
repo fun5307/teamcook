@@ -8,18 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/common';
 import { Reveal } from '@/components/Reveal';
-import { FitLabel, STYLE_COLORS, engineName } from '@/components/RouteInfo';
+import { RecipeTile } from '@/components/RecipeTile';
 import { COLLABORATIONS, COLLABORATION_IDS, collaborationOf } from '@/data/collaboration';
 import { providerData } from '@/data/providers';
 import { SHELVES } from '@/data/moreRecipes';
 import { builtinRecipes } from '@/data/recipes';
 import { newId } from '@/lib/id';
 import { importFile } from '@/lib/importFiles';
-import { fitsMyPlans, requiredPlans } from '@/lib/requiredPlans';
+import { fitsMyPlans } from '@/lib/requiredPlans';
 import { navigate } from '@/lib/router';
 import { plansSummary } from '@/lib/plansSummary';
 import { useStore } from '@/store/useStore';
-import type { AgentCard, Collaboration, EngineId, Recipe, UserPlans } from '@/types';
+import type { AgentCard, Collaboration, Recipe } from '@/types';
 
 type Filter = 'all' | 'fits' | 'full';
 
@@ -66,68 +66,6 @@ export function blankRecipe(cards: AgentCard[] = [], title = '새 레시피'): R
 
 /** 내 AI 현황을 한 줄로 요약 */
 export { plansSummary };
-
-/** 레시피 카드 한 장: 고르는 데 필요한 것만 (제목, 설명, 필요한 플랜, 내 플랜으로 되는지). 나머지는 상세 화면에서 본다. */
-function RecipeTile({ recipe, plans, href }: { recipe: Recipe; plans: UserPlans; href: string }) {
-  const required = requiredPlans(recipe, providerData);
-  const fit = fitsMyPlans(recipe, plans, providerData);
-  const style = collaborationOf(recipe);
-  const info = COLLABORATIONS[style];
-  const engines: EngineId[] = [];
-  for (const card of recipe.cards) {
-    const engine = style === 'agent-team' ? 'claude-code' : card.preferredEngine;
-    if (!engines.includes(engine)) engines.push(engine);
-  }
-  const where = style === 'debate' ? '프롬프트만' : engines.map(engineName).join(' + ') || '카드 없음';
-  const servings = style === 'debate' ? `${recipe.cards.length}역할` : `${recipe.cards.length}인분`;
-
-
-  return (
-    <a
-      href={href}
-      className="recipe-card group flex w-full flex-col gap-4 rounded-xl border bg-card p-5 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
-    >
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
-        <span aria-hidden className="size-2 rounded-full" style={{ background: STYLE_COLORS[style] }} />
-        <span>{info.label}</span>
-        {recipe.cards.length > 0 ? <span>{servings}</span> : null}
-        {info.experimental ? <span className="text-primary">실험 기능</span> : null}
-      </p>
-      <div className="flex flex-col gap-2">
-        <h3 className="text-[1.4rem] leading-snug font-extrabold text-balance transition-colors duration-200 group-hover:text-primary">
-          {recipe.title}
-        </h3>
-        <p className="line-clamp-3 text-sm text-pretty text-muted-foreground">
-          {recipe.summary || recipe.learningObjective || '설명이 아직 없어요.'}
-        </p>
-      </div>
-
-
-      <div>
-        <h4 className="mb-1 text-xs font-bold text-primary">재료</h4>
-        {required.details.length > 0 ? (
-          <ul className="text-sm">
-            {required.details.map((badge) => (
-              <li key={badge.engine} className="flex justify-between gap-3 border-b border-dashed py-1.5">
-                <span>{badge.text}</span>
-                <span className="shrink-0 text-muted-foreground">
-                  {badge.engine === 'manual' ? '프롬프트만' : engineName(badge.engine)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">카드를 추가하면 계산돼요.</p>
-        )}
-      </div>
-
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-        <FitLabel fit={fit} />
-        <span className="text-xs text-muted-foreground">{where}</span>
-      </div>
-    </a>
-  );
-}
 
 export function GalleryPage() {
   const plans = useStore((state) => state.plans);

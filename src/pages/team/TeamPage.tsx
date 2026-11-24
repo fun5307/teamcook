@@ -2,14 +2,16 @@
 // 숨김 폴더(.codex/agents, .claude/agents) 속 역할 파일을 팀원 카드로 꺼내 보여 주는 것이 이 서비스의 중심이다.
 // 이 화면은 아무것도 실행하지 않는다. 읽고 쓰는 것은 사용자가 고른 폴더 안의 역할 파일뿐이다.
 
-import { useEffect, useState } from 'react';
-import { FolderOpen, Plus, RefreshCw, Save, Trash2, UserPlus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { FolderOpen, Plus, RefreshCw, Save, Trash2, UserPlus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { NativeSelect, Notice } from '@/components/common';
+import { Notice } from '@/components/common';
+import { RecipeTile } from '@/components/RecipeTile';
 import { SectionTabs } from '@/components/practice/PracticeParts';
 import { CARD_TEMPLATES, cardFromTemplate } from '@/data/cardTemplates';
 import { providerData } from '@/data/providers';
+import { SHELVES } from '@/data/moreRecipes';
 import { builtinRecipes } from '@/data/recipes';
 import { newId } from '@/lib/id';
 import { PERMISSION_LABELS } from '@/lib/recipeMd';
@@ -19,6 +21,7 @@ import { CardEditor } from '@/pages/RecipeEditorPage';
 import { ActivityTab } from '@/pages/team/ActivityTab';
 import { JournalTab } from '@/pages/team/JournalTab';
 import { LocalProjects } from '@/pages/team/LocalProjects';
+import { ShowMore } from '@/pages/team/parts';
 import { StartGuide } from '@/pages/team/StartGuide';
 import { isLocal, localInfo, subscribeLocal } from '@/lib/local/client';
 import { useStore } from '@/store/useStore';
@@ -193,25 +196,43 @@ function MemberRow({
   );
 }
 
-function HireSection() {
+/** 처음에 보이는 카드 수 (한 줄). 나머지는 "더 보기"로 편다. */
+const HIRE_FIRST = 3;
+
+function HireSection({ empty }: { empty: boolean }) {
   const root = useWorkspace((state) => state.root);
   const rescan = useWorkspace((state) => state.rescan);
   const myRecipes = useStore((state) => state.recipes);
+  const plans = useStore((state) => state.plans);
   const [recipeId, setRecipeId] = useState('');
+  const [shelfId, setShelfId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [plan, setPlan] = useState<HirePlan | null>(null);
   const [done, setDone] = useState('');
   // 방금 들인 레시피. 있으면 아래에 "시작하기" 안내를 보여 준다.
   const [hired, setHired] = useState<{ recipe: Recipe; settingsSkipped: boolean } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const recipes = [...myRecipes, ...builtinRecipes];
   const recipe = recipes.find((item) => item.id === recipeId);
   if (!root) return null;
 
+  const shelf = SHELVES.find((item) => item.id === shelfId);
+  const shown = shelf ? recipes.filter((item) => shelf.recipeIds.includes(item.id)) : recipes;
+  const visible = showAll ? shown : shown.slice(0, HIRE_FIRST);
+
   const onPick = async (id: string) => {
+    // 이미 고른 카드를 다시 누르면 고른 것을 거둔다
+    if (id === recipeId) {
+      setRecipeId('');
+      setPlan(null);
+      return;
+    }
     setRecipeId(id);
     setDone('');
     setHired(null);
     const picked = recipes.find((item) => item.id === id);
     setPlan(picked ? await planHire(root, picked, providerData) : null);
+    requestAnimationFrame(() => panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   };
   const onHire = async () => {
     if (!plan || !recipe) return;
@@ -225,42 +246,88 @@ function HireSection() {
   };
 
   return (
-    <details className="rounded-2xl border bg-card p-5">
-      <summary className="cursor-pointer font-heading text-lg font-extrabold">
-        레시피로 팀원 들이기 <span className="font-sans text-sm font-normal text-muted-foreground">레시피 책의 팀을 이 폴더에 넣어요</span>
-      </summary>
-      <div className="mt-3 flex flex-col gap-3">
-        <NativeSelect aria-label="들일 레시피" value={recipeId} onChange={(event) => void onPick(event.target.value)}>
-          <option value="">레시피 고르기</option>
-          {recipes.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title} ({item.cards.length}명)
-            </option>
-          ))}
-        </NativeSelect>
-        {plan && recipe ? (
-          <>
-            {plan.changes.length > 0 ? <ChangeList changes={plan.changes} /> : <p className="text-sm text-muted-foreground">새로 만들 파일이 없어요.</p>}
-            {plan.skipped.length > 0 ? (
-              <ul className="list-disc pl-5 text-sm text-muted-foreground">
-                {plan.skipped.map((item) => (
-                  <li key={item.path}>
-                    <code>{item.path}</code>: {item.reason}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <div>
+    <section className="flex flex-col gap-5" aria-label="레시피로 팀원 들이기">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-2xl font-extrabold">레시피로 팀원 들이기</h2>
+        <p className="text-sm text-muted-foreground">
+          {empty ? '아직 팀원이 없어요. ' : ''}카드를 고르면 이 폴더에 만들 파일을 먼저 보여 드려요. 고른 다음에 "넣기"를 눌러야 파일이 생겨요.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="상황별로 고르기">
+        {[{ id: null, label: '전체' }, ...SHELVES.map((item) => ({ id: item.id as string | null, label: item.label }))].map((item) => (
+          <button
+            key={item.id ?? 'all'}
+            type="button"
+            aria-pressed={shelfId === item.id}
+            onClick={() => {
+              setShelfId(item.id);
+              setShowAll(false);
+            }}
+            className={cn(
+              'rounded-full border px-3 py-1 text-sm transition-colors',
+              shelfId === item.id ? 'border-foreground bg-foreground text-background' : 'bg-card hover:bg-muted',
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {recipe && plan ? (
+        <div ref={panelRef} className="flex flex-col gap-3 rounded-2xl border-2 border-foreground bg-card p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">고른 레시피</p>
+              <p className="font-heading text-2xl font-extrabold">{recipe.title}</p>
+              <p className="text-sm text-muted-foreground">
+                팀원 {recipe.cards.length}명 · 만들 파일 {plan.changes.length}개
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="ghost" onClick={() => void onPick(recipe.id)}>
+                <X aria-hidden />
+                고르기 취소
+              </Button>
               <Button disabled={plan.changes.length === 0} onClick={() => void onHire()}>
-                <UserPlus aria-hidden />이 폴더에 넣기 (파일 {plan.changes.length}개)
+                <UserPlus aria-hidden />이 폴더에 넣기
               </Button>
             </div>
-          </>
-        ) : null}
-        {done ? <p className="text-sm text-emerald-800" role="status">{done}</p> : null}
-        {hired ? <StartGuide recipe={hired.recipe} projectPath={localInfo()?.project?.path ?? null} settingsSkipped={hired.settingsSkipped} /> : null}
+          </div>
+          {plan.changes.length > 0 ? (
+            <details>
+              <summary className="cursor-pointer text-sm text-muted-foreground">만들 파일 보기</summary>
+              <div className="mt-2 max-h-72 overflow-y-auto">
+                <ChangeList changes={plan.changes} />
+              </div>
+            </details>
+          ) : (
+            <p className="text-sm text-muted-foreground">새로 만들 파일이 없어요.</p>
+          )}
+          {plan.skipped.length > 0 ? (
+            <ul className="list-disc pl-5 text-sm text-muted-foreground">
+              {plan.skipped.map((item) => (
+                <li key={item.path}>
+                  <code>{item.path}</code>: {item.reason}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      {done ? <p className="text-sm text-emerald-800" role="status">{done}</p> : null}
+      {hired ? <StartGuide recipe={hired.recipe} projectPath={localInfo()?.project?.path ?? null} settingsSkipped={hired.settingsSkipped} /> : null}
+
+      <div className="flex flex-col">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((item) => (
+            <RecipeTile key={item.id} recipe={item} plans={plans} selected={item.id === recipeId} onSelect={() => void onPick(item.id)} />
+          ))}
+        </div>
+        <ShowMore open={showAll} hidden={shown.length - HIRE_FIRST} onToggle={() => setShowAll(!showAll)} />
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -431,7 +498,7 @@ export function TeamPage({ view }: { view?: Tab } = {}) {
             ))}
           </div>
 
-          <HireSection />
+          <HireSection empty={cards.length === 0} />
 
           <details className="rounded-2xl border bg-card p-5 text-sm">
             <summary className="cursor-pointer font-heading text-lg font-extrabold">

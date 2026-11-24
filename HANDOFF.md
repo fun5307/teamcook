@@ -73,7 +73,14 @@
 - 공용 부품: `src/pages/team/parts.tsx`(도구 로고, 접히는 글, 더 보기), `format.ts`의 `fmtCompact`.
 - 확인: 테스트 374개·타입 검사·빌드 통과. 가짜 기록(대화 9개, 파일 11개, 영어로 주고받은 위임 포함)으로 1280px·390px에서 활동·업무 일지 목록·대화 화면(원문 펼침 포함)과 활동 → 업무 일지 바로 열기를 Edge로 렌더링해 확인, 가로 넘침 없음. 진짜 폴더에서 눌러 보는 것은 사용자 확인.
 
-### npx 배포 준비 (2026-11-24, T3 Code 차용 1번)
+### 팀원 들이기 화면을 레시피 카드로 (2026-11-24)
+
+- 팀원 화면의 "레시피로 팀원 들이기"가 접히는 구역 + 드롭다운이었는데, 레시피 책의 카드로 고르는 방식으로 바꿨다.
+- 레시피 카드(`RecipeTile`)를 `components/RecipeTile.tsx`로 빼서 레시피 책(링크)과 들이기(고르는 버튼, `onSelect`·`selected`)가 같이 쓴다.
+- 흐름: 상황 묶음 칩(전체·새로 만들기…) → 카드 한 줄(3장) + "더 보기" → 카드를 누르면 위에 "고른 레시피" 패널(팀원 수·만들 파일 수·만들 파일 보기·건너뛴 파일) → "이 폴더에 넣기". 같은 카드를 다시 누르거나 "고르기 취소"로 거둔다. 넣은 뒤에는 기존처럼 시작하기 안내(StartGuide).
+- 1280px·390px에서 가짜 프로젝트(shop-app)로 확인. 테스트 374개 통과. 아직 커밋 전.
+
+## npx 배포 준비 (2026-11-24, T3 Code 차용 1번)
 > **공개 완료(2026-11-24): `teamcook@0.1.0`이 npm `latest`.** 빈 폴더에서 `npx --yes teamcook@latest open`으로 받아 실행해 화면 200, 열쇠 없는 `/api` 401을 확인했다. 겪은 일: 첫 `npm publish`는 2FA가 없어 E403. 2FA(보안 키)를 켠 뒤 npm이 `0.0.0-stage`(단계적 게시용 자리 표시자)를 먼저 만들었고, 그 사이 `npx`가 "could not determine executable"로 실패했다(자리 표시자에는 실행 파일이 없음). 다시 `npm publish`해서 0.1.0이 올라갔다. 버전 목록에 `0.0.0-stage`가 남아 있는 것은 정상이다. 새 버전을 낼 때는 `package.json`의 `version`을 올린 뒤 `npm publish`(보안 키 인증).
 - **`teamcook` 이름은 npm에 비어 있었다**(2026-11-24 `npm view teamcook`이 404). 공개하기 전에 한 번 더 확인할 것.
 - `package.json`: `private` 제거, `files`는 `cli/teamcook.mjs`와 `dist`뿐, `engines.node >=20`(Linux에서 재귀 폴더 지켜보기 때문. 압축 기록 읽기는 22.15+), `repository`·`homepage`·`keywords`, `prepublishOnly`(타입 검사·테스트·빌드·CLI 빌드). **라이브러리는 전부 `devDependencies`로 옮겼다**: CLI는 라이브러리를 파일 안에 묶었고 화면은 미리 빌드해 두므로 `npx`가 내려받을 것이 없다. `package-lock.json`은 `"dev": true` 표시와 루트 항목 순서만 바뀌었다.
