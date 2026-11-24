@@ -13,3 +13,12 @@ export const fmtDuration = (ms?: number | null) => {
 };
 
 export const fmtTokens = (value?: number | null) => (value === undefined || value === null ? '모름' : value.toLocaleString('ko-KR'));
+
+/** 큰 숫자를 한국식으로 짧게: 9,876 → '9,876', 1,707,669 → '170.8만', 230,000,000 → '2.3억'. 없으면 '모름'. */
+export const fmtCompact = (value?: number | null) => {
+  if (value === undefined || value === null) return '모름';
+  const trim = (n: number) => n.toFixed(1).replace(/\.0$/, '');
+  if (value >= 100_000_000) return `${trim(value / 100_000_000)}억`;
+  if (value >= 10_000) return `${trim(value / 10_000)}만`;
+  return value.toLocaleString('ko-KR');
+};

@@ -349,9 +349,10 @@ export function TeamPage({ view }: { view?: Tab } = {}) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">
-            내 프로젝트 폴더{isLocal() ? <> · <code className="text-xs">{localInfo()?.project?.path}</code></> : null}
+            {tab === 'members' ? '내 프로젝트 폴더' : <b className="font-semibold text-foreground">{snapshot.folderName}</b>}
+            {isLocal() ? <> · <code className="text-xs break-all">{localInfo()?.project?.path}</code></> : null}
           </p>
-          <h1 className="text-4xl font-extrabold sm:text-5xl">{snapshot.folderName}의 팀</h1>
+          <h1 className="text-4xl font-extrabold sm:text-5xl">{tab === 'activity' ? '이 폴더에서 AI가 한 일' : tab === 'journal' ? '업무 일지' : `${snapshot.folderName}의 팀`}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" disabled={busy} onClick={() => void rescan()}>
@@ -387,7 +388,7 @@ export function TeamPage({ view }: { view?: Tab } = {}) {
         />
       )}
 
-      {tab === 'activity' ? <ActivityTab projectName={snapshot.folderName} cards={cards} /> : null}
+      {tab === 'activity' ? <ActivityTab cards={cards} /> : null}
 
       {tab === 'journal' ? <JournalTab projectName={snapshot.folderName} projectPath={localInfo()?.project?.path} cards={cards} /> : null}
 

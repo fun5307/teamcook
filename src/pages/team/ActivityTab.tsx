@@ -4,35 +4,61 @@
 // AI로 요약하지 않는다: 기록에 적힌 것만 세고, 없는 값은 0이 아니라 '모름'으로 둔다. 금액은 계산하지 않는다.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { ChevronRight, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/common';
-import { checkPermissions, type ActivitySession, type ActivitySummary } from '@/lib/journal/activity';
-import type { JournalTool } from '@/lib/journal/types';
+import { BrandLogo } from '@/components/BrandLogo';
+import { checkPermissions, type ActivityFile, type ActivityRole, type ActivitySession, type ActivitySummary } from '@/lib/journal/activity';
 import { fetchActivity, subscribeLocal } from '@/lib/local/client';
-import { fmtDay, fmtDuration, fmtTime, fmtTokens } from '@/pages/team/format';
+import { fmtCompact, fmtDay, fmtDuration, fmtTime, fmtTokens } from '@/pages/team/format';
+import { ShowMore, TOOL_LABEL, ToolLogo } from '@/pages/team/parts';
 import type { AgentCard } from '@/types';
 
-const TOOL_LABEL: Record<JournalTool, string> = { 'claude-code': 'Claude Code', 'codex-cli': 'Codex' };
+const FIRST = 5;
 
-function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
+/** 카드의 머리줄 */
+function CardHead({ title, note }: { title: string; note?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-xl border bg-card px-4 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-heading text-2xl font-extrabold tabular-nums">{value}</p>
-      {note ? <p className="text-xs text-muted-foreground">{note}</p> : null}
+    <div className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-2">
+      <h3 className="font-heading text-lg font-extrabold">{title}</h3>
+      {note ? <span className="text-xs text-muted-foreground">{note}</span> : null}
     </div>
   );
 }
 
-/** 토큰은 도구마다 뜻이 달라(Claude Code는 출력 토큰, Codex는 도구가 낸 합계) 더하지 않고 따로 적는다 */
-function TokenTile({ claude, codex }: { claude: number; codex: number }) {
+function Stat({ label, value, unit, sub }: { label: string; value: string; unit?: string; sub?: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-xl border bg-card px-4 py-3">
+    <div className="flex flex-col gap-1 bg-card p-4 sm:p-5">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="font-heading text-3xl leading-none font-extrabold tabular-nums">
+        {value}
+        {unit ? <span className="ml-0.5 text-base font-bold text-muted-foreground">{unit}</span> : null}
+      </p>
+      {sub ? <p className="text-xs text-muted-foreground">{sub}</p> : null}
+    </div>
+  );
+}
+
+/** 도구마다 기록한 토큰. 뜻이 달라(Claude Code 출력 토큰, Codex 합계) 줄을 나눠 회사 로고와 함께 적는다. */
+function TokenStat({ claude, codex, hasClaude, hasCodex }: { claude: number; codex: number; hasClaude: boolean; hasCodex: boolean }) {
+  const rows = [
+    ...(hasClaude ? [{ key: 'claude', logo: 'anthropic' as const, name: 'Claude 출력', value: claude }] : []),
+    ...(hasCodex ? [{ key: 'codex', logo: 'openai' as const, name: 'Codex', value: codex }] : []),
+  ];
+  return (
+    <div className="flex flex-col gap-2 bg-card p-4 sm:p-5">
       <p className="text-xs text-muted-foreground">기록된 토큰</p>
-      <p className="font-heading text-lg font-extrabold tabular-nums">Claude 출력 {fmtTokens(claude)}</p>
-      <p className="font-heading text-lg font-extrabold tabular-nums">Codex 합계 {fmtTokens(codex)}</p>
-      <p className="text-xs text-muted-foreground">뜻이 달라 더하지 않았어요</p>
+      {rows.length === 0 ? <p className="font-heading text-3xl leading-none font-extrabold">—</p> : null}
+      {rows.map((row) => (
+        <p key={row.key} className="flex min-w-0 items-center gap-2" title={`${row.value.toLocaleString('ko-KR')} 토큰`}>
+          <BrandLogo provider={row.logo} className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className={cn('font-heading leading-none font-extrabold whitespace-nowrap tabular-nums', rows.length === 1 ? 'text-3xl' : 'text-xl')}>
+            {fmtCompact(row.value)}
+          </span>
+          <span className="min-w-0 truncate text-xs text-muted-foreground">{row.name}</span>
+        </p>
+      ))}
     </div>
   );
 }
@@ -40,65 +66,173 @@ function TokenTile({ claude, codex }: { claude: number; codex: number }) {
 function PermissionCheck({ summary, cards }: { summary: ActivitySummary; cards: AgentCard[] }) {
   const check = checkPermissions(summary.roleEdits, cards);
   if (check.readOnlyRoles.length === 0) return null;
-  const caveat = '지금 역할 파일 기준이고, 셸 명령으로 바꾼 파일은 기록만으로는 볼 수 없어요.';
   if (check.issues.length === 0) {
     return (
-      <Notice tone="success">
-        <p className="font-medium">읽기 전용 팀원({check.readOnlyRoles.join(', ')})이 파일을 고친 기록은 없어요.</p>
-        <p className="text-xs">{caveat}</p>
-      </Notice>
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="size-2 rounded-full bg-emerald-600" aria-hidden />
+        권한 점검: 읽기 전용 팀원({check.readOnlyRoles.join(', ')})이 파일을 고친 기록은 없어요.
+      </p>
     );
   }
+  const codex = check.issues.some((issue) => issue.tools.includes('codex-cli'));
+  const claude = check.issues.some((issue) => issue.tools.includes('claude-code'));
   return (
     <Notice tone="warn">
-      <p className="font-medium">읽기 전용으로 적힌 팀원이 파일을 고친 기록이 있어요.</p>
-      <ul className="mt-1 flex flex-col gap-1">
+      <p className="font-medium">권한 점검: 읽기 전용으로 적힌 팀원이 파일을 고친 기록이 있어요.</p>
+      <ul className="mt-1.5 flex flex-col gap-1.5">
         {check.issues.map((issue) => (
           <li key={issue.role}>
-            <span className="font-heading font-extrabold">{issue.role}</span> — 맡은 일 {issue.times}건에서 파일을 고쳤어요
-            {issue.lastAt ? ` (마지막 ${fmtTime(issue.lastAt)})` : ''} · {issue.tools.map((tool) => TOOL_LABEL[tool]).join(', ')}
-            <br />
+            <span className="font-heading font-extrabold">{issue.role}</span>
             <span className="text-xs">
-              <code>{issue.files.join(', ')}</code>
-              {issue.files.length >= 6 ? ' …' : ''}
+              {' '}
+              · 맡은 일 {issue.times}건 · {issue.tools.map((tool) => TOOL_LABEL[tool]).join(', ')}
+              {issue.lastAt ? ` · 마지막 ${fmtTime(issue.lastAt)}` : ''}
             </span>
+            <br />
+            <code className="text-xs break-all">
+              {issue.files.join(', ')}
+              {issue.files.length >= 6 ? ' …' : ''}
+            </code>
           </li>
         ))}
       </ul>
-      <p className="mt-1 text-xs">
-        {check.issues.some((issue) => issue.tools.includes('codex-cli'))
-          ? 'Codex는 읽기 전용을 지시문 문장으로만 안내해서 지켜지지 않을 수 있어요. 역할 파일의 지시문을 확인해 보세요. '
-          : ''}
-        {check.issues.some((issue) => issue.tools.includes('claude-code'))
-          ? 'Claude Code는 역할 파일의 도구 목록(tools)으로 막아요. 목록에 Edit·Write가 없는지, 그 뒤에 파일을 고치지 않았는지 확인해 보세요. '
-          : ''}
-        {caveat}
+      <p className="mt-1.5 text-xs">
+        {codex ? 'Codex는 읽기 전용을 지시문 문장으로만 안내해서 지켜지지 않을 수 있어요. ' : ''}
+        {claude ? 'Claude Code는 역할 파일의 도구 목록(tools)으로 막으니, 목록에 Edit·Write가 들어 있지 않은지 확인해 보세요. ' : ''}
+        지금 역할 파일 기준이라 그때는 권한이 달랐을 수도 있어요.
       </p>
     </Notice>
   );
 }
 
-function SessionRow({ item }: { item: ActivitySession }) {
+function splitPath(file: string) {
+  const at = file.lastIndexOf('/');
+  return at < 0 ? { dir: '', base: file } : { dir: file.slice(0, at + 1), base: file.slice(at + 1) };
+}
+
+function TopFiles({ files }: { files: ActivityFile[] }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? files : files.slice(0, FIRST);
+  const max = Math.max(1, ...files.map((file) => file.edits));
   return (
-    <li className="flex flex-col gap-1 rounded-xl border bg-card px-4 py-3">
-      <p className="line-clamp-2 font-medium">{item.title || '(첫 메시지를 찾지 못했어요)'}</p>
-      <p className="text-xs text-muted-foreground tabular-nums">
-        {TOOL_LABEL[item.tool]} · {fmtTime(item.startedAt)} · 내가 한 말 {item.turns}번
-        {item.delegations > 0 ? ` · 팀원에게 맡긴 일 ${item.delegations}건` : ''}
-        {` · 고친 파일 ${item.editedFiles}개`}
-        {item.tokens ? ` · ${item.tokens.kind === 'output' ? '출력 토큰' : '토큰(도구 기록 합계)'} ${fmtTokens(item.tokens.value)}` : ''}
-      </p>
-      {item.topFiles.length > 0 ? (
-        <p className="text-xs break-all text-muted-foreground">
-          많이 고친 파일: <code>{item.topFiles.join(', ')}</code>
-        </p>
-      ) : null}
-      {item.finalAnswer ? <p className="line-clamp-2 text-sm text-muted-foreground">마지막 말: {item.finalAnswer}</p> : null}
+    <section className="overflow-hidden rounded-2xl border bg-card" aria-label="많이 고친 파일">
+      <CardHead title="많이 고친 파일" note="고친 횟수" />
+      <ul className="flex flex-col px-5 pb-3">
+        {shown.map((file) => {
+          const { dir, base } = splitPath(file.path);
+          return (
+            <li key={file.path} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 py-2">
+              <div className="min-w-0">
+                <p className="flex min-w-0 items-baseline gap-1.5 text-sm" title={file.path}>
+                  <span className="shrink-0 font-medium">{base}</span>
+                  {dir ? <span className="truncate font-mono text-xs text-muted-foreground">{dir}</span> : null}
+                </p>
+                <div className="mt-1.5 h-[3px] rounded-full bg-muted" aria-hidden>
+                  <div className="h-[3px] rounded-full bg-primary/45" style={{ width: `${Math.max(4, (file.edits / max) * 100)}%` }} />
+                </div>
+              </div>
+              <span className="text-sm tabular-nums">
+                {file.edits}
+                <span className="text-xs text-muted-foreground">번</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <ShowMore open={open} hidden={files.length - FIRST} onToggle={() => setOpen(!open)} />
+    </section>
+  );
+}
+
+function Roles({ roles }: { roles: ActivityRole[] }) {
+  return (
+    <section className="overflow-hidden rounded-2xl border bg-card" aria-label="팀원별로 일한 양">
+      <CardHead title="팀원별로 일한 양" />
+      <ul className="flex flex-col divide-y px-5 pb-2">
+        {roles.map((row) => (
+          <li key={row.role} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5">
+            <span className="font-heading font-extrabold">{row.role}</span>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              맡은 일 <b className="font-semibold text-foreground">{row.count}건</b> · {fmtDuration(row.durationMs)} · 토큰 {fmtCompact(row.tokens)} · 고친 파일{' '}
+              {row.editedFiles === null ? '모름' : `${row.editedFiles}개`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function SessionRow({ item }: { item: ActivitySession }) {
+  const meta = [
+    fmtTime(item.startedAt),
+    `내 말 ${item.turns}번`,
+    ...(item.delegations > 0 ? [`팀원에게 ${item.delegations}건`] : []),
+    `고친 파일 ${item.editedFiles}개`,
+    ...(item.tokens ? [`토큰 ${fmtCompact(item.tokens.value)}`] : []),
+  ];
+  return (
+    <li>
+      <a
+        href={`#/journal?open=${item.tool}:${encodeURIComponent(item.id)}`}
+        className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/60"
+        title="업무 일지에서 자세히 보기"
+      >
+        <ToolLogo tool={item.tool} className="size-4 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-1 font-medium">{item.title || '(첫 메시지를 찾지 못했어요)'}</p>
+          <p className="text-xs text-muted-foreground tabular-nums">{meta.join(' · ')}</p>
+        </div>
+        <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </a>
     </li>
   );
 }
 
-export function ActivityTab({ projectName, cards }: { projectName: string; cards: AgentCard[] }) {
+function RecentSessions({ sessions, total }: { sessions: ActivitySession[]; total: number }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? sessions : sessions.slice(0, FIRST);
+  return (
+    <section className="overflow-hidden rounded-2xl border bg-card" aria-label="최근 대화">
+      <CardHead title="최근 대화" note="누르면 업무 일지에서 열려요" />
+      <ul className="flex flex-col divide-y border-t">
+        {shown.map((item) => (
+          <SessionRow key={`${item.tool}-${item.id}`} item={item} />
+        ))}
+      </ul>
+      <ShowMore open={open} hidden={sessions.length - FIRST} onToggle={() => setOpen(!open)} />
+      {open && sessions.length < total ? (
+        <p className="border-t px-5 py-2.5 text-xs text-muted-foreground">최근 {sessions.length}개까지만 보여 드려요. 위의 숫자는 {total}개 전체를 센 거예요.</p>
+      ) : null}
+    </section>
+  );
+}
+
+/** 세는 방법과 한계는 한 곳에 접어 둔다 (같은 안내를 화면 곳곳에 되풀이하지 않는다) */
+function HowCounted({ summary }: { summary: ActivitySummary }) {
+  return (
+    <details className="group rounded-2xl border bg-card px-5 py-3 text-sm">
+      <summary className="cursor-pointer font-medium text-muted-foreground group-open:text-foreground">이 숫자는 어떻게 셌나요?</summary>
+      <ul className="mt-2 flex list-disc flex-col gap-1 pl-5 text-xs leading-relaxed text-muted-foreground">
+        <li>Claude Code·Codex가 이 컴퓨터에 남긴 대화 기록에 적힌 것만 셉니다. 기록에 없는 값은 0이 아니라 "모름"으로 두고, 금액은 계산하지 않아요.</li>
+        <li>파일 고침은 AI의 파일 고침 도구(Claude Code의 Edit·Write 등, Codex의 파일 변경)로 남은 것만 셉니다. 셸 명령으로 바뀐 파일은 빠져요.</li>
+        <li>토큰은 Claude Code가 적은 출력 토큰과 Codex가 적은 합계를 그대로 보여 드려요.</li>
+        <li>이어하기(resume)로 앞 대화가 새 대화에 복사돼도 처음 대화에서 한 번만 셉니다.</li>
+        <li>Claude Code는 기본으로 30일이 지난 기록을 지워서, 그보다 오래된 일은 보이지 않을 수 있어요.</li>
+        {summary.uncheckedDelegations > 0 ? <li>팀원의 세부 기록을 찾지 못해 파일을 고쳤는지 모르는 맡긴 일이 {summary.uncheckedDelegations}건 있어요.</li> : null}
+        {summary.notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+        <li>
+          읽기만 하고, 요약은 이 화면에만 보이며 저장하거나 보내지 않아요.
+          {summary.tookMs !== undefined ? ` 읽는 데 ${(summary.tookMs / 1000).toFixed(1)}초 걸렸어요.` : ''}
+        </li>
+      </ul>
+    </details>
+  );
+}
+
+export function ActivityTab({ cards }: { cards: AgentCard[] }) {
   const [summary, setSummary] = useState<ActivitySummary | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -125,8 +259,7 @@ export function ActivityTab({ projectName, cards }: { projectName: string; cards
     // AI가 일하는 동안 기록이 늘면 저절로 다시 읽는다. 기록이 계속 늘어도 너무 자주 읽지 않게 간격을 둔다.
     let timer: ReturnType<typeof setTimeout> | null = null;
     const stop = subscribeLocal((event) => {
-      if (event.root === 'project') return;
-      if (timer) return;
+      if (event.root === 'project' || timer) return;
       const wait = Math.max(8000, 12000 - (Date.now() - lastLoad.current));
       timer = setTimeout(() => {
         timer = null;
@@ -142,134 +275,47 @@ export function ActivityTab({ projectName, cards }: { projectName: string; cards
   const totals = summary?.totals;
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-2xl font-extrabold">이 폴더에서 AI가 한 일</h2>
-          <p className="text-sm text-muted-foreground">
-            {projectName}에서 한 Claude Code·Codex 대화 기록을 모았어요.
-            {totals?.firstAt ? ` ${fmtDay(totals.firstAt)} ~ ${fmtDay(totals.lastAt)}` : ''}
-          </p>
-        </div>
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => void load(false)}>
-          <RefreshCw aria-hidden />
-          다시 읽기
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          {totals?.firstAt ? `${fmtDay(totals.firstAt)} ~ ${fmtDay(totals.lastAt)} · ` : ''}Claude Code·Codex 대화 기록에서 모았어요
+        </p>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void load(false)}>
+          <RefreshCw aria-hidden className={cn(busy && 'animate-spin')} />
+          기록 다시 읽기
         </Button>
       </div>
 
       {error ? <Notice tone="error">{error}</Notice> : null}
       {busy && !summary ? (
-        <p className="text-sm text-muted-foreground" role="status">
+        <p className="rounded-2xl border bg-card px-5 py-8 text-center text-sm text-muted-foreground" role="status">
           기록을 훑는 중이에요. 처음에는 기록이 크면 몇 초 걸려요…
         </p>
       ) : null}
 
       {summary && totals ? (
         totals.sessions === 0 ? (
-          <Notice tone="info">
-            이 폴더에서 한 Claude Code·Codex 대화 기록을 찾지 못했어요. Claude Code는 기본으로 30일이 지난 기록을 지워요.
-          </Notice>
+          <Notice tone="info">이 폴더에서 한 Claude Code·Codex 대화 기록을 찾지 못했어요. Claude Code는 기본으로 30일이 지난 기록을 지워요.</Notice>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <Tile label="대화" value={`${totals.sessions}개`} note={`Claude Code ${totals.claude} · Codex ${totals.codex}`} />
-              <Tile label="내가 한 말" value={`${totals.turns}번`} />
-              <Tile label="파일 고침" value={`${totals.editCount}번`} note={`서로 다른 파일 ${totals.editedFiles}개`} />
-              <TokenTile claude={totals.claudeOutputTokens} codex={totals.codexTokens} />
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border md:grid-cols-4">
+              <Stat label="대화" value={String(totals.sessions)} unit="개" sub={`${TOOL_LABEL['claude-code']} ${totals.claude} · Codex ${totals.codex}`} />
+              <Stat label="내가 한 말" value={fmtTokens(totals.turns)} unit="번" />
+              <Stat label="파일 고침" value={fmtTokens(totals.editCount)} unit="번" sub={`서로 다른 파일 ${totals.editedFiles}개`} />
+              <TokenStat claude={totals.claudeOutputTokens} codex={totals.codexTokens} hasClaude={totals.claude > 0} hasCodex={totals.codex > 0} />
             </div>
 
             <PermissionCheck summary={summary} cards={cards} />
 
-            {summary.roles.length > 0 ? (
-              <div className="overflow-x-auto rounded-xl border bg-card">
-                <table className="w-full min-w-[32rem] text-left text-sm">
-                  <caption className="px-4 pt-3 text-left font-heading text-lg font-extrabold">팀원별로 얼마나 일했나</caption>
-                  <thead>
-                    <tr className="border-b text-xs text-muted-foreground">
-                      <th className="px-4 py-2 font-medium">팀원</th>
-                      <th className="px-4 py-2 font-medium">맡은 횟수</th>
-                      <th className="px-4 py-2 font-medium">걸린 시간</th>
-                      <th className="px-4 py-2 font-medium">토큰</th>
-                      <th className="px-4 py-2 font-medium">고친 파일</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.roles.map((row) => (
-                      <tr key={row.role} className="border-b last:border-b-0">
-                        <th className="px-4 py-2 font-medium">{row.role}</th>
-                        <td className="px-4 py-2 tabular-nums">{row.count}</td>
-                        <td className="px-4 py-2 tabular-nums">{fmtDuration(row.durationMs)}</td>
-                        <td className="px-4 py-2 tabular-nums">{fmtTokens(row.tokens)}</td>
-                        <td className="px-4 py-2 tabular-nums">{row.editedFiles === null ? '모름' : `${row.editedFiles}개`}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="px-4 pb-3 text-xs text-muted-foreground">
-                  기록에 적힌 값만 더했어요. 하나라도 기록에 없으면 합계 대신 "모름"으로 보여요. 금액은 계산하지 않아요.
-                </p>
-              </div>
-            ) : null}
-
-            {summary.topFiles.length > 0 ? (
-              <div className="overflow-x-auto rounded-xl border bg-card">
-                <table className="w-full min-w-[28rem] text-left text-sm">
-                  <caption className="px-4 pt-3 text-left font-heading text-lg font-extrabold">많이 고친 파일</caption>
-                  <thead>
-                    <tr className="border-b text-xs text-muted-foreground">
-                      <th className="px-4 py-2 font-medium">파일</th>
-                      <th className="px-4 py-2 font-medium">고친 횟수</th>
-                      <th className="px-4 py-2 font-medium">대화 수</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.topFiles.map((file) => (
-                      <tr key={file.path} className="border-b last:border-b-0">
-                        <td className="px-4 py-2 font-mono text-xs break-all">{file.path}</td>
-                        <td className="px-4 py-2 tabular-nums">{file.edits}</td>
-                        <td className="px-4 py-2 tabular-nums">{file.sessions}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="px-4 pb-3 text-xs text-muted-foreground">
-                  AI의 파일 고침 도구로 남은 기록만 세요. 셸 명령(예: 파일 이동·덮어쓰기)으로 바뀐 것은 빠져 있어요.
-                </p>
-              </div>
-            ) : null}
-
-            <div className="flex flex-col gap-2">
-              <h3 className="font-heading text-lg font-extrabold">최근 대화</h3>
-              <ul className="flex flex-col gap-2">
-                {summary.sessions.map((item) => (
-                  <SessionRow key={`${item.tool}-${item.id}`} item={item} />
-                ))}
-              </ul>
-              {summary.sessions.length < totals.sessions ? (
-                <p className="text-xs text-muted-foreground">최근 {summary.sessions.length}개만 보여 드려요. 위의 숫자는 {totals.sessions}개 전체를 센 거예요.</p>
-              ) : null}
-              <p className="text-xs text-muted-foreground">대화마다 누가 누구에게 맡겼는지와 자세한 내용은 "업무 일지"에서 볼 수 있어요.</p>
+            <div className={cn('grid gap-5', summary.roles.length > 0 && summary.topFiles.length > 0 && 'lg:grid-cols-2')}>
+              {summary.topFiles.length > 0 ? <TopFiles files={summary.topFiles} /> : null}
+              {summary.roles.length > 0 ? <Roles roles={summary.roles} /> : null}
             </div>
 
-            {summary.uncheckedDelegations > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                팀원의 세부 기록을 찾지 못해 파일을 고쳤는지 모르는 맡긴 일이 {summary.uncheckedDelegations}건 있어요.
-              </p>
-            ) : null}
-            {summary.notes.length > 0 ? (
-              <ul className="list-disc pl-5 text-xs text-muted-foreground">
-                {summary.notes.map((note) => (
-                  <li key={note}>{note}</li>
-                ))}
-              </ul>
-            ) : null}
+            <RecentSessions sessions={summary.sessions} total={totals.sessions} />
+            <HowCounted summary={summary} />
           </>
         )
       ) : null}
-
-      <p className="text-xs text-muted-foreground">
-        읽기만 해요. 대화 기록 파일(.jsonl)만 열고, 요약은 이 화면에만 보이며 저장하거나 보내지 않아요. 기록 형식은 공식 문서에 없어서 도구가
-        바뀌면 못 읽을 수 있어요.{summary?.tookMs !== undefined ? ` (읽는 데 ${(summary.tookMs / 1000).toFixed(1)}초)` : ''}
-      </p>
     </div>
   );
 }
