@@ -18,6 +18,7 @@ import { applyChanges, planHire, TEAM_DIRS, type FileChange, type HirePlan, type
 import { CardEditor } from '@/pages/RecipeEditorPage';
 import { JournalTab } from '@/pages/team/JournalTab';
 import { LocalProjects } from '@/pages/team/LocalProjects';
+import { StartGuide } from '@/pages/team/StartGuide';
 import { isLocal, localInfo, subscribeLocal } from '@/lib/local/client';
 import { useStore } from '@/store/useStore';
 import { folderAccessSupported, openProject, recalledName, reopenProject, useWorkspace } from '@/store/useWorkspace';
@@ -198,6 +199,8 @@ function HireSection() {
   const [recipeId, setRecipeId] = useState('');
   const [plan, setPlan] = useState<HirePlan | null>(null);
   const [done, setDone] = useState('');
+  // 방금 들인 레시피. 있으면 아래에 "시작하기" 안내를 보여 준다.
+  const [hired, setHired] = useState<{ recipe: Recipe; settingsSkipped: boolean } | null>(null);
   const recipes = [...myRecipes, ...builtinRecipes];
   const recipe = recipes.find((item) => item.id === recipeId);
   if (!root) return null;
@@ -205,13 +208,16 @@ function HireSection() {
   const onPick = async (id: string) => {
     setRecipeId(id);
     setDone('');
+    setHired(null);
     const picked = recipes.find((item) => item.id === id);
     setPlan(picked ? await planHire(root, picked, providerData) : null);
   };
   const onHire = async () => {
-    if (!plan) return;
+    if (!plan || !recipe) return;
     const result = await applyChanges(root, plan.changes);
     setDone(`파일 ${result.written.length}개를 만들었어요.${result.conflicts.length > 0 ? ` ${result.conflicts.length}개는 그 사이 생겨서 건너뛰었어요.` : ''}`);
+    // 하나도 만들지 못했으면(전부 그 사이 생김) 시작 안내는 띄우지 않는다
+    setHired(result.written.length > 0 ? { recipe, settingsSkipped: plan.skipped.some((item) => item.path === '.claude/settings.json') } : null);
     setPlan(null);
     setRecipeId('');
     await rescan();
@@ -251,6 +257,7 @@ function HireSection() {
           </>
         ) : null}
         {done ? <p className="text-sm text-emerald-800" role="status">{done}</p> : null}
+        {hired ? <StartGuide recipe={hired.recipe} projectPath={localInfo()?.project?.path ?? null} settingsSkipped={hired.settingsSkipped} /> : null}
       </div>
     </details>
   );
