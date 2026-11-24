@@ -32,7 +32,7 @@ export function openLogStream(file: string): Readable {
 }
 
 /** 앞에서부터 줄을 읽다가 pick이 값을 돌려주면 멈춘다 */
-async function firstMatch<T>(file: string, maxLines: number, pick: (entry: Record<string, unknown>) => T | undefined): Promise<T | undefined> {
+export async function firstMatch<T>(file: string, maxLines: number, pick: (entry: Record<string, unknown>) => T | undefined): Promise<T | undefined> {
   let stream: Readable;
   try {
     stream = openLogStream(file);
@@ -104,7 +104,7 @@ async function claudeHits(projectsDir: string): Promise<Hit[]> {
   return hits;
 }
 
-async function codexFiles(dir: string, depth: number, out: string[]): Promise<void> {
+export async function codexFiles(dir: string, depth: number, out: string[]): Promise<void> {
   for (const entry of await safeDirents(dir)) {
     const full = path.join(dir, entry.name);
     if (entry.isFile() && (entry.name.endsWith('.jsonl') || (entry.name.endsWith('.jsonl.zst') && zstdSupported()))) out.push(full);

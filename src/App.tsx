@@ -33,11 +33,12 @@ interface NavItem {
 
 const WEB_NAV: NavItem[] = [
   { href: '#/recipes', label: '레시피 책', pages: ['home', 'gallery', 'preview', 'edit', 'shared', 'learn'] },
-  { href: '#/workshop', label: '작업실', pages: ['workshop', 'team', 'journal'] },
+  { href: '#/workshop', label: '작업실', pages: ['workshop', 'team', 'journal', 'activity'] },
 ];
 
 const WORKSHOP_NAV: NavItem[] = [
   { href: '#/team', label: '팀원', pages: ['home', 'team'] },
+  { href: '#/activity', label: '활동', pages: ['activity'] },
   { href: '#/journal', label: '업무 일지', pages: ['journal'] },
 ];
 
@@ -83,6 +84,8 @@ function WebPage({ route }: { route: Route }) {
     case 'home':
       return <HomePage />;
     case 'workshop':
+    case 'activity':
+      // 활동은 내 컴퓨터 도우미가 있어야 볼 수 있어서, 웹에서는 작업실 소개로 안내한다
       return <WorkshopPage />;
     case 'team':
       return <TeamPage />;
@@ -99,6 +102,8 @@ function WorkshopRoutePage({ route }: { route: Route }) {
     case 'team':
     case 'workshop':
       return <TeamPage key="members" view="members" />;
+    case 'activity':
+      return <TeamPage key="activity" view="activity" />;
     case 'journal':
       return <TeamPage key="journal" view="journal" />;
     default:

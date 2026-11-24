@@ -9,6 +9,8 @@ import { createReadStream, existsSync, watch, type FSWatcher } from 'node:fs';
 import { mkdir, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
+import type { ActivitySummary } from '../../lib/journal/activity';
+import { ActivityCache, readActivity } from './activity';
 import { discoverProjects, openLogStream, zstdSupported, type RecentProject } from './discover';
 import { canOpenDir, canReadFile, canRemove, canSee, canWrite, isLogFile, ROOT_IDS, splitPath, type RootId } from './policy';
 
@@ -103,6 +105,9 @@ export async function startLocalServer(options: ServerOptions): Promise<LocalSer
   let project: Project | null = null;
   let port = options.port;
   let recentCache: { at: number; list: RecentProject[] } | null = null;
+  // 활동 요약: 읽은 기록은 크기·수정 시각이 같은 동안 메모리에만 기억한다. 같은 프로젝트를 동시에 두 번 읽지 않는다.
+  const activityCache = new ActivityCache();
+  const activityRuns = new Map<string, Promise<ActivitySummary>>();
   const zstd = zstdSupported();
 
   const baseOf = (root: RootId): string => {
@@ -233,6 +238,18 @@ export async function startLocalServer(options: ServerOptions): Promise<LocalSer
         recentCache = { at: Date.now(), list: await discoverProjects(options.claudeProjects, options.codexSessions) };
       }
       return send(res, 200, recentCache.list);
+    }
+    if (route === 'GET /api/activity') {
+      if (!project) throw new HttpError(409, '아직 연 프로젝트가 없어요.');
+      const current = project;
+      let run = activityRuns.get(current.path);
+      if (!run) {
+        run = readActivity({ project: current, claudeProjects: options.claudeProjects, codexSessions: options.codexSessions, cache: activityCache }).finally(() =>
+          activityRuns.delete(current.path),
+        );
+        activityRuns.set(current.path, run);
+      }
+      return send(res, 200, await run);
     }
     if (route === 'POST /api/project') {
       let wanted: unknown;

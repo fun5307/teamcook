@@ -18,22 +18,15 @@ import {
   sameProject,
   type SessionFile,
 } from '@/lib/journal/read';
+import { buildLineage, type LineageNode } from '@/lib/journal/activity';
 import { summarizeRoles, type AgentStep, type Delegation, type JournalSession, type JournalTool } from '@/lib/journal/types';
 import type { DirLike } from '@/lib/workspace/fs';
 import { isLocal, localDir, localInfo, subscribeLocal } from '@/lib/local/client';
+import { fmtDuration, fmtTime, fmtTokens } from '@/pages/team/format';
 import { pickFolder, recallFolder, recalledName } from '@/store/useWorkspace';
 import type { AgentCard } from '@/types';
 
 const TOOL_LABEL: Record<JournalTool, string> = { 'claude-code': 'Claude Code', 'codex-cli': 'Codex' };
-
-const fmtTime = (iso?: string) =>
-  iso ? new Date(iso).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-const fmtDuration = (ms?: number | null) => {
-  if (ms === undefined || ms === null) return '모름';
-  const seconds = Math.round(ms / 1000);
-  return seconds < 60 ? `${seconds}초` : `${Math.floor(seconds / 60)}분 ${seconds % 60}초`;
-};
-const fmtTokens = (value?: number | null) => (value === undefined || value === null ? '모름' : value.toLocaleString('ko-KR'));
 
 interface Loaded {
   tool: JournalTool;
@@ -52,11 +45,14 @@ function DelegationCard({
   index,
   known,
   loadSteps,
+  askedBy,
 }: {
   item: Delegation;
   index: number;
   known: boolean;
   loadSteps?: () => Promise<AgentStep[] | null>;
+  /** 이 일을 맡긴 팀원의 이름 (메인 AI가 직접 맡겼으면 없음) */
+  askedBy?: string;
 }) {
   const [steps, setSteps] = useState<AgentStep[] | null | undefined>(undefined);
   return (
@@ -72,6 +68,7 @@ function DelegationCard({
           <span className="font-heading text-xl font-extrabold">{item.role}</span>
           {item.title ? <span className="text-sm text-muted-foreground">{item.title}</span> : null}
           {!known ? <span className="text-xs text-amber-800">지금 팀에 없는 이름</span> : null}
+          {askedBy ? <span className="text-xs text-muted-foreground">↳ 맡긴 팀원: {askedBy}</span> : null}
           <span className="ml-auto text-xs text-muted-foreground tabular-nums">
             {fmtTime(item.startedAt)} · {fmtDuration(item.durationMs)} · 토큰 {fmtTokens(item.tokens)}
             {item.toolCount !== undefined ? ` · 도구 ${item.toolCount}번` : ''}
@@ -122,9 +119,39 @@ function DelegationCard({
   );
 }
 
+/** 누가 누구에게 일을 맡겼나. 나 → 메인 AI → 팀원 → (팀원이 또 맡긴) 팀원 */
+function LineageList({ nodes, byId, names }: { nodes: LineageNode[]; byId: Map<string, Delegation>; names: Set<string> }) {
+  return (
+    <ul className="flex flex-col gap-1 border-l pl-4">
+      {nodes.map((node) => {
+        const item = byId.get(node.id);
+        const edited = item?.edited ? Object.keys(item.edited).length : null;
+        return (
+          <li key={node.id}>
+            <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+              <span className="font-heading font-extrabold">{node.role}</span>
+              {!names.has(node.role) ? <span className="text-xs text-amber-800">지금 팀에 없는 이름</span> : null}
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {fmtDuration(item?.durationMs)} · 토큰 {fmtTokens(item?.tokens)}
+                {edited !== null ? ` · 고친 파일 ${edited}개` : ''}
+              </span>
+            </p>
+            {node.children.length > 0 ? <LineageList nodes={node.children} byId={byId} names={names} /> : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function SessionView({ session, cards, claudeDir }: { session: JournalSession; cards: AgentCard[]; claudeDir?: DirLike }) {
   const names = new Set(cards.map((card) => card.name));
   const roles = summarizeRoles(session);
+  const byId = new Map(session.delegations.map((item) => [item.id, item]));
+  const lineage = buildLineage(session);
+  const nested = session.delegations.some((item) => item.parentId);
+  const activity = session.activity;
+  const editedCount = activity ? Object.keys(activity.edits).length : 0;
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2 rounded-xl border-2 border-foreground bg-card p-4">
@@ -132,7 +159,22 @@ function SessionView({ session, cards, claudeDir }: { session: JournalSession; c
         <div className="max-h-40 overflow-y-auto">
           <PlainText value={session.firstPrompt} empty="(첫 메시지를 찾지 못했어요)" />
         </div>
+        {activity ? (
+          <p className="text-xs text-muted-foreground">
+            내가 한 말 {activity.turns}번 · 메인 AI가 쓴 도구 {Object.values(activity.toolCounts).reduce((sum, value) => sum + value, 0)}번 · 메인 AI가 고친 파일 {editedCount}개
+          </p>
+        ) : null}
       </div>
+      {session.delegations.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-xl border bg-card p-4">
+          <p className="font-heading text-lg font-extrabold">누가 누구에게 맡겼나</p>
+          <p className="text-sm">
+            나 → <span className="font-medium">{TOOL_LABEL[session.tool]} 메인 AI</span>
+          </p>
+          <LineageList nodes={lineage} byId={byId} names={names} />
+          {nested ? <p className="text-xs text-muted-foreground">팀원이 다른 팀원에게 다시 맡긴 일은 안쪽으로 들여 썼어요.</p> : null}
+        </div>
+      ) : null}
       {roles.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-[28rem] text-left text-sm">
@@ -168,6 +210,7 @@ function SessionView({ session, cards, claudeDir }: { session: JournalSession; c
               item={item}
               index={index}
               known={names.has(item.role)}
+              askedBy={item.parentId ? byId.get(item.parentId)?.role : undefined}
               loadSteps={
                 session.tool === 'claude-code' && claudeDir && item.agentId
                   ? () => readClaudeAgentSteps(claudeDir, session.id, item.agentId!)

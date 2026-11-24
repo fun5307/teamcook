@@ -25,6 +25,44 @@ export interface Delegation {
   toolCount?: number;
   /** 세부 기록 파일을 찾을 때 쓰는 id (Claude Code의 agentId, Codex의 스레드 id) */
   agentId?: string;
+  /** 이 일을 맡긴 팀원의 id (Delegation.id). 없으면 메인 AI가 직접 맡긴 것. Codex는 팀원이 또 팀원에게 맡길 수 있다. */
+  parentId?: string;
+  /**
+   * 이 팀원이 고친 파일(경로 → 고친 횟수). 파일 수정 도구(Claude Code의 Edit·Write, Codex의 FileChange)로 남은 것만 센다.
+   * 없으면 '모름'(세부 기록을 읽지 않았다), 빈 객체면 '고친 기록 없음'이다. 셸 명령으로 바꾼 파일은 알 수 없다.
+   */
+  edited?: Record<string, number>;
+}
+
+/** 대화 하나에서 메인 AI가 한 일의 통계 (기록에 남은 것만) */
+export interface SessionActivity {
+  /** 사용자가 직접 친 말의 수 */
+  turns: number;
+  /** 사용자가 처음 친 말 몇 개 (대화 제목 고르는 데 쓴다. 길이를 자른다) */
+  prompts: string[];
+  /** 도구 이름별 사용 횟수 */
+  toolCounts: Record<string, number>;
+  /** 메인 AI가 고친 파일 (경로 → 고친 횟수) */
+  edits: Record<string, number>;
+  /** Claude Code: 메시지마다 한 번씩 센 출력 토큰의 합 */
+  outputTokens?: number;
+  /** Codex: 도구가 기록한 토큰 합계 */
+  totalTokens?: number;
+  /**
+   * 항목마다 고유 키를 단 원본 목록 (활동 요약용 lite로 읽을 때만 있다).
+   * Claude Code의 이어하기(resume)는 앞 대화의 줄을 새 파일에 복사해서, 같은 일이 여러 파일에 들어 있다.
+   * 줄의 uuid는 복사할 때 새로 매겨져 쓸 수 없고, 아래 키들은 복사본에서도 그대로여서 겹침을 걸러내는 데 쓴다.
+   */
+  items?: ActivityItems;
+}
+
+export interface ActivityItems {
+  /** 사용자가 직접 친 말. key = 보낸 시각 + 글 앞부분 */
+  prompts: { key: string; text: string; at?: string }[];
+  /** 도구 호출. id = tool_use id. edit = 파일 고침 도구면 고친 경로 */
+  tools: { id: string; name: string; at?: string; edit?: string }[];
+  /** 메시지 id → 출력 토큰 */
+  outputs: Record<string, number>;
 }
 
 export interface JournalSession {
@@ -41,6 +79,8 @@ export interface JournalSession {
   finalAnswer?: string;
   /** 읽지 못하고 건너뛴 줄 수 */
   skippedLines: number;
+  /** 메인 AI가 한 일의 통계 */
+  activity?: SessionActivity;
 }
 
 /** 역할 하나가 일하는 동안의 한 걸음 */

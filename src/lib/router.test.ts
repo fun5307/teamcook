@@ -8,6 +8,7 @@ describe('화면 주소', () => {
     expect(parseRoute('#/workshop')).toEqual({ page: 'workshop' });
     expect(parseRoute('#/team')).toEqual({ page: 'team' });
     expect(parseRoute('#/journal')).toEqual({ page: 'journal' });
+    expect(parseRoute('#/activity')).toEqual({ page: 'activity' });
   });
 
   it('숨긴 화면도 주소로는 들어갈 수 있다 (주문서 시작·목록)', () => {

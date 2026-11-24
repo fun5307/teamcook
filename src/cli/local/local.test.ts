@@ -1,11 +1,11 @@
 // 내 컴퓨터 도우미: 읽고 쓰는 곳의 규칙, 서버, 화면 쪽 연결을 실제 임시 폴더로 확인한다.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import * as zlib from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { connectLocal, localDir, selectProject } from '../../lib/local/client';
+import { connectLocal, fetchActivity, localDir, selectProject } from '../../lib/local/client';
 import { findClaudeProjectDirs, listClaudeSessions, readClaudeSession, readCodexJournal } from '../../lib/journal/read';
 import { readText, writeText } from '../../lib/workspace/fs';
 import { applyChanges, planSave, scanTeam } from '../../lib/workspace/team';
@@ -160,5 +160,125 @@ describe('도우미 서버와 화면 쪽 연결', () => {
     const journal = await readCodexJournal(localDir('codex-logs'));
     expect(journal.compressed).toBe(0);
     expect(journal.read).toBe(hasZstd ? 2 : 1);
+  });
+});
+
+describe('도우미: 이 폴더에서 AI가 한 일 (/api/activity)', () => {
+  let tmp: string;
+  let server: LocalServer;
+  let projectPath: string;
+  let claudeFile: string;
+  const KEY = 'a'.repeat(48);
+  const put = (file: string, text: string) => {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, text, 'utf8');
+  };
+  const j = (value: unknown) => JSON.stringify(value);
+
+  beforeAll(async () => {
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'teamcook-activity-'));
+    projectPath = path.join(tmp, 'proj');
+    mkdirSync(projectPath, { recursive: true });
+    const claude = path.join(tmp, 'claude-projects');
+    const dir = path.join(claude, projectPath.replace(/[^a-zA-Z0-9]/g, '-'));
+    const editA = path.join(projectPath, 'src', 'a.ts');
+    claudeFile = path.join(dir, 's2.jsonl');
+    put(
+      claudeFile,
+      [
+        j({ type: 'user', cwd: projectPath, timestamp: '2026-11-20T01:00:00Z', message: { role: 'user', content: '로그인 버그를 고쳐 줘' } }),
+        j({
+          type: 'assistant',
+          timestamp: '2026-11-20T01:01:00Z',
+          message: {
+            id: 'm1',
+            role: 'assistant',
+            usage: { output_tokens: 30 },
+            content: [
+              { type: 'tool_use', id: 'tA', name: 'Agent', input: { subagent_type: 'reviewer', description: '검토', prompt: '봐 줘' } },
+              { type: 'tool_use', id: 'tB', name: 'Agent', input: { subagent_type: 'sneaky', description: '몰래', prompt: '읽어 줘' } },
+              { type: 'tool_use', id: 'tE', name: 'Edit', input: { file_path: editA } },
+            ],
+          },
+        }),
+        j({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tA', content: '좋아요' }] }, toolUseResult: { agentId: 'abc123', totalTokens: 50, totalDurationMs: 2000, status: 'completed' } }),
+        // 기록 안의 agentId가 경로를 벗어나려 해도 따라가지 않아야 한다
+        j({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tB', content: '끝' }] }, toolUseResult: { agentId: 'x/../../decoy', totalTokens: 1 } }),
+      ].join('\n'),
+    );
+    // 이어하기로 만들어진 복사본: s2의 줄이 그대로 들어 있고 새로 한 일은 없다 (요약이 부풀려지면 안 된다)
+    const original = readFileSync(claudeFile, 'utf8');
+    const waitUntil = Date.now() + 30;
+    while (Date.now() < waitUntil) {
+      // 복사본이 원본보다 확실히 나중에 만들어지도록 잠깐 기다린다 (파일 생성 시각 비교용)
+    }
+    put(path.join(dir, 's2-resumed.jsonl'), original);
+    // 팀원 reviewer(읽기 전용이어야 하는데)가 파일을 고친 기록
+    put(path.join(dir, 's2', 'subagents', 'agent-abc123.jsonl'), j({ type: 'assistant', message: { id: 'z', content: [{ type: 'tool_use', id: 'u1', name: 'Write', input: { file_path: path.join(projectPath, 'NOTES.md') } }] } }));
+    // 위의 'x/../../decoy'를 그대로 따라가면 읽히는 자리에 미끼를 둔다
+    put(path.join(dir, 's2', 'decoy.jsonl'), j({ type: 'assistant', message: { id: 'd', content: [{ type: 'tool_use', id: 'd1', name: 'Write', input: { file_path: path.join(projectPath, 'DECOY.md') } }] } }));
+
+    const codex = path.join(tmp, 'codex-sessions');
+    const meta = (id: string, cwd: string, extra: Record<string, unknown> = {}) => j({ type: 'session_meta', timestamp: '2026-11-21T02:00:00Z', payload: { id, cwd, ...extra } });
+    const user = (text: string) => j({ type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] } });
+    const change = (file: string) => j({ type: 'event_msg', payload: { type: 'item_completed', item: { type: 'FileChange', status: 'completed', changes: { [file]: { type: 'update' } } } } });
+    put(path.join(codex, '2026/11/21/rollout-2026-11-21T02-00-00-root.jsonl'), [meta('root', projectPath), user('테스트를 추가해 줘'), change('src/a.ts')].join('\n'));
+    put(
+      path.join(codex, '2026/11/21/rollout-2026-11-21T02-01-00-child.jsonl'),
+      [meta('child', projectPath, { parent_thread_id: 'root', agent_role: 'writer', thread_source: 'subagent' }), j({ type: 'response_item', payload: { type: 'agent_message', author: 'main', recipient: 'w', content: [{ text: '써 줘' }] } }), change('src/w.ts')].join('\n'),
+    );
+    put(path.join(codex, '2026/11/21/rollout-2026-11-21T03-00-00-other.jsonl'), [meta('other', path.join(tmp, 'elsewhere')), user('남의 프로젝트'), change('x.ts')].join('\n'));
+
+    server = await startLocalServer({ uiDir: null, port: 0, claudeProjects: claude, codexSessions: codex, watch: false, key: KEY });
+    await connectLocal(server.url, KEY);
+  });
+
+  afterAll(async () => {
+    await server.close();
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('프로젝트를 열기 전에는 요약하지 않는다', async () => {
+    await expect(fetchActivity()).rejects.toThrow();
+  });
+
+  it('두 도구의 기록을 이 프로젝트 것만 모아 요약한다', async () => {
+    await selectProject(projectPath);
+    const summary = await fetchActivity();
+    // 다른 프로젝트의 Codex 기록(other)은 들어오지 않는다
+    expect(summary.totals).toMatchObject({ sessions: 2, claude: 1, codex: 1, turns: 2, claudeOutputTokens: 30 });
+    const files = summary.topFiles.map((file) => file.path).sort();
+    expect(files).toEqual(['NOTES.md', 'src/a.ts', 'src/w.ts']);
+    expect(summary.topFiles.find((file) => file.path === 'src/a.ts')).toMatchObject({ edits: 2, sessions: 2 });
+    // 팀원 reviewer·writer가 고친 파일이 팀원 기록으로 남는다
+    expect(summary.roleEdits.map((item) => [item.role, item.files]).sort()).toEqual([
+      ['reviewer', ['NOTES.md']],
+      ['writer', ['src/w.ts']],
+    ]);
+    expect(summary.roles.find((role) => role.role === 'reviewer')).toMatchObject({ count: 1, tokens: 50, durationMs: 2000, editedFiles: 1 });
+  });
+
+  it('이어하기로 복사된 대화는 두 번 세지 않고, 알린다', async () => {
+    const summary = await fetchActivity();
+    // s2-resumed.jsonl은 s2의 복사본이라 새로 한 일이 없다: 대화 수·파일 고침·토큰이 두 배가 되지 않는다
+    expect(summary.totals).toMatchObject({ sessions: 2, claude: 1, turns: 2, claudeOutputTokens: 30 });
+    expect(summary.topFiles.find((file) => file.path === 'src/a.ts')?.edits).toBe(2);
+    expect(summary.notes.some((note) => note.includes('이어하기'))).toBe(true);
+  });
+
+  it('기록 안의 agentId로 경로를 벗어나 다른 파일을 읽지 않는다', async () => {
+    const summary = await fetchActivity();
+    expect(summary.topFiles.map((file) => file.path)).not.toContain('DECOY.md');
+    // 읽지 못한 맡긴 일은 0이 아니라 모름
+    expect(summary.uncheckedDelegations).toBe(1);
+    expect(summary.roles.find((role) => role.role === 'sneaky')?.editedFiles).toBeNull();
+  });
+
+  it('기록이 늘면 다시 읽고, 그대로면 읽은 것을 쓴다', async () => {
+    const before = await fetchActivity();
+    appendFileSync(claudeFile, `\n${j({ type: 'user', timestamp: '2026-11-20T03:00:00Z', message: { role: 'user', content: '한 번 더 부탁해요' } })}`);
+    const after = await fetchActivity();
+    expect(after.totals.turns).toBe(before.totals.turns + 1);
+    expect((await fetchActivity()).totals.turns).toBe(after.totals.turns);
   });
 });

@@ -5,9 +5,20 @@
 //   - 돌려받기: user 줄의 tool_result (tool_use_id로 짝) + 같은 줄의 toolUseResult {agentId, totalTokens, totalDurationMs, totalToolUseCount, status}
 // 기록 파일은 수십 MB가 될 수 있어 한 줄씩 넣는다 (addLine). 관계없는 줄은 JSON으로 풀지도 않는다.
 
-import type { AgentStep, Delegation, JournalSession } from './types';
+import type { ActivityItems, AgentStep, Delegation, JournalSession, SessionActivity } from './types';
 
 const AGENT_TOOLS = new Set(['Agent', 'Task']);
+/** 파일을 고치는 도구. 셸 명령(Bash)으로 바꾼 파일은 기록만으로는 알 수 없어 세지 않는다. */
+const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+/** 요약용(lite)으로 읽을 때 글 하나를 이 길이에서 자른다 (요약에는 긴 글이 필요 없고 메모리를 아낀다) */
+export const LITE_TEXT = 400;
+/** 대화 제목을 고를 때 쓰려고 사용자의 처음 말 몇 개만 둔다 */
+export const MAX_PROMPTS = 5;
+
+export interface BuilderOptions {
+  /** true면 시킨 말·돌려받은 말을 LITE_TEXT에서 자른다 (활동 요약용) */
+  lite?: boolean;
+}
 
 type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -30,12 +41,44 @@ function isHumanPrompt(text: string): boolean {
   return trimmed !== '' && !trimmed.startsWith('<') && !trimmed.startsWith('[Request interrupted');
 }
 
+/** 도구 호출이 파일을 고치는 것이면 그 경로를 돌려준다 */
+function editedPath(block: Json): string | undefined {
+  const name = str(block.name) ?? '';
+  if (!EDIT_TOOLS.has(name) || !isObject(block.input)) return undefined;
+  return str(block.input.file_path) ?? str(block.input.notebook_path);
+}
+
 export class ClaudeSessionBuilder {
   private session: JournalSession;
   private byToolUse = new Map<string, Delegation>();
+  private lite: boolean;
+  private turns = 0;
+  private prompts: string[] = [];
+  private toolCounts: Record<string, number> = {};
+  private edits: Record<string, number> = {};
+  /** 같은 도구 호출이 스트리밍으로 여러 줄에 반복돼도 한 번만 센다 */
+  private seenToolUse = new Set<string>();
+  /** 메시지 id → 출력 토큰. 같은 메시지가 여러 줄에 반복되므로 id마다 한 번만 센다 */
+  private outputByMessage = new Map<string, number>();
+  /** lite일 때 이어하기 복사본을 걸러내려고 항목마다 키를 남긴다 */
+  private items: Pick<ActivityItems, 'prompts' | 'tools'> = { prompts: [], tools: [] };
 
-  constructor(id: string) {
+  constructor(id: string, options: BuilderOptions = {}) {
+    this.lite = options.lite === true;
     this.session = { tool: 'claude-code', id, firstPrompt: '', delegations: [], skippedLines: 0 };
+  }
+
+  private clip(text: string): string {
+    return this.lite && text.length > LITE_TEXT ? `${text.slice(0, LITE_TEXT)}…` : text;
+  }
+
+  /** 사용자가 직접 친 말 하나를 센다 */
+  private human(text: string, at?: string): void {
+    const trimmed = text.trim();
+    this.turns += 1;
+    if (this.lite) this.items.prompts.push({ key: `${at ?? ''}|${trimmed.slice(0, 80)}`, text: trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed, ...(at ? { at } : {}) });
+    if (this.prompts.length < MAX_PROMPTS) this.prompts.push(trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed);
+    if (!this.session.firstPrompt) this.session.firstPrompt = this.clip(trimmed);
   }
 
   addLine(line: string): void {
@@ -61,16 +104,31 @@ export class ClaudeSessionBuilder {
 
     if (entry.type === 'assistant') {
       const said = textOf(message.content);
-      if (said.trim()) this.session.finalAnswer = said;
+      if (said.trim()) this.session.finalAnswer = this.clip(said);
+      const messageId = str(message.id);
+      const usage = isObject(message.usage) ? num(message.usage.output_tokens) : undefined;
+      if (messageId && usage !== undefined) {
+        this.outputByMessage.set(messageId, Math.max(usage, this.outputByMessage.get(messageId) ?? 0));
+      }
       for (const block of blocks) {
-        if (block.type !== 'tool_use' || !AGENT_TOOLS.has(str(block.name) ?? '')) continue;
+        if (block.type !== 'tool_use') continue;
+        const toolId = str(block.id);
+        const name = str(block.name) ?? '';
+        if (name && toolId && !this.seenToolUse.has(toolId)) {
+          this.seenToolUse.add(toolId);
+          this.toolCounts[name] = (this.toolCounts[name] ?? 0) + 1;
+          const edited = editedPath(block);
+          if (edited) this.edits[edited] = (this.edits[edited] ?? 0) + 1;
+          if (this.lite) this.items.tools.push({ id: toolId, name, ...(at ? { at } : {}), ...(edited ? { edit: edited } : {}) });
+        }
+        if (!AGENT_TOOLS.has(name)) continue;
         const input = isObject(block.input) ? block.input : {};
         const id = str(block.id);
         if (!id || this.byToolUse.has(id)) continue;
         const delegation: Delegation = {
           id,
           role: str(input.subagent_type) || 'general-purpose',
-          instruction: str(input.prompt) ?? '',
+          instruction: this.clip(str(input.prompt) ?? ''),
           status: 'unknown',
         };
         const title = str(input.description);
@@ -84,20 +142,21 @@ export class ClaudeSessionBuilder {
 
     if (entry.type === 'user') {
       if (typeof message.content === 'string') {
-        if (!this.session.firstPrompt && entry.isMeta !== true && isHumanPrompt(message.content)) {
-          this.session.firstPrompt = message.content.trim();
-        }
+        if (entry.isMeta !== true && isHumanPrompt(message.content)) this.human(message.content, at);
         return;
       }
+      let counted = false;
       for (const block of blocks) {
-        if (block.type === 'text' && !this.session.firstPrompt && isHumanPrompt(str(block.text) ?? '')) {
-          this.session.firstPrompt = (str(block.text) ?? '').trim();
+        // 사용자가 한 번 보낸 메시지에 글 조각이 여럿이어도 한 번으로 센다
+        if (block.type === 'text' && !counted && entry.isMeta !== true && isHumanPrompt(str(block.text) ?? '')) {
+          counted = true;
+          this.human(str(block.text) ?? '', at);
         }
         if (block.type !== 'tool_result') continue;
         const delegation = this.byToolUse.get(str(block.tool_use_id) ?? '');
         if (!delegation) continue;
         const detail = isObject(entry.toolUseResult) ? entry.toolUseResult : {};
-        delegation.result = textOf(detail.content) || textOf(block.content);
+        delegation.result = this.clip(textOf(detail.content) || textOf(block.content));
         delegation.status = block.is_error === true || detail.status === 'failed' ? 'failed' : 'done';
         const tokens = num(detail.totalTokens);
         if (tokens !== undefined) delegation.tokens = tokens;
@@ -112,7 +171,45 @@ export class ClaudeSessionBuilder {
   }
 
   result(): JournalSession {
+    const activity: SessionActivity = { turns: this.turns, prompts: this.prompts, toolCounts: this.toolCounts, edits: this.edits };
+    if (this.outputByMessage.size > 0) {
+      activity.outputTokens = [...this.outputByMessage.values()].reduce((sum, value) => sum + value, 0);
+    }
+    if (this.lite) activity.items = { prompts: this.items.prompts, tools: this.items.tools, outputs: Object.fromEntries(this.outputByMessage) };
+    this.session.activity = activity;
     return this.session;
+  }
+}
+
+/** 서브에이전트 기록 파일(agent-<id>.jsonl)에서 그 팀원이 고친 파일(경로 → 횟수)을 모은다. 한 줄씩 넣는다. */
+export class ClaudeAgentEditsBuilder {
+  private edits: Record<string, number> = {};
+  private seen = new Set<string>();
+
+  addLine(line: string): void {
+    // 파일 고치는 도구 호출이 들어 있을 수 있는 줄만 푼다
+    if (!line.includes('"tool_use"') || !line.includes('"type":"assistant"')) return;
+    let entry: unknown;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (!isObject(entry) || !isObject(entry.message) || !Array.isArray(entry.message.content)) return;
+    for (const block of entry.message.content.filter(isObject)) {
+      if (block.type !== 'tool_use') continue;
+      const id = str(block.id);
+      if (id) {
+        if (this.seen.has(id)) continue;
+        this.seen.add(id);
+      }
+      const path = editedPath(block);
+      if (path) this.edits[path] = (this.edits[path] ?? 0) + 1;
+    }
+  }
+
+  result(): Record<string, number> {
+    return this.edits;
   }
 }
 

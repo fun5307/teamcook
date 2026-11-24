@@ -8,6 +8,7 @@ export type Route =
   | { page: 'home' }
   | { page: 'team' }
   | { page: 'journal' }
+  | { page: 'activity' }
   | { page: 'workshop' }
   | { page: 'order'; id: string }
   | { page: 'orders' }
@@ -52,6 +53,7 @@ export function parseRoute(hash: string): Route {
   if (first === 'recipes') return { page: 'gallery' };
   if (first === 'team') return { page: 'team' };
   if (first === 'journal') return { page: 'journal' };
+  if (first === 'activity') return { page: 'activity' };
   if (first === 'workshop') return { page: 'workshop' };
   if (first === 'orders' && second === 'new') return { page: 'order-start' };
   if (first === 'order' && second) return { page: 'order', id: decodeURIComponent(second) };

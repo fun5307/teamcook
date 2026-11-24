@@ -16,6 +16,7 @@ import { PERMISSION_LABELS } from '@/lib/recipeMd';
 import { ROLE_LABELS } from '@/lib/roles';
 import { applyChanges, planHire, TEAM_DIRS, type FileChange, type HirePlan, type Member } from '@/lib/workspace/team';
 import { CardEditor } from '@/pages/RecipeEditorPage';
+import { ActivityTab } from '@/pages/team/ActivityTab';
 import { JournalTab } from '@/pages/team/JournalTab';
 import { LocalProjects } from '@/pages/team/LocalProjects';
 import { StartGuide } from '@/pages/team/StartGuide';
@@ -24,7 +25,7 @@ import { useStore } from '@/store/useStore';
 import { folderAccessSupported, openProject, recalledName, reopenProject, useWorkspace } from '@/store/useWorkspace';
 import type { AgentCard, Recipe, RoleTag } from '@/types';
 
-type Tab = 'members' | 'journal';
+type Tab = 'members' | 'journal' | 'activity';
 
 const KIND_LABELS: Record<FileChange['kind'], string> = { create: '새로 만듦', update: '고침', delete: '지움' };
 
@@ -386,6 +387,8 @@ export function TeamPage({ view }: { view?: Tab } = {}) {
         />
       )}
 
+      {tab === 'activity' ? <ActivityTab projectName={snapshot.folderName} cards={cards} /> : null}
+
       {tab === 'journal' ? <JournalTab projectName={snapshot.folderName} projectPath={localInfo()?.project?.path} cards={cards} /> : null}
 
       {tab === 'members' ? (
@@ -394,6 +397,12 @@ export function TeamPage({ view }: { view?: Tab } = {}) {
             <Notice tone="info">
               이 폴더에는 아직 팀원이 없어요 (<code>.codex/agents</code>, <code>.claude/agents</code>에 역할 파일이 없음). 아래에서
               팀원을 더하거나 레시피로 한 번에 들일 수 있어요.
+              {isLocal() ? (
+                <>
+                  {' '}
+                  AI가 이 폴더에서 한 일은 <a className="font-medium underline" href="#/activity">활동</a>에서 볼 수 있어요.
+                </>
+              ) : null}
             </Notice>
           ) : null}
           <div className="flex flex-col gap-3">

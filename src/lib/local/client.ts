@@ -3,6 +3,7 @@
 // 도우미 너머의 폴더는 브라우저 폴더 손잡이와 같은 모양(DirLike)으로 쓴다. 그래서 팀 읽기·저장·업무 일지 코드를 그대로 쓴다.
 // 웹사이트(Vercel)에서 열면 열쇠가 없으므로 아무것도 묻지 않고, 지금처럼 폴더 고르기로 동작한다.
 
+import type { ActivitySummary } from '../journal/activity';
 import type { DirLike, FileData, FileLike } from '../workspace/fs';
 
 export type LocalRoot = 'project' | 'claude-logs' | 'codex-logs';
@@ -211,6 +212,9 @@ export function localDir(root: LocalRoot, name?: string): DirLike {
   const fallback = root === 'project' ? (info?.project?.name ?? 'project') : root === 'claude-logs' ? 'projects' : 'sessions';
   return new LocalDir(root, '', name ?? fallback);
 }
+
+/** 고른 프로젝트에서 AI가 한 일의 요약 (도우미가 기록을 읽어 만든다) */
+export const fetchActivity = () => request<ActivitySummary>('/api/activity');
 
 export const recentProjects = (fresh = false) => request<RecentProject[]>(`/api/projects${fresh ? '?fresh=1' : ''}`);
 
