@@ -1,6 +1,6 @@
 {
   "name": "teamcook",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI 팀을 레시피로 요리하세요 — Codex·Claude Code 에이전트 팀을 설계하고 공유하는 도구",
   "type": "module",
   "homepage": "https://teamcook-eta.vercel.app/",
