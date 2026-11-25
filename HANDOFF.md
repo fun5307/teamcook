@@ -80,6 +80,15 @@
 - 흐름: 상황 묶음 칩(전체·새로 만들기…) → 카드 한 줄(3장) + "더 보기" → 카드를 누르면 위에 "고른 레시피" 패널(팀원 수·만들 파일 수·만들 파일 보기·건너뛴 파일) → "이 폴더에 넣기". 같은 카드를 다시 누르거나 "고르기 취소"로 거둔다. 넣은 뒤에는 기존처럼 시작하기 안내(StartGuide).
 - 1280px·390px에서 가짜 프로젝트(shop-app)로 확인. 테스트 374개 통과. 아직 커밋 전.
 
+## 기본 도우미 안내 (2026-11-24, 11-25에 Codex까지 확장)
+
+- 업무 일지·활동에 사용자가 만든 적 없는 `web-fetch`, `worker` 같은 이름이 뜨는 까닭: 도구가 기본으로 갖고 있는 도우미(내장 서브에이전트)이기 때문이다. `.claude/agents`·`.codex/agents` 파일이 아니다. 기록의 `subagent_type`(Claude)·`agent_role`(Codex)을 그대로 역할 이름으로 쓰기 때문에 팀원처럼 보였다.
+- `lib/journal/builtinAgents.ts`에 10종: Claude Code 7종(Explore, Plan, general-purpose, claude, statusline-setup, claude-code-guide, web-fetch. 근거 https://code.claude.com/docs/en/sub-agents 의 "Built-in subagents" 절 원문), Codex 3종(default, worker, explorer. 근거 https://developers.openai.com/codex/subagents). 각각 한 줄 소개·하는 일·언제 불리는지를 적었다.
+- 확인 수준(2026-11-25): 전부 **공식 문서 확인**. 실제 기록으로 본 것은 Claude의 web-fetch(149회)와 Codex의 worker(5회)뿐이다. Codex 문서는 일부를 요약본으로 읽어서 각 도우미의 권한(읽기 전용 여부)은 단정하지 않았다(explorer도 "읽는 일 위주"까지만). 내 Codex 기록의 나머지 역할 이름(reviewer, data_scout, validation …)은 다른 프로젝트에서 사용자가 만든 이름이다.
+- 도구가 새 도우미를 더하면 표에도 더해야 한다. 없는 이름은 "지금 팀에 없는 이름"으로 두고 지어내지 않는다. 이 폴더에 같은 이름의 팀원 파일이 있으면 그 팀원이 우선이다(Codex 문서도 같은 규칙).
+- 화면: 업무 일지 줄에 "기본 도우미" 표시, 펼치면 "'web-fetch' 팀원은 누구일까요?" 설명(도구별로 언제 불리는지 다르게). 활동 탭의 팀원별 목록에는 이름 밑에 "Claude Code 기본 도우미 · 한 줄 소개".
+- 테스트 380개 통과. 아직 커밋 전.
+
 ## npx 배포 준비 (2026-11-24, T3 Code 차용 1번)
 > **공개 완료(2026-11-24): `teamcook@0.1.0`이 npm `latest`.** 빈 폴더에서 `npx --yes teamcook@latest open`으로 받아 실행해 화면 200, 열쇠 없는 `/api` 401을 확인했다. 겪은 일: 첫 `npm publish`는 2FA가 없어 E403. 2FA(보안 키)를 켠 뒤 npm이 `0.0.0-stage`(단계적 게시용 자리 표시자)를 먼저 만들었고, 그 사이 `npx`가 "could not determine executable"로 실패했다(자리 표시자에는 실행 파일이 없음). 다시 `npm publish`해서 0.1.0이 올라갔다. 버전 목록에 `0.0.0-stage`가 남아 있는 것은 정상이다. 새 버전을 낼 때는 `package.json`의 `version`을 올린 뒤 `npm publish`(보안 키 인증).
 - **`teamcook` 이름은 npm에 비어 있었다**(2026-11-24 `npm view teamcook`이 404). 공개하기 전에 한 번 더 확인할 것.

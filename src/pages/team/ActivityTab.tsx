@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/common';
 import { BrandLogo } from '@/components/BrandLogo';
+import { builtinAgent } from '@/lib/journal/builtinAgents';
 import { checkPermissions, type ActivityFile, type ActivityRole, type ActivitySession, type ActivitySummary } from '@/lib/journal/activity';
 import { fetchActivity, subscribeLocal } from '@/lib/local/client';
 import { fmtCompact, fmtDay, fmtDuration, fmtTime, fmtTokens } from '@/pages/team/format';
@@ -144,14 +145,26 @@ function TopFiles({ files }: { files: ActivityFile[] }) {
   );
 }
 
-function Roles({ roles }: { roles: ActivityRole[] }) {
+function Roles({ roles, cards }: { roles: ActivityRole[]; cards: AgentCard[] }) {
+  // 이 폴더에 같은 이름의 팀원 파일이 있으면 그 팀원이다 (기본 도우미 이름을 덮어쓴 것)
+  const mine = new Set(cards.map((card) => card.name));
   return (
     <section className="overflow-hidden rounded-2xl border bg-card" aria-label="팀원별로 일한 양">
       <CardHead title="팀원별로 일한 양" />
       <ul className="flex flex-col divide-y px-5 pb-2">
         {roles.map((row) => (
           <li key={row.role} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5">
-            <span className="font-heading font-extrabold">{row.role}</span>
+            <span className="flex flex-col">
+              <span className="font-heading font-extrabold">{row.role}</span>
+              {(() => {
+                const builtin = mine.has(row.role) ? null : builtinAgent(row.role);
+                return builtin ? (
+                  <span className="text-xs text-muted-foreground">
+                    {TOOL_LABEL[builtin.tool]} 기본 도우미 · {builtin.who}
+                  </span>
+                ) : null;
+              })()}
+            </span>
             <span className="text-xs text-muted-foreground tabular-nums">
               맡은 일 <b className="font-semibold text-foreground">{row.count}건</b> · {fmtDuration(row.durationMs)} · 토큰 {fmtCompact(row.tokens)} · 고친 파일{' '}
               {row.editedFiles === null ? '모름' : `${row.editedFiles}개`}
@@ -308,7 +321,7 @@ export function ActivityTab({ cards }: { cards: AgentCard[] }) {
 
             <div className={cn('grid gap-5', summary.roles.length > 0 && summary.topFiles.length > 0 && 'lg:grid-cols-2')}>
               {summary.topFiles.length > 0 ? <TopFiles files={summary.topFiles} /> : null}
-              {summary.roles.length > 0 ? <Roles roles={summary.roles} /> : null}
+              {summary.roles.length > 0 ? <Roles roles={summary.roles} cards={cards} /> : null}
             </div>
 
             <RecentSessions sessions={summary.sessions} total={totals.sessions} />

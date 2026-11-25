@@ -20,6 +20,7 @@ import {
   sameProject,
   type SessionFile,
 } from '@/lib/journal/read';
+import { builtinAgent } from '@/lib/journal/builtinAgents';
 import { buildLineage, pickTitle, type ActivitySession, type LineageNode } from '@/lib/journal/activity';
 import { summarizeRoles, type AgentStep, type Delegation, type JournalSession, type JournalTool } from '@/lib/journal/types';
 import type { DirLike } from '@/lib/workspace/fs';
@@ -76,12 +77,15 @@ function flatten(nodes: LineageNode[], depth = 0, out: { id: string; depth: numb
 
 function DelegationRow({
   item,
+  tool,
   depth,
   known,
   askedBy,
   loadSteps,
 }: {
   item: Delegation;
+  /** 이 대화를 남긴 도구 (기본 도우미 이름은 도구마다 다르다) */
+  tool: JournalTool;
   depth: number;
   known: boolean;
   /** 이 일을 맡긴 팀원 (메인 AI가 직접 맡겼으면 없음) */
@@ -91,6 +95,7 @@ function DelegationRow({
   const [open, setOpen] = useState(false);
   const [steps, setSteps] = useState<AgentStep[] | null | undefined>(undefined);
   const status = STATUS[item.status];
+  const builtin = builtinAgent(item.role, tool);
   const edited = item.edited ? Object.keys(item.edited).length : null;
   const meta = [
     status.label,
@@ -110,7 +115,9 @@ function DelegationRow({
               {depth > 0 ? <span className="text-muted-foreground">↳</span> : null}
               <span className="font-heading text-lg font-extrabold">{item.role}</span>
               {item.title ? <span className="min-w-0 truncate text-sm text-muted-foreground">{item.title}</span> : null}
-              {!known ? <span className="rounded bg-muted px-1.5 py-0.5 text-[0.7rem] text-muted-foreground">지금 팀에 없는 이름</span> : null}
+              {!known ? (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[0.7rem] text-muted-foreground">{builtin ? '기본 도우미' : '지금 팀에 없는 이름'}</span>
+              ) : null}
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground tabular-nums">
               {askedBy ? `맡긴 팀원: ${askedBy} · ` : ''}
@@ -121,6 +128,20 @@ function DelegationRow({
         </button>
         {open ? (
           <div className="flex flex-col gap-3 border-t px-4 py-3">
+            {!known ? (
+              <p className="rounded-lg border border-dashed px-3 py-2 text-sm leading-relaxed">
+                <b className="font-semibold">‘{item.role}’ 팀원은 누구일까요?</b>{' '}
+                {builtin ? (
+                  <>
+                    {builtin.who}. {builtin.detail} 내가 만든 팀원이 아니라 {TOOL_LABEL[tool]}에 기본으로 들어 있는 도우미예요. {builtin.calledWhen}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">
+                    지금 이 폴더의 팀원 파일에는 없는 이름이에요. 지웠거나 이름을 바꿨거나, 다른 폴더의 팀원일 수 있어요. 이 도구의 기본 도우미 목록에서도 찾지 못했어요.
+                  </span>
+                )}
+              </p>
+            ) : null}
             <div className="grid gap-3 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <p className="text-xs font-bold text-primary">시킨 말 (원문)</p>
@@ -244,6 +265,7 @@ function SessionView({
                 <DelegationRow
                   key={id}
                   item={item}
+                  tool={session.tool}
                   depth={depth}
                   known={names.has(item.role)}
                   askedBy={item.parentId ? byId.get(item.parentId)?.role : undefined}

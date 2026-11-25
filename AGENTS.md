@@ -59,7 +59,7 @@ src/
 │  ├─ verification.ts      # 확인 기록 이름표 (문서 확인 / 파일 생성 확인 / 실제 실행 확인)
 │  ├─ order/               # 주문(작업 설계): types, draft(규칙 기반 초안), ops(작업 편집·참조 영향·범위), team(역할 제안), toRecipe(레시피 변환·점검·연결 상태), schema(저장·JSON), materials(자료 읽기), snapshot(실습 기록용 복사본)
 │  ├─ workspace/           # 내 프로젝트 폴더: fs(폴더 읽기·쓰기, 테스트용 메모리 폴더), team(팀 읽기 scanTeam, 고친 것만 쓰기 planSave·applyChanges, 레시피 들이기 planHire)
-│  ├─ journal/             # 업무 일지: claude·codex(대화 기록 해석, 형식은 문서에 없어 실제 기록에서 본 모양), read(기록 폴더 읽기), activity(활동 요약·이어하기 복사 걸러내기·권한 점검·위임 계보. 순수 함수)
+│  ├─ journal/             # 업무 일지: claude·codex(대화 기록 해석, 형식은 문서에 없어 실제 기록에서 본 모양), read(기록 폴더 읽기), activity(활동 요약·이어하기 복사 걸러내기·권한 점검·위임 계보. 순수 함수), builtinAgents(Claude Code·Codex 기본 도우미 10종의 소개. 도구가 새 도우미를 더하면 여기에도 더한다. 없는 이름은 지어내지 않는다)
 │  ├─ local/               # 내 컴퓨터 도우미(teamcook open)와 이야기하는 쪽: 도우미가 띄운 화면인지 알아보기, 도우미 너머의 폴더를 DirLike로 쓰기, 실시간 알림
 │  ├─ practice/            # 실습 기록·비교 평가 (2차, 부가 기능. 진입은 components/practice/PracticePanel.tsx의 옆 패널). types, schema(읽기·버전), storage(저장 API, 화면과 분리), model(만들기·잠금·측정 검사), rubric, compare, report(Markdown), transfer(JSON), demo(GraphRAG 합성 데모)
 │  ├─ plansSummary.ts      # 내 AI 현황 한 줄 요약 (추천 상자·레시피 책이 함께 씀)
